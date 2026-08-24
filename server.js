@@ -1,9 +1,11 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +21,33 @@ const KAKAO_REDIRECT_URI = process.env.KAKAO_REDIRECT_URI || `http://localhost:$
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/auth/google/callback`;
+
+// ---- 이메일 발송 설정 (인증 메일 · 비밀번호 재설정) ----
+const GMAIL_USER = process.env.GMAIL_USER || '';
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || '';
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1시간
+
+const mailTransporter = (GMAIL_USER && GMAIL_APP_PASSWORD)
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+    })
+  : null;
+
+// Gmail 계정이 설정되지 않은 개발 환경에서는 실제 발송 대신 콘솔에 링크를 출력해요.
+async function sendMail({ to, subject, html }) {
+  if (!mailTransporter) {
+    console.log(`\n[메일 발송 생략 — GMAIL_USER/GMAIL_APP_PASSWORD 미설정]\n받는 사람: ${to}\n제목: ${subject}\n${html}\n`);
+    return;
+  }
+  await mailTransporter.sendMail({ from: `"쉼표" <${GMAIL_USER}>`, to, subject, html });
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 // 실제 카카오/구글 서버 주소. 테스트 시에만 환경변수로 가짜 서버 주소를 넣어 검증해요.
 const KAKAO_AUTH_BASE = process.env.KAKAO_AUTH_BASE || 'https://kauth.kakao.com';
@@ -240,12 +269,21 @@ app.use(session({
   },
 }));
 
+// 카카오/구글 소셜 로그인 계정은 이미 검증된 이메일이라 처음부터 인증된 것으로 취급.
+// 이메일 로그인 계정은 emailVerified 값을 그대로 따름 (회원가입 시 false로 시작).
+function isEmailVerified(user) {
+  if (!user) return false;
+  if (user.provider && user.provider !== 'local') return true;
+  return !!user.emailVerified;
+}
+
 function publicUser(u) {
   return {
     id: u.id, email: u.email, nickname: u.nickname, provider: u.provider || 'local', createdAt: u.createdAt,
     isAdmin: isAdminUser(u),
     banned: !!u.banned,
     sanctionUntil: u.sanctionUntil || null,
+    emailVerified: isEmailVerified(u),
   };
 }
 
@@ -257,6 +295,9 @@ function sanctionMessage(user) {
     const d = new Date(user.sanctionUntil);
     const dateStr = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
     return `신고 누적으로 ${dateStr}까지 글쓰기·댓글 작성이 제한돼요.`;
+  }
+  if (!isEmailVerified(user)) {
+    return '이메일 인증 후 글쓰기·댓글을 쓸 수 있어요. 가입하신 이메일함을 확인해주세요.';
   }
   return null;
 }
@@ -285,6 +326,7 @@ function findOrCreateSocialUser(users, info) {
     if (user) {
       user.provider = user.provider || info.provider;
       user.providerId = user.providerId || info.providerId;
+      user.emailVerified = true; // 소셜 서비스가 이미 검증한 이메일이므로 함께 인증 처리
       return user;
     }
   }
@@ -312,8 +354,22 @@ function configMissingPage(name, envVars) {
   </body>`;
 }
 
+function verifyEmailMailHtml(link) {
+  return `<div style="font-family:sans-serif;line-height:1.7;">
+    <p>안녕하세요, 쉼표예요.</p>
+    <p>아래 링크를 눌러 이메일 인증을 완료해주세요. 인증을 마치면 글쓰기·댓글을 쓸 수 있어요.</p>
+    <p><a href="${link}">${link}</a></p>
+    <p>이 링크는 24시간 동안만 유효해요.</p>
+  </div>`;
+}
+
+async function sendVerificationEmail(user) {
+  const link = `${APP_BASE_URL}/verify-email?token=${user.verifyToken}`;
+  await sendMail({ to: user.email, subject: '[쉼표] 이메일 인증을 완료해주세요', html: verifyEmailMailHtml(link) });
+}
+
 // 회원가입
-app.post('/api/signup', (req, res) => {
+app.post('/api/signup', async (req, res) => {
   const { email, password, nickname } = req.body || {};
 
   if (!email || !EMAIL_RE.test(String(email).trim())) {
@@ -335,13 +391,74 @@ app.post('/api/signup', (req, res) => {
     email: normalizedEmail,
     passwordHash: bcrypt.hashSync(String(password), 10),
     nickname: nick,
+    emailVerified: false,
+    verifyToken: generateToken(),
+    verifyTokenExpires: new Date(Date.now() + EMAIL_VERIFY_TTL_MS).toISOString(),
     createdAt: new Date().toISOString(),
   };
   users.push(newUser);
   saveUsers(users);
 
+  try {
+    await sendVerificationEmail(newUser);
+  } catch (err) {
+    console.error('인증 메일 발송 실패:', err);
+  }
+
   req.session.userId = newUser.id;
   res.json({ ok: true, user: publicUser(newUser) });
+});
+
+// 이메일 인증 링크 클릭
+app.get('/verify-email', (req, res) => {
+  const { token } = req.query;
+  const users = loadUsers();
+  const user = users.find(u => u.verifyToken && u.verifyToken === token);
+
+  if (!user) {
+    return res.status(400).send(verifyResultPage(false, '유효하지 않은 인증 링크예요.'));
+  }
+  if (user.emailVerified) {
+    return res.send(verifyResultPage(true, '이미 인증이 완료된 계정이에요.'));
+  }
+  if (!user.verifyTokenExpires || new Date(user.verifyTokenExpires).getTime() < Date.now()) {
+    return res.status(400).send(verifyResultPage(false, '인증 링크가 만료됐어요. 다시 요청해주세요.'));
+  }
+
+  user.emailVerified = true;
+  user.verifyToken = null;
+  user.verifyTokenExpires = null;
+  saveUsers(users);
+  res.send(verifyResultPage(true, '이메일 인증이 완료됐어요! 이제 글쓰기·댓글을 쓸 수 있어요.'));
+});
+
+function verifyResultPage(success, message) {
+  return `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:40px;line-height:1.7;max-width:520px;margin:0 auto;">
+  <h2>${success ? '인증 완료' : '인증 실패'}</h2>
+  <p>${message}</p>
+  <a href="/">← 홈으로 돌아가기</a>
+  </body>`;
+}
+
+// 인증 메일 재발송 (로그인 상태에서, 아직 미인증인 경우)
+app.post('/api/resend-verification', requireAuth, async (req, res) => {
+  const user = req.currentUser;
+  if (user.emailVerified) {
+    return res.status(400).json({ ok: false, message: '이미 인증이 완료된 계정이에요.' });
+  }
+  const users = loadUsers();
+  const target = users.find(u => u.id === user.id);
+  target.verifyToken = generateToken();
+  target.verifyTokenExpires = new Date(Date.now() + EMAIL_VERIFY_TTL_MS).toISOString();
+  saveUsers(users);
+
+  try {
+    await sendVerificationEmail(target);
+  } catch (err) {
+    console.error('인증 메일 재발송 실패:', err);
+    return res.status(500).json({ ok: false, message: '메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.' });
+  }
+  res.json({ ok: true });
 });
 
 // 로그인
@@ -374,6 +491,100 @@ app.post('/api/logout', (req, res) => {
     res.json({ ok: true });
   });
 });
+
+function resetPasswordMailHtml(link) {
+  return `<div style="font-family:sans-serif;line-height:1.7;">
+    <p>안녕하세요, 쉼표예요.</p>
+    <p>비밀번호 재설정을 요청하셨어요. 아래 링크를 눌러 새 비밀번호를 설정해주세요.</p>
+    <p><a href="${link}">${link}</a></p>
+    <p>본인이 요청하지 않았다면 이 메일을 무시하셔도 괜찮아요. 이 링크는 1시간 동안만 유효해요.</p>
+  </div>`;
+}
+
+// 비밀번호 찾기: 이메일 입력 → 재설정 링크 발송.
+// 가입 여부를 노출하지 않기 위해 계정이 없거나 소셜 전용 계정이어도 항상 같은 응답을 돌려줌.
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || !EMAIL_RE.test(String(email).trim())) {
+    return res.status(400).json({ ok: false, message: '올바른 이메일을 입력해주세요.' });
+  }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const users = loadUsers();
+  const user = users.find(u => u.email === normalizedEmail);
+
+  if (user && user.passwordHash) {
+    user.resetToken = generateToken();
+    user.resetTokenExpires = new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString();
+    saveUsers(users);
+    const link = `${APP_BASE_URL}/reset-password?token=${user.resetToken}`;
+    try {
+      await sendMail({ to: user.email, subject: '[쉼표] 비밀번호 재설정', html: resetPasswordMailHtml(link) });
+    } catch (err) {
+      console.error('비밀번호 재설정 메일 발송 실패:', err);
+    }
+  }
+
+  res.json({ ok: true, message: '입력하신 이메일로 재설정 링크를 보냈어요. 메일함을 확인해주세요.' });
+});
+
+// 재설정 링크 클릭 시 보여줄 새 비밀번호 입력 폼
+app.get('/reset-password', (req, res) => {
+  const { token } = req.query;
+  const users = loadUsers();
+  const user = users.find(u => u.resetToken && u.resetToken === token
+    && u.resetTokenExpires && new Date(u.resetTokenExpires).getTime() > Date.now());
+
+  if (!user) {
+    return res.status(400).send(verifyResultPage(false, '유효하지 않거나 만료된 링크예요. 비밀번호 찾기를 다시 요청해주세요.'));
+  }
+  res.send(`<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:40px;line-height:1.7;max-width:420px;margin:0 auto;">
+  <h2>새 비밀번호 설정</h2>
+  <form id="f">
+    <input type="hidden" id="token" value="${escapeHtmlServer(String(token))}">
+    <input type="password" id="pw" placeholder="새 비밀번호 (6자 이상)" minlength="6" required style="width:100%;padding:10px;margin:8px 0;">
+    <button type="submit" style="width:100%;padding:10px;">비밀번호 변경</button>
+  </form>
+  <p id="msg"></p>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = document.getElementById('token').value;
+      const password = document.getElementById('pw').value;
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      document.getElementById('msg').textContent = data.message || (data.ok ? '변경 완료' : '오류가 발생했어요.');
+      if (data.ok) document.getElementById('f').style.display = 'none';
+    });
+  </script>
+  </body>`);
+});
+
+// 새 비밀번호 저장
+app.post('/api/reset-password', (req, res) => {
+  const { token, password } = req.body || {};
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ ok: false, message: '비밀번호는 6자 이상이어야 해요.' });
+  }
+  const users = loadUsers();
+  const user = users.find(u => u.resetToken && u.resetToken === token);
+  if (!user || !user.resetTokenExpires || new Date(user.resetTokenExpires).getTime() < Date.now()) {
+    return res.status(400).json({ ok: false, message: '유효하지 않거나 만료된 링크예요. 비밀번호 찾기를 다시 요청해주세요.' });
+  }
+
+  user.passwordHash = bcrypt.hashSync(String(password), 10);
+  user.resetToken = null;
+  user.resetTokenExpires = null;
+  saveUsers(users);
+  res.json({ ok: true, message: '비밀번호가 변경됐어요. 새 비밀번호로 로그인해주세요.' });
+});
+
+function escapeHtmlServer(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 // 로그인이 필요한 API에 붙이는 미들웨어
 function requireAuth(req, res, next) {

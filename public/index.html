@@ -508,6 +508,7 @@
       <input type="email" id="login-email" placeholder="이메일" autocomplete="email">
       <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="login-btn" onclick="doLogin()">로그인</button>
+      <div class="signup-link" onclick="showScreen('screen-forgot-password')">비밀번호를 잊으셨나요? <span>찾기</span></div>
       <div class="login-divider">또는</div>
       <a class="social-btn kakao-btn" href="/auth/kakao">카카오로 3초 만에 시작하기</a>
       <a class="social-btn google-btn" href="/auth/google">구글로 로그인</a>
@@ -528,6 +529,20 @@
       <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()">
       <button class="login-btn" onclick="doSignup()">가입하고 시작하기</button>
       <div class="signup-link" onclick="showScreen('screen-login')">이미 계정이 있다면? <span>로그인</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ⑥-1 비밀번호 찾기 -->
+<div class="site screen" id="screen-forgot-password">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">비밀번호를 재설정할 이메일을 입력해주세요</div>
+      <div class="form-msg" id="forgot-password-msg"></div>
+      <input type="email" id="forgot-password-email" placeholder="가입한 이메일" autocomplete="email" onkeydown="if(event.key==='Enter')doForgotPassword()">
+      <button class="login-btn" onclick="doForgotPassword()">재설정 링크 받기</button>
+      <div class="signup-link" onclick="showScreen('screen-login')">로그인으로 돌아가기</div>
     </div>
   </div>
 </div>
@@ -742,8 +757,10 @@
         let status = '';
         if(currentUser.banned) status = ' <span style="color:#a15c4a;">(정지됨)</span>';
         else if(currentUser.sanctionUntil && new Date(currentUser.sanctionUntil) > new Date()) status = ' <span style="color:#a15c4a;">(제한 중)</span>';
+        const verifyNotice = !currentUser.emailVerified
+          ? ` <span style="color:#a15c4a;cursor:pointer;" onclick="doResendVerification()">(이메일 미인증 · 인증 메일 다시 받기)</span>` : '';
         const adminLink = currentUser.isAdmin ? ` <span onclick="showScreen('screen-admin')">운영자</span>` : '';
-        slot.innerHTML = `<span class="nickname">${escapeHtml(currentUser.nickname)}님</span>${status}${adminLink} <span onclick="doLogout()">로그아웃</span>`;
+        slot.innerHTML = `<span class="nickname">${escapeHtml(currentUser.nickname)}님</span>${status}${verifyNotice}${adminLink} <span onclick="doLogout()">로그아웃</span>`;
       } else {
         slot.innerHTML = `<span onclick="showScreen('screen-login')">로그인</span> <span onclick="showScreen('screen-signup')">회원가입</span>`;
       }
@@ -838,6 +855,40 @@
     currentUser = null;
     renderAuthUI();
     showScreen('screen-home');
+  }
+
+  async function doForgotPassword(){
+    const email = document.getElementById('forgot-password-email').value.trim();
+    const msg = document.getElementById('forgot-password-msg');
+    msg.className = 'form-msg';
+    if(!email){
+      msg.textContent = '이메일을 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+    try{
+      const res = await fetch('/api/forgot-password', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      msg.textContent = data.message || '요청을 처리했어요.';
+      msg.className = data.ok ? 'form-msg success' : 'form-msg error';
+    }catch(e){
+      msg.textContent = '서버와 통신 중 문제가 발생했어요.';
+      msg.className = 'form-msg error';
+    }
+  }
+
+  async function doResendVerification(){
+    try{
+      const res = await fetch('/api/resend-verification', { method:'POST' });
+      const data = await res.json();
+      alert(data.message || (data.ok ? '인증 메일을 다시 보냈어요.' : '메일 발송에 실패했어요.'));
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
   }
 
   function notReady(name){
