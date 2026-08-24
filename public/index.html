@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>쉼표 — 잠깐 멈춰가는 하루</title>
+<style>
+  :root{
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --line: #ece5da;
+    --text: #4a463f;
+    --sub: #9b9488;
+    --accent: #b7a888;
+    --accent-soft: #f1ece1;
+    --point: #d8b4a0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: "Nanum Myeongjo","Noto Serif KR", "Batang", serif;
+    line-height:1.6;
+  }
+  a{ cursor:pointer; }
+  .proto-banner{
+    max-width:1040px;
+    margin:18px auto 0;
+    padding:10px 16px;
+    font-family:"Noto Sans KR","Malgun Gothic",sans-serif;
+    font-size:11.5px;
+    color:#8a7c66;
+    background:var(--accent-soft);
+    border-radius:6px;
+    text-align:center;
+  }
+  .site{
+    max-width:1040px;
+    margin:18px auto 48px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,0.03);
+  }
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+
+  /* header */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .logo{
+    font-size:22px;
+    letter-spacing:2px;
+    font-weight:700;
+    color:var(--text);
+    cursor:pointer;
+  }
+  .logo span{color:var(--point);}
+  .tagline{
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:11px;
+    color:var(--sub);
+    margin-top:2px;
+    letter-spacing:1px;
+  }
+  .search{ display:flex; align-items:center; gap:8px; }
+  .search input{
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:7px 14px;
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:12px;
+    width:200px;
+    outline:none;
+    background:var(--accent-soft);
+  }
+  .nav-links{
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:12px;
+    color:var(--sub);
+    display:flex;
+    gap:14px;
+  }
+  .nav-links span{ cursor:pointer; }
+  .nav-links span:hover{ color:var(--point); }
+  .nav-links .nickname{ color:var(--text); font-weight:700; cursor:default; }
+  .nav-links .nickname:hover{ color:var(--text); }
+
+  .notice-bar{
+    background:var(--accent-soft);
+    color:#8a7c66;
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:11.5px;
+    text-align:center;
+    padding:7px;
+    letter-spacing:0.3px;
+  }
+
+  .catrow{
+    display:flex;
+    gap:22px;
+    padding:12px 28px;
+    border-bottom:1px solid var(--line);
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:13px;
+    color:var(--text);
+  }
+  .catrow span{ cursor:pointer; padding-bottom:8px; }
+  .catrow .active{
+    color:var(--point);
+    font-weight:700;
+    border-bottom:2px solid var(--point);
+  }
+
+  .body-layout{ display:flex; }
+
+  /* sidebar */
+  .sidebar{
+    width:200px;
+    border-right:1px solid var(--line);
+    padding:20px 0;
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:12.5px;
+  }
+  .side-group{ margin-bottom:18px; padding:0 18px; }
+  .side-group h4{
+    font-size:11px; color:var(--sub); margin:0 0 8px;
+    letter-spacing:1px; font-weight:600;
+  }
+  .side-group ul{ list-style:none; margin:0; padding:0; }
+  .side-group li{
+    padding:6px 8px; border-radius:4px; color:var(--text); cursor:pointer;
+  }
+  .side-group li:hover{ background:var(--accent-soft); }
+  .side-group li.current{
+    background:var(--accent-soft); color:var(--point); font-weight:700;
+  }
+
+  /* main list area */
+  .main{ flex:1; padding:20px 26px; }
+  .board-title{
+    display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;
+  }
+  .board-title h2{ font-size:19px; margin:0; }
+  .board-title .count{ font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub); }
+  .write-btn{
+    font-family:"Noto Sans KR",sans-serif; font-size:12px;
+    background:var(--point); color:#fff; border:none;
+    padding:7px 16px; border-radius:18px; cursor:pointer;
+  }
+
+  table{ width:100%; border-collapse:collapse; font-family:"Noto Sans KR",sans-serif; font-size:12.5px; }
+  thead tr{ border-top:1px solid var(--text); border-bottom:1px solid var(--line); color:var(--sub); }
+  thead th{ padding:9px 6px; font-weight:500; text-align:left; }
+  tbody tr{ border-bottom:1px solid var(--line); cursor:pointer; }
+  tbody tr:hover{ background: var(--accent-soft); }
+  tbody td{ padding:10px 6px; color:var(--text); }
+  .num{ color:var(--sub); width:36px; }
+  .title-cell a{ color:var(--text); text-decoration:none; }
+  .title-cell .cmt{ color:var(--point); font-size:11px; margin-left:4px; }
+  .writer{ color:var(--sub); width:80px; }
+  .date{ color:var(--sub); width:80px; }
+  .heart{ width:60px; color:var(--point); text-align:center; }
+
+  .pagination{
+    text-align:center; padding:18px 0 4px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub);
+  }
+  .pagination span{ margin:0 6px; }
+  .pagination .on{ color:var(--point); font-weight:700; }
+
+  /* right widget */
+  .rightbar{
+    width:190px; border-left:1px solid var(--line);
+    padding:20px 16px; font-family:"Noto Sans KR",sans-serif; font-size:12px;
+  }
+  .widget{ margin-bottom:20px; background:var(--accent-soft); border-radius:8px; padding:14px; }
+  .widget h4{ margin:0 0 8px; font-size:11.5px; color:#8a7c66; letter-spacing:0.5px; }
+  .widget p{ margin:0; font-size:12px; color:var(--text); line-height:1.7; }
+  .stamp-row{ display:flex; gap:6px; margin-top:8px; }
+  .stamp{
+    width:26px;height:26px;border-radius:50%; background:#fff; border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center; font-size:13px; cursor:pointer;
+  }
+  .stamp:hover{ border-color:var(--point); }
+
+  /* home cards view */
+  .home-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:24px 28px; }
+  .card{ border:1px solid var(--line); border-radius:10px; padding:18px; background:var(--panel); cursor:pointer; }
+  .card:hover{ border-color:var(--point); }
+  .card h3{ margin:0 0 6px; font-size:15px; }
+  .card p{ margin:0 0 10px; font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub); line-height:1.6; }
+  .card .tag{
+    display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10.5px;
+    color:#8a7c66; background:var(--accent-soft); padding:3px 9px; border-radius:12px;
+  }
+  .section-title{
+    padding:22px 28px 4px; font-family:"Noto Sans KR",sans-serif; font-size:13px;
+    color:var(--sub); letter-spacing:1px; border-top:1px solid var(--line);
+  }
+
+  /* write form */
+  .write-wrap{ padding:26px 32px 32px; }
+  .write-wrap h2{ font-size:19px; margin:0 0 18px; }
+  .form-row{ margin-bottom:14px; }
+  .form-row label{
+    display:block; font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub); margin-bottom:6px;
+  }
+  .form-row select, .form-row input[type=text]{
+    width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 12px;
+    font-family:"Noto Sans KR",sans-serif; font-size:13px; background:#fff; color:var(--text); outline:none;
+  }
+  .form-row textarea{
+    width:100%; min-height:160px; border:1px solid var(--line); border-radius:6px; padding:12px;
+    font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:14px; color:var(--text);
+    outline:none; resize:none; background:#fffdf9;
+  }
+  .form-hint{ font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--sub); margin-top:6px; text-align:right; }
+  .anon-row{
+    display:flex; align-items:center; gap:6px; font-family:"Noto Sans KR",sans-serif;
+    font-size:12px; color:var(--text); margin-bottom:18px;
+  }
+  .form-actions{ display:flex; justify-content:flex-end; gap:8px; }
+  .btn-ghost{
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; background:#fff; color:var(--sub);
+    border:1px solid var(--line); padding:8px 18px; border-radius:18px; cursor:pointer;
+  }
+  .gentle-notice{
+    background:var(--accent-soft); border-radius:8px; padding:12px 16px;
+    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:#8a7c66; margin-bottom:20px; line-height:1.6;
+  }
+
+  /* post detail */
+  .post-detail{ padding:28px 32px; max-width:720px; margin:0 auto; }
+  .post-detail .p-board{
+    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--point);
+    letter-spacing:0.5px; margin-bottom:6px;
+  }
+  .post-detail h2{ font-size:21px; margin:0 0 10px; }
+  .post-meta{
+    display:flex; gap:14px; font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub);
+    padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:20px;
+  }
+  .post-body{ font-size:15px; line-height:1.9; color:var(--text); margin-bottom:24px; white-space:pre-line; }
+  .react-row{
+    text-align:center; padding:16px 0; border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line); margin-bottom:22px;
+  }
+  .react-btn{
+    display:inline-flex; align-items:center; gap:6px; font-family:"Noto Sans KR",sans-serif;
+    font-size:12.5px; color:var(--point); background:var(--accent-soft); border:none;
+    padding:8px 20px; border-radius:20px; cursor:pointer;
+  }
+  .comment-title{ font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); margin-bottom:10px; }
+  .comment{
+    display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px;
+  }
+  .comment .c-writer{ color:var(--sub); font-size:11px; margin-right:6px; }
+  .comment .c-heart{ color:var(--point); font-size:11px; white-space:nowrap; }
+  .comment-input{ display:flex; gap:8px; margin-top:16px; }
+  .comment-input input{
+    flex:1; border:1px solid var(--line); border-radius:20px; padding:9px 16px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; outline:none;
+  }
+  .comment-input button{
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; background:var(--point);
+    color:#fff; border:none; padding:9px 18px; border-radius:20px; cursor:pointer;
+  }
+
+  /* login */
+  .login-wrap{ display:flex; justify-content:center; align-items:center; padding:60px 0 70px; }
+  .login-card{ width:300px; text-align:center; }
+  .login-card .logo{ font-size:26px; margin-bottom:4px; }
+  .login-card .tagline{ margin-bottom:28px; }
+  .login-card input{
+    width:100%; border:1px solid var(--line); border-radius:6px; padding:10px 14px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; margin-bottom:10px; outline:none; background:#fffdf9;
+  }
+  .login-btn{
+    width:100%; background:var(--point); color:#fff; border:none; padding:11px; border-radius:6px;
+    font-family:"Noto Sans KR",sans-serif; font-size:13px; margin:8px 0 18px; cursor:pointer;
+  }
+  .login-divider{ font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--sub); margin:14px 0; }
+  .social-btn{
+    display:block; width:100%; border:1px solid var(--line); background:#fff; padding:10px; border-radius:6px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--text); margin-bottom:8px; cursor:pointer;
+    text-align:center; text-decoration:none; box-sizing:border-box;
+  }
+  .kakao-btn{ background:#FEE500; border-color:#FEE500; color:#3C1E1E; font-weight:700; }
+  .google-btn{ background:#fff; border-color:var(--line); color:var(--text); }
+  .signup-link{ font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub); margin-top:14px; cursor:pointer; }
+  .signup-link span{ color:var(--point); }
+  .form-msg{
+    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; padding:9px 12px; border-radius:6px;
+    margin-bottom:12px; text-align:left; display:none;
+  }
+  .form-msg.error{ display:block; background:#fbeae5; color:#a15c4a; }
+  .form-msg.success{ display:block; background:var(--accent-soft); color:#6f8f6f; }
+
+  /* 신고 / 검수 */
+  .report-btn{
+    display:inline-flex; align-items:center; gap:6px; font-family:"Noto Sans KR",sans-serif;
+    font-size:12.5px; color:#a15c4a; background:#fbeae5; border:none;
+    padding:8px 16px; border-radius:20px; cursor:pointer; margin-left:8px;
+  }
+  .report-link{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--sub);
+    cursor:pointer; margin-left:8px;
+  }
+  .report-link:hover{ color:#a15c4a; }
+  .hidden-badge{
+    display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10.5px;
+    color:#a15c4a; background:#fbeae5; padding:2px 8px; border-radius:10px; margin-left:6px;
+  }
+  .report-modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:50;
+    display:none; align-items:center; justify-content:center;
+  }
+  .report-modal{
+    width:300px; background:#fff; border-radius:10px; padding:22px; font-family:"Noto Sans KR",sans-serif;
+  }
+  .report-modal h3{ margin:0 0 6px; font-size:15px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; }
+  .report-modal .sub{ font-size:11.5px; color:var(--sub); margin-bottom:14px; }
+  .report-reasons label{
+    display:block; font-size:12.5px; color:var(--text); padding:7px 4px; cursor:pointer;
+  }
+  .report-modal .form-actions{ margin-top:14px; }
+
+  /* 운영자 화면 */
+  .admin-item{
+    border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-bottom:12px;
+    font-family:"Noto Sans KR",sans-serif;
+  }
+  .admin-item.priority{ border-color:#d99; background:#fdf5f3; }
+  .admin-item-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .admin-type{
+    font-size:11px; background:var(--accent-soft); color:#8a7c66; padding:2px 8px; border-radius:10px;
+  }
+  .admin-priority{ font-size:11px; color:#a15c4a; font-weight:700; }
+  .admin-count{ font-size:11.5px; color:var(--sub); }
+  .admin-item-body{ font-size:13.5px; color:var(--text); margin-bottom:6px; white-space:pre-line; }
+  .admin-item-meta{ font-size:11px; color:var(--sub); margin-bottom:10px; }
+  .admin-item-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .admin-item-actions button{ font-size:11.5px; padding:6px 12px; }
+  .board-admin-form{
+    border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:22px; background:var(--accent-soft);
+  }
+  .board-admin-form h3{ margin:0 0 12px; font-size:14px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">🌿 로그인/회원가입은 실제 백엔드(Express + bcrypt)와 연동되어 있어요. 글쓰기·댓글·공감은 화면 안에서만 유지되며 새로고침하면 초기화돼요.</div>
+
+<!-- 화면 ① 홈 -->
+<div class="site screen active" id="screen-home">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="search"><input type="text" placeholder="검색어를 입력하세요"></div>
+    <div class="nav-links">
+      <span class="auth-slot" data-auth></span>
+      <span onclick="notReady('마이페이지')">마이페이지</span>
+      <span onclick="requireLoginThen('screen-write')">글쓰기</span>
+    </div>
+  </div>
+  <div class="notice-bar">🌿 이곳은 욕설·비방이 금지된 공간입니다. 서로에게 다정한 말을 건네주세요.</div>
+
+  <div id="home-board-sections"><!-- 게시판 카드는 서버의 게시판 목록으로 여기에 자동으로 그려져요 --></div>
+</div>
+
+<!-- 화면 ② 게시글 목록 -->
+<div class="site screen" id="screen-board">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="search"><input type="text" placeholder="이 게시판에서 검색"></div>
+    <div class="nav-links">
+      <span class="auth-slot" data-auth></span>
+      <span onclick="notReady('마이페이지')">마이페이지</span>
+    </div>
+  </div>
+  <div class="catrow" id="board-catrow"><!-- 카테고리 탭도 게시판 목록으로 자동 생성돼요 --></div>
+
+  <div class="body-layout">
+    <div class="sidebar" id="board-sidebar"><!-- 사이드바도 게시판 목록으로 자동 생성돼요 --></div>
+
+    <div class="main">
+      <div class="board-title">
+        <h2 id="board-title-text">오늘 하루 끄적끄적</h2>
+        <span class="count" id="board-count">전체 글 0</span>
+        <button class="write-btn" onclick="requireLoginThen('screen-write')">글쓰기</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th class="num">번호</th><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
+        </thead>
+        <tbody id="board-tbody"></tbody>
+      </table>
+      <div class="pagination">
+        <span class="on">1</span><span onclick="notReady('페이지 이동')">2</span><span onclick="notReady('페이지 이동')">3</span>
+      </div>
+    </div>
+
+    <div class="rightbar">
+      <div class="widget">
+        <h4>오늘의 위로 한마디</h4>
+        <p>"오늘 하루도 애썼어요. 그거면 충분해요."</p>
+      </div>
+      <div class="widget">
+        <h4>오늘의 기분 스탬프</h4>
+        <div class="stamp-row">
+          <div class="stamp" onclick="pickStamp('🙂')">🙂</div>
+          <div class="stamp" onclick="pickStamp('😌')">😌</div>
+          <div class="stamp" onclick="pickStamp('😔')">😔</div>
+          <div class="stamp" onclick="pickStamp('🌧️')">🌧️</div>
+        </div>
+      </div>
+      <div class="widget">
+        <h4>익명 응원 릴레이</h4>
+        <p>지금 3명이 서로에게 응원의 댓글을 남기고 있어요.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ③ 글쓰기 -->
+<div class="site screen" id="screen-write">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-board')">취소</span></div>
+  </div>
+  <div class="write-wrap">
+    <h2>글쓰기</h2>
+    <div class="gentle-notice">🌿 여기서는 욕설·비방이 자동으로 걸러져요. 솔직해도 괜찮지만, 다정하게 적어주세요.</div>
+    <div class="form-row">
+      <label>게시판</label>
+      <select id="write-board"></select>
+    </div>
+    <div class="form-row">
+      <label>제목</label>
+      <input type="text" id="write-title" placeholder="제목을 입력하세요">
+    </div>
+    <div class="form-row">
+      <label>내용</label>
+      <textarea id="write-body" placeholder="오늘 하루, 어땠나요? 편하게 적어주세요." oninput="updateCharCount()"></textarea>
+      <div class="form-hint" id="char-count">0 / 1000자</div>
+    </div>
+    <div class="anon-row"><input type="checkbox" id="write-anon" checked> 익명으로 작성하기</div>
+    <div class="form-actions">
+      <button class="btn-ghost" onclick="showScreen('screen-board')">취소</button>
+      <button class="write-btn" onclick="submitPost()">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ④ 게시글 상세 -->
+<div class="site screen" id="screen-detail">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-board')">목록으로</span></div>
+  </div>
+  <div class="post-detail">
+    <div class="p-board" id="detail-board-label">오늘 하루 끄적끄적</div>
+    <h2 id="detail-title"></h2>
+    <div class="post-meta" id="detail-meta"></div>
+    <div class="gentle-notice" id="detail-hidden-notice" style="display:none;">🔍 신고가 접수되어 검토 중인 글이에요. 운영자 확인 후 다시 보여요. (지금은 작성자 본인에게만 보이는 상태예요)</div>
+    <div class="post-body" id="detail-body"></div>
+    <div class="react-row">
+      <button class="react-btn" onclick="toggleHeart()">♥ 공감 보내기 · <span id="detail-heart-count"></span></button>
+      <button class="report-btn" onclick="openReportModal('post', currentPostId)">🚨 신고</button>
+    </div>
+    <div class="comment-title">댓글 <span id="comment-count"></span></div>
+    <div id="comment-list"></div>
+    <div class="comment-input">
+      <input type="text" id="comment-input-field" placeholder="따뜻한 댓글을 남겨보세요" onkeydown="if(event.key==='Enter')addComment()">
+      <button onclick="addComment()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ⑤ 로그인 -->
+<div class="site screen" id="screen-login">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+      <div class="form-msg" id="login-msg"></div>
+      <input type="email" id="login-email" placeholder="이메일" autocomplete="email">
+      <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" onclick="doLogin()">로그인</button>
+      <div class="login-divider">또는</div>
+      <a class="social-btn kakao-btn" href="/auth/kakao">카카오로 3초 만에 시작하기</a>
+      <a class="social-btn google-btn" href="/auth/google">구글로 로그인</a>
+      <div class="signup-link" onclick="showScreen('screen-signup')">아직 계정이 없다면? <span>회원가입</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ⑥ 회원가입 -->
+<div class="site screen" id="screen-signup">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+      <div class="form-msg" id="signup-msg"></div>
+      <input type="text" id="signup-nickname" placeholder="닉네임" autocomplete="nickname">
+      <input type="email" id="signup-email" placeholder="이메일" autocomplete="email">
+      <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()">
+      <button class="login-btn" onclick="doSignup()">가입하고 시작하기</button>
+      <div class="signup-link" onclick="showScreen('screen-login')">이미 계정이 있다면? <span>로그인</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ⑦ 운영자 · 신고 관리 -->
+<div class="site screen" id="screen-admin">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-home')">홈으로</span></div>
+  </div>
+  <div class="write-wrap">
+    <h2>운영자 · 신고 관리</h2>
+    <div class="gentle-notice">신고가 3회 누적되면 자동으로 숨김 처리돼요. 검토 후 복구하거나, 삭제와 함께 작성자에게 제재(경고 누적 → 7일 제한 → 영구정지)를 적용할 수 있어요. 신상 노출·자해 조장 신고는 맨 위로 올라와요.</div>
+    <div id="admin-list">불러오는 중...</div>
+
+    <h2 style="margin-top:40px;">운영자 · 게시판 관리</h2>
+    <div class="gentle-notice">게시판을 코드 수정 없이 여기서 추가·이름 변경·숨김 처리할 수 있어요. 숨기면 홈/탭/사이드바에서 사라지지만 기존 글은 그대로 남아있어요. 게시글이 하나도 없는 게시판만 완전히 삭제할 수 있어요.</div>
+
+    <div class="board-admin-form">
+      <h3>새 게시판 만들기</h3>
+      <div class="form-row">
+        <label>이름</label>
+        <input type="text" id="new-board-title" placeholder="예: 오늘 감사했던 일 3가지" list="board-idea-suggestions">
+        <datalist id="board-idea-suggestions">
+          <option value="오늘 감사했던 일 3가지">
+          <option value="익명 고민방">
+          <option value="필사 게시판">
+          <option value="디지털 디톡스 인증">
+          <option value="오늘의 하늘 사진">
+          <option value="익명 응원 릴레이">
+          <option value="작은 친절 기록">
+          <option value="반려동물·식물 자랑">
+        </datalist>
+      </div>
+      <div class="form-row">
+        <label>카테고리 (홈 화면 섹션)</label>
+        <select id="new-board-category">
+          <option value="감정 · 마음">감정 · 마음</option>
+          <option value="감각 · 속도 늦추기">감각 · 속도 늦추기</option>
+          <option value="연결 · 온기">연결 · 온기</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>홈 화면 태그 (선택)</label>
+        <input type="text" id="new-board-tag" placeholder="예: 감사">
+      </div>
+      <div class="form-row">
+        <label>홈 화면 설명 (선택)</label>
+        <input type="text" id="new-board-description" placeholder="카드에 보여줄 짧은 소개">
+      </div>
+      <div class="form-actions">
+        <button class="write-btn" onclick="createBoard()">게시판 만들기</button>
+      </div>
+    </div>
+
+    <div id="board-admin-list">불러오는 중...</div>
+  </div>
+</div>
+
+<!-- 신고 사유 선택 모달 -->
+<div class="report-modal-overlay" id="report-modal">
+  <div class="report-modal">
+    <h3>신고하기</h3>
+    <div class="sub">이 글/댓글을 신고하는 이유를 골라주세요.</div>
+    <div class="report-reasons">
+      <label><input type="radio" name="report-reason" value="욕설/비방"> 욕설/비방</label>
+      <label><input type="radio" name="report-reason" value="광고"> 광고</label>
+      <label><input type="radio" name="report-reason" value="신상 노출"> 신상 노출</label>
+      <label><input type="radio" name="report-reason" value="자해 조장"> 자해 조장</label>
+      <label><input type="radio" name="report-reason" value="기타"> 기타</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-ghost" onclick="closeReportModal()">취소</button>
+      <button class="write-btn" onclick="submitReport()">신고하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPostId = null; // 지금 상세 화면에 열려 있는 글 id
+  let currentUser = null;   // 로그인된 사용자 {id, email, nickname}
+  let pendingScreen = null; // 로그인 후 이동할 화면
+  let reportTarget = null;  // 지금 신고하려는 대상 {type, postId, commentId}
+  let currentBoard = 'diary'; // 지금 보고 있는 게시판
+  // 서버 /api/boards로 다시 불러오기 전까지 쓰는 기본값. 게시판은 이제 운영자 화면에서
+  // 직접 추가·수정·숨김 처리할 수 있어요 (server.js를 고칠 필요 없음).
+  let BOARDS = [
+    { slug: 'diary', title: '오늘 하루 끄적끄적', category: '감정 · 마음', tag: '매일 쓰기 좋은', description: '거창하지 않아도 괜찮아요. 오늘 있었던 일을 편하게 남겨보세요.' },
+    { slug: 'comfort-self', title: '나에게 스스로 위로하는 말', category: '감정 · 마음', tag: '서로 위로', description: '오늘의 나에게 건네고 싶은 한마디를 적어보세요.' },
+    { slug: 'comfort-others', title: '누군가에게 위로를 건네고 싶은 말', category: '감정 · 마음', tag: '서로 위로', description: '얼굴 모르는 누군가에게, 조용히 마음을 전해보세요.' },
+    { slug: 'hobby', title: '내가 만든 취미 자랑', category: '감각 · 속도 늦추기', tag: '기록', description: '완벽하지 않아도 좋아요. 내가 만든 것을 자랑해보세요.' },
+    { slug: 'quote', title: '책 한 소절, 명대사', category: '감각 · 속도 늦추기', tag: '필사', description: '마음에 오래 남았던 문장을 남겨보세요.' },
+  ];
+  const CATEGORY_ORDER = ['감정 · 마음', '감각 · 속도 늦추기', '연결 · 온기'];
+
+  function boardTitle(slug){
+    const b = BOARDS.find(x => x.slug === slug);
+    return b ? b.title : slug;
+  }
+  async function loadBoards(){
+    try{
+      const res = await fetch('/api/boards');
+      const data = await res.json();
+      if(data.ok && data.boards && data.boards.length) BOARDS = data.boards;
+    }catch(e){ /* 기본값 그대로 사용 */ }
+  }
+  function openBoard(slug){
+    currentBoard = slug;
+    showScreen('screen-board');
+  }
+
+  // BOARDS를 카테고리별로 묶어서, 늘 같은 순서(감정·마음 → 감각·속도 늦추기 → 연결·온기 → 새 카테고리)로 반환
+  function groupBoardsByCategory(){
+    const groups = {};
+    BOARDS.forEach(b => {
+      const cat = b.category || '기타';
+      (groups[cat] = groups[cat] || []).push(b);
+    });
+    const known = CATEGORY_ORDER.filter(c => groups[c]);
+    const rest = Object.keys(groups).filter(c => !CATEGORY_ORDER.includes(c));
+    return [...known, ...rest].map(c => ({ category: c, boards: groups[c] }));
+  }
+
+  // 홈 화면 카드 / 카테고리 탭 / 사이드바를 지금의 BOARDS로 다시 그림. 게시판이 추가·수정·숨김
+  // 처리될 때마다 다시 불러서 호출하면 화면이 새로고침 없이 즉시 반영돼요.
+  function renderBoardNav(){
+    const groups = groupBoardsByCategory();
+
+    const homeEl = document.getElementById('home-board-sections');
+    if(homeEl){
+      homeEl.innerHTML = groups.map(g => `
+        <div class="section-title">${escapeHtml(g.category)}</div>
+        <div class="home-grid">
+          ${g.boards.map(b => `
+            <div class="card" onclick="openBoard('${b.slug}')">
+              <span class="tag">${escapeHtml(b.tag || g.category)}</span>
+              <h3>${escapeHtml(b.title)}</h3>
+              <p>${escapeHtml(b.description || '')}</p>
+            </div>`).join('')}
+        </div>`).join('');
+    }
+
+    const catrowEl = document.getElementById('board-catrow');
+    if(catrowEl){
+      catrowEl.innerHTML = BOARDS.map(b =>
+        `<span data-board="${b.slug}" onclick="openBoard('${b.slug}')">${escapeHtml(b.title)}</span>`
+      ).join('');
+    }
+
+    const sidebarEl = document.getElementById('board-sidebar');
+    if(sidebarEl){
+      sidebarEl.innerHTML = groups.map(g => `
+        <div class="side-group">
+          <h4>${escapeHtml(g.category)}</h4>
+          <ul>
+            ${g.boards.map(b => `<li data-board="${b.slug}" onclick="openBoard('${b.slug}')">${escapeHtml(b.title)}</li>`).join('')}
+          </ul>
+        </div>`).join('');
+    }
+
+    // 위에서 새로 그린 뒤에도 지금 보고 있는 게시판 표시는 유지
+    document.querySelectorAll('#screen-board [data-board]').forEach(el => {
+      const on = el.dataset.board === currentBoard;
+      el.classList.toggle('active', on);
+      el.classList.toggle('current', on);
+    });
+  }
+
+  // 화면만 바꾸고 브라우저 기록(히스토리)은 건드리지 않는 내부 함수.
+  // 뒤로가기(popstate)로 화면을 되돌릴 때는 이 함수만 호출해서 새 기록이 또 쌓이지 않게 함.
+  function renderScreen(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if(id === 'screen-board') renderBoardList();
+    if(id === 'screen-write') populateWriteBoardSelect();
+    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); }
+    window.scrollTo(0,0);
+  }
+
+  // 실제 화면 전환은 항상 이 함수로. 브라우저 뒤로가기를 누르면 사이트를 벗어나는 대신
+  // 이전 화면으로 돌아오도록 히스토리에 기록을 남겨요.
+  function showScreen(id){
+    renderScreen(id);
+    if(!history.state || history.state.screen !== id){
+      // 이 페이지를 파일 미리보기 같은 샌드박스(예: srcdoc iframe) 안에서 열면
+      // history API가 막혀서 여기서 에러가 날 수 있어요. 그런 경우에도 화면 전환 자체는
+      // 계속되도록(뒤로가기만 못 쓰는 정도로) 조용히 넘어가요.
+      try{ history.pushState({ screen: id }, '', '#' + id); }catch(e){ /* 무시 */ }
+    }
+  }
+
+  window.addEventListener('popstate', (e) => {
+    const screen = (e.state && e.state.screen) || 'screen-home';
+    renderScreen(screen);
+  });
+
+  function requireLoginThen(screenId){
+    if(currentUser){
+      showScreen(screenId);
+    } else {
+      pendingScreen = screenId;
+      showScreen('screen-login');
+    }
+  }
+
+  function renderAuthUI(){
+    document.querySelectorAll('.auth-slot').forEach(slot => {
+      if(currentUser){
+        let status = '';
+        if(currentUser.banned) status = ' <span style="color:#a15c4a;">(정지됨)</span>';
+        else if(currentUser.sanctionUntil && new Date(currentUser.sanctionUntil) > new Date()) status = ' <span style="color:#a15c4a;">(제한 중)</span>';
+        const adminLink = currentUser.isAdmin ? ` <span onclick="showScreen('screen-admin')">운영자</span>` : '';
+        slot.innerHTML = `<span class="nickname">${escapeHtml(currentUser.nickname)}님</span>${status}${adminLink} <span onclick="doLogout()">로그아웃</span>`;
+      } else {
+        slot.innerHTML = `<span onclick="showScreen('screen-login')">로그인</span> <span onclick="showScreen('screen-signup')">회원가입</span>`;
+      }
+    });
+  }
+
+  async function refreshAuth(){
+    try{
+      const res = await fetch('/api/me');
+      const data = await res.json();
+      currentUser = data.ok ? data.user : null;
+    }catch(e){
+      currentUser = null;
+    }
+    renderAuthUI();
+  }
+
+  async function doLogin(){
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const msg = document.getElementById('login-msg');
+    msg.className = 'form-msg';
+    if(!email || !password){
+      msg.textContent = '이메일과 비밀번호를 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+    try{
+      const res = await fetch('/api/login', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        currentUser = data.user;
+        renderAuthUI();
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+        const target = pendingScreen || 'screen-home';
+        pendingScreen = null;
+        showScreen(target);
+      } else {
+        msg.textContent = data.message || '로그인에 실패했어요.';
+        msg.className = 'form-msg error';
+      }
+    }catch(e){
+      msg.textContent = '서버와 통신 중 문제가 발생했어요.';
+      msg.className = 'form-msg error';
+    }
+  }
+
+  async function doSignup(){
+    const nickname = document.getElementById('signup-nickname').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const msg = document.getElementById('signup-msg');
+    msg.className = 'form-msg';
+    if(!nickname || !email || !password){
+      msg.textContent = '닉네임, 이메일, 비밀번호를 모두 입력해주세요.';
+      msg.className = 'form-msg error';
+      return;
+    }
+    try{
+      const res = await fetch('/api/signup', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ nickname, email, password }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        currentUser = data.user;
+        renderAuthUI();
+        document.getElementById('signup-nickname').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-password').value = '';
+        const target = pendingScreen || 'screen-home';
+        pendingScreen = null;
+        showScreen(target);
+      } else {
+        msg.textContent = data.message || '가입에 실패했어요.';
+        msg.className = 'form-msg error';
+      }
+    }catch(e){
+      msg.textContent = '서버와 통신 중 문제가 발생했어요.';
+      msg.className = 'form-msg error';
+    }
+  }
+
+  async function doLogout(){
+    try{ await fetch('/api/logout', { method:'POST' }); }catch(e){}
+    currentUser = null;
+    renderAuthUI();
+    showScreen('screen-home');
+  }
+
+  function notReady(name){
+    alert('"' + name + '" 게시판은 이 프로토타입에서는 아직 준비 중이에요.\n"오늘 하루 끄적끄적" 게시판에서 실제 흐름을 확인해보세요!');
+  }
+
+  function formatDate(iso){
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if(sameDay){
+      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    return (d.getMonth()+1) + '.' + d.getDate();
+  }
+
+  async function renderBoardList(){
+    document.getElementById('board-title-text').textContent = boardTitle(currentBoard);
+    document.querySelectorAll('#screen-board [data-board]').forEach(el => {
+      const on = el.dataset.board === currentBoard;
+      el.classList.toggle('active', on);
+      el.classList.toggle('current', on);
+    });
+    const tbody = document.getElementById('board-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">불러오는 중...</td></tr>`;
+    try{
+      const res = await fetch('/api/posts?board=' + encodeURIComponent(currentBoard));
+      const data = await res.json();
+      const posts = data.ok ? data.posts : [];
+      tbody.innerHTML = posts.map(p => `
+        <tr onclick="openPost(${p.id})">
+          <td class="num">${p.id}</td>
+          <td class="title-cell"><a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}</td>
+          <td class="writer">${escapeHtml(p.writerNickname)}</td>
+          <td class="date">${formatDate(p.createdAt)}</td>
+          <td class="heart">♥ ${p.hearts}</td>
+        </tr>`).join('');
+      document.getElementById('board-count').textContent = `전체 글 ${posts.length}`;
+    }catch(e){
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">글을 불러오지 못했어요. 서버가 실행 중인지 확인해주세요.</td></tr>`;
+    }
+  }
+
+  async function openPost(id){
+    try{
+      const res = await fetch('/api/posts/' + id);
+      const data = await res.json();
+      if(!data.ok){
+        alert(data.message || '글을 불러오지 못했어요.');
+        return;
+      }
+      const p = data.post;
+      currentPostId = id;
+      currentBoard = p.board || currentBoard;
+      document.getElementById('detail-board-label').textContent = boardTitle(currentBoard);
+      document.getElementById('detail-title').textContent = p.title;
+      document.getElementById('detail-meta').innerHTML = `<span>${escapeHtml(p.writerNickname)}</span><span>${formatDate(p.createdAt)}</span><span>조회 ${p.views}</span>`;
+      document.getElementById('detail-hidden-notice').style.display = p.hidden ? 'block' : 'none';
+      document.getElementById('detail-body').textContent = p.body;
+      document.getElementById('detail-heart-count').textContent = p.hearts;
+      renderComments(p.comments);
+      showScreen('screen-detail');
+    }catch(e){
+      alert('글을 불러오지 못했어요.');
+    }
+  }
+
+  function renderComments(comments){
+    document.getElementById('comment-count').textContent = comments.length;
+    document.getElementById('comment-list').innerHTML = comments.map(c => `
+      <div class="comment">
+        <div><span class="c-writer">${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></div>
+        <div class="c-heart">♥ ${c.hearts}</div>
+      </div>`).join('');
+  }
+
+  function openReportModal(type, postId, commentId){
+    if(!postId) return;
+    reportTarget = { type, postId, commentId: commentId || null };
+    document.querySelectorAll('input[name="report-reason"]').forEach(r => r.checked = false);
+    document.getElementById('report-modal').style.display = 'flex';
+  }
+  function closeReportModal(){
+    document.getElementById('report-modal').style.display = 'none';
+    reportTarget = null;
+  }
+  async function submitReport(){
+    if(!reportTarget) return;
+    const sel = document.querySelector('input[name="report-reason"]:checked');
+    if(!sel){ alert('신고 사유를 선택해주세요.'); return; }
+    const reason = sel.value;
+    const url = reportTarget.type === 'post'
+      ? `/api/posts/${reportTarget.postId}/report`
+      : `/api/posts/${reportTarget.postId}/comments/${reportTarget.commentId}/report`;
+    try{
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      const target = reportTarget;
+      closeReportModal();
+      if(data.ok){
+        alert('신고가 접수되었어요. 소중한 의견 감사해요.');
+        if(target.postId === currentPostId) openPost(currentPostId);
+      } else {
+        alert(data.message || '신고를 처리하지 못했어요.');
+      }
+    }catch(e){
+      closeReportModal();
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function loadAdminReports(){
+    const listEl = document.getElementById('admin-list');
+    listEl.innerHTML = '불러오는 중...';
+    try{
+      const res = await fetch('/api/admin/reports');
+      const data = await res.json();
+      if(!data.ok){
+        listEl.innerHTML = escapeHtml(data.message || '불러오지 못했어요.');
+        return;
+      }
+      if(!data.items.length){
+        listEl.innerHTML = '<p style="font-family:\'Noto Sans KR\',sans-serif;color:var(--sub);font-size:12.5px;">지금은 신고된 글/댓글이 없어요.</p>';
+        return;
+      }
+      listEl.innerHTML = data.items.map(it => `
+        <div class="admin-item ${it.priority ? 'priority' : ''}">
+          <div class="admin-item-head">
+            <span class="admin-type">${it.type === 'post' ? '게시글' : '댓글'} · ${escapeHtml(boardTitle(it.board))}</span>
+            ${it.priority ? '<span class="admin-priority">⚠ 자해 조장/신상 노출 신고 포함</span>' : ''}
+            <span class="admin-count">신고 ${it.reportCount}건</span>
+            ${it.hidden ? '<span class="hidden-badge">숨김됨</span>' : ''}
+          </div>
+          <div class="admin-item-body">${escapeHtml(it.type === 'post' ? it.title + ' — ' + it.body : it.body)}</div>
+          <div class="admin-item-meta">작성자: ${escapeHtml(it.writerNickname)} · 신고 사유: ${it.reports.map(r => escapeHtml(r.reason)).join(', ')}</div>
+          <div class="admin-item-actions">
+            <button class="btn-ghost" onclick="resolveReport('${it.type}', ${it.postId}, ${it.commentId === null ? 'null' : it.commentId}, 'restore')">복구</button>
+            <button class="btn-ghost" onclick="resolveReport('${it.type}', ${it.postId}, ${it.commentId === null ? 'null' : it.commentId}, 'delete_minor')">삭제 (경고 누적)</button>
+            <button class="btn-ghost" onclick="resolveReport('${it.type}', ${it.postId}, ${it.commentId === null ? 'null' : it.commentId}, 'delete_severe')">삭제 (중대·영구정지)</button>
+          </div>
+        </div>`).join('');
+    }catch(e){
+      listEl.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  async function resolveReport(type, postId, commentId, action){
+    if(action === 'delete_severe' && !confirm('이 작성자는 즉시 영구 정지돼요. 계속할까요?')) return;
+    try{
+      const res = await fetch('/api/admin/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, postId, commentId, action }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        loadAdminReports();
+      } else {
+        alert(data.message || '처리하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  // ---- 운영자 게시판 관리 ----
+  let ADMIN_BOARDS = [];   // 숨김 게시판까지 포함한 전체 목록 (운영자 화면 전용)
+  let editingBoardSlug = null;
+
+  async function loadAdminBoards(){
+    const el = document.getElementById('board-admin-list');
+    el.innerHTML = '불러오는 중...';
+    try{
+      const res = await fetch('/api/admin/boards');
+      const data = await res.json();
+      if(!data.ok){
+        el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.');
+        return;
+      }
+      ADMIN_BOARDS = data.boards;
+      rerenderBoardAdminList();
+    }catch(e){
+      el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  function rerenderBoardAdminList(){
+    const el = document.getElementById('board-admin-list');
+    if(!el) return;
+    el.innerHTML = ADMIN_BOARDS.map(renderBoardAdminRow).join('');
+  }
+
+  function renderBoardAdminRow(b){
+    if(editingBoardSlug === b.slug){
+      const categories = ['감정 · 마음', '감각 · 속도 늦추기', '연결 · 온기'];
+      const categoryOptions = (categories.includes(b.category) ? categories : [...categories, b.category])
+        .map(c => `<option value="${escapeAttr(c)}" ${c === b.category ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+      return `
+        <div class="admin-item">
+          <div class="form-row"><label>이름</label><input type="text" id="edit-board-title" value="${escapeAttr(b.title)}"></div>
+          <div class="form-row"><label>카테고리</label><select id="edit-board-category">${categoryOptions}</select></div>
+          <div class="form-row"><label>태그</label><input type="text" id="edit-board-tag" value="${escapeAttr(b.tag || '')}"></div>
+          <div class="form-row"><label>설명</label><input type="text" id="edit-board-description" value="${escapeAttr(b.description || '')}"></div>
+          <div class="admin-item-actions">
+            <button class="write-btn" onclick="saveBoardEdit('${b.slug}')">저장</button>
+            <button class="btn-ghost" onclick="cancelBoardEdit()">취소</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="admin-item">
+        <div class="admin-item-head">
+          <span class="admin-type">${escapeHtml(b.category)}</span>
+          ${b.hidden ? '<span class="hidden-badge">숨김</span>' : ''}
+        </div>
+        <div class="admin-item-body"><strong>${escapeHtml(b.title)}</strong>${b.tag ? ' · ' + escapeHtml(b.tag) : ''}</div>
+        <div class="admin-item-meta">${escapeHtml(b.description || '설명 없음')} · slug: ${escapeHtml(b.slug)}</div>
+        <div class="admin-item-actions">
+          <button class="btn-ghost" onclick="moveBoard('${b.slug}','up')">▲</button>
+          <button class="btn-ghost" onclick="moveBoard('${b.slug}','down')">▼</button>
+          <button class="btn-ghost" onclick="startBoardEdit('${b.slug}')">수정</button>
+          <button class="btn-ghost" onclick="toggleBoardHidden('${b.slug}', ${!b.hidden})">${b.hidden ? '표시하기' : '숨기기'}</button>
+          <button class="btn-ghost" onclick="deleteBoard('${b.slug}')">삭제</button>
+        </div>
+      </div>`;
+  }
+
+  function startBoardEdit(slug){
+    editingBoardSlug = slug;
+    rerenderBoardAdminList();
+  }
+  function cancelBoardEdit(){
+    editingBoardSlug = null;
+    rerenderBoardAdminList();
+  }
+
+  // 게시판 변경 후 홈/탭/사이드바까지 즉시 다시 그리기 위한 공통 마무리 작업
+  async function afterBoardsChanged(){
+    await loadAdminBoards();
+    await loadBoards();
+    renderBoardNav();
+  }
+
+  async function createBoard(){
+    const title = document.getElementById('new-board-title').value.trim();
+    const category = document.getElementById('new-board-category').value;
+    const tag = document.getElementById('new-board-tag').value.trim();
+    const description = document.getElementById('new-board-description').value.trim();
+    if(!title){ alert('게시판 이름을 입력해주세요.'); return; }
+    try{
+      const res = await fetch('/api/admin/boards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, category, tag, description }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        document.getElementById('new-board-title').value = '';
+        document.getElementById('new-board-tag').value = '';
+        document.getElementById('new-board-description').value = '';
+        await afterBoardsChanged();
+      } else {
+        alert(data.message || '게시판을 만들지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function saveBoardEdit(slug){
+    const title = document.getElementById('edit-board-title').value.trim();
+    const category = document.getElementById('edit-board-category').value;
+    const tag = document.getElementById('edit-board-tag').value.trim();
+    const description = document.getElementById('edit-board-description').value.trim();
+    if(!title){ alert('게시판 이름을 입력해주세요.'); return; }
+    try{
+      const res = await fetch('/api/admin/boards/' + encodeURIComponent(slug), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, category, tag, description }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        editingBoardSlug = null;
+        await afterBoardsChanged();
+      } else {
+        alert(data.message || '수정하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function toggleBoardHidden(slug, hidden){
+    try{
+      const res = await fetch('/api/admin/boards/' + encodeURIComponent(slug), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        await afterBoardsChanged();
+      } else {
+        alert(data.message || '처리하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function moveBoard(slug, direction){
+    try{
+      const res = await fetch('/api/admin/boards/' + encodeURIComponent(slug) + '/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        await afterBoardsChanged();
+      } else {
+        alert(data.message || '순서를 바꾸지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function deleteBoard(slug){
+    if(!confirm('이 게시판을 완전히 삭제할까요? 게시글이 하나라도 있으면 삭제되지 않아요.')) return;
+    try{
+      const res = await fetch('/api/admin/boards/' + encodeURIComponent(slug), { method: 'DELETE' });
+      const data = await res.json();
+      if(data.ok){
+        await afterBoardsChanged();
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function addComment(){
+    const input = document.getElementById('comment-input-field');
+    const text = input.value.trim();
+    if(!text || !currentPostId) return;
+    try{
+      const res = await fetch(`/api/posts/${currentPostId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        input.value = '';
+        // 최신 댓글 목록을 다시 불러와서 반영
+        const postRes = await fetch('/api/posts/' + currentPostId);
+        const postData = await postRes.json();
+        if(postData.ok) renderComments(postData.post.comments);
+      } else {
+        alert(data.message || '댓글을 남기지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function toggleHeart(){
+    if(!currentPostId) return;
+    try{
+      const res = await fetch(`/api/posts/${currentPostId}/heart`, { method: 'POST' });
+      const data = await res.json();
+      if(data.ok){
+        document.getElementById('detail-heart-count').textContent = data.hearts;
+      }
+    }catch(e){}
+  }
+
+  function updateCharCount(){
+    const len = document.getElementById('write-body').value.length;
+    document.getElementById('char-count').textContent = `${len} / 1000자`;
+  }
+
+  function populateWriteBoardSelect(){
+    const sel = document.getElementById('write-board');
+    sel.innerHTML = BOARDS.map(b => `<option value="${b.slug}">${escapeHtml(b.title)}</option>`).join('');
+    sel.value = currentBoard;
+  }
+
+  async function submitPost(){
+    if(!currentUser){
+      alert('글을 쓰려면 먼저 로그인해주세요.');
+      pendingScreen = 'screen-write';
+      showScreen('screen-login');
+      return;
+    }
+    const board = document.getElementById('write-board').value;
+    const title = document.getElementById('write-title').value.trim();
+    const body = document.getElementById('write-body').value.trim();
+    if(!title || !body){ alert('제목과 내용을 모두 입력해주세요.'); return; }
+    const anon = document.getElementById('write-anon').checked;
+
+    try{
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body, anonymous: anon, board }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        document.getElementById('write-title').value = '';
+        document.getElementById('write-body').value = '';
+        updateCharCount();
+        currentBoard = board;
+        showScreen('screen-board');
+      } else {
+        alert(data.message || '글을 등록하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  function pickStamp(emoji){
+    alert('오늘의 기분으로 ' + emoji + ' 를 남겼어요.');
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  // input value="..." 같은 속성 안에 안전하게 넣기 위해 따옴표까지 이스케이프
+  function escapeAttr(str){
+    return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function handleAuthErrorParam(){
+    const params = new URLSearchParams(location.search);
+    const err = params.get('auth_error');
+    if(err){
+      const label = err === 'kakao' ? '카카오' : err === 'google' ? '구글' : '소셜';
+      alert(label + ' 로그인 중 문제가 발생했어요. 다시 시도해주세요.');
+      params.delete('auth_error');
+      const rest = params.toString();
+      try{ history.replaceState({}, '', location.pathname + (rest ? '?' + rest : '')); }catch(e){ /* 무시 */ }
+    }
+  }
+
+  // 아래 두 줄은 페이지가 열리자마자 실행돼요. history.replaceState가 (파일 미리보기 같은
+  // 샌드박스 환경에서) 에러를 던지더라도 게시판 목록 로딩(loadBoards)까지는 반드시 이어지도록
+  // try/catch로 감싸요 — 그래야 화면 자체는 정상적으로 보여요.
+  try{ history.replaceState({ screen: 'screen-home' }, '', '#screen-home'); }catch(e){ /* 무시 */ }
+  loadBoards().then(() => { renderBoardNav(); renderBoardList(); });
+  refreshAuth();
+  handleAuthErrorParam();
+</script>
+</body>
+</html>
