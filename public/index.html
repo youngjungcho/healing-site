@@ -113,12 +113,39 @@
     font-size:13px;
     color:var(--text);
   }
-  .catrow span{ cursor:pointer; padding-bottom:8px; }
-  .catrow .active{
+  .cat-item{ position:relative; padding-bottom:8px; }
+  .cat-item > .cat-label{ cursor:default; padding-bottom:8px; }
+  .cat-item.has-current > .cat-label{
     color:var(--point);
     font-weight:700;
     border-bottom:2px solid var(--point);
   }
+  .cat-dropdown{
+    display:none;
+    position:absolute;
+    top:100%;
+    left:0;
+    z-index:20;
+    min-width:180px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.08);
+    padding:6px 0;
+    margin-top:4px;
+  }
+  .cat-item.open .cat-dropdown{ display:block; }
+  @media (hover: hover){
+    .cat-item:hover .cat-dropdown{ display:block; }
+  }
+  .cat-dropdown span{
+    display:block;
+    padding:9px 16px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .cat-dropdown span:hover{ background:var(--accent-soft); }
+  .cat-dropdown span.current{ color:var(--point); font-weight:700; }
 
   .body-layout{ display:flex; }
 
@@ -657,6 +684,19 @@
     showScreen('screen-board');
   }
 
+  // PC는 CSS만으로 마우스오버 시 드롭다운이 열리지만, 터치 기기는 hover가 없어서
+  // 카테고리를 탭하면 이 함수로 열림/닫힘을 토글해줌. 다른 카테고리를 열면 먼저 닫음.
+  function toggleCatDropdown(evt, el){
+    if(!window.matchMedia('(hover: none)').matches) return;
+    evt.stopPropagation();
+    const wasOpen = el.classList.contains('open');
+    document.querySelectorAll('.cat-item.open').forEach(item => item.classList.remove('open'));
+    if(!wasOpen) el.classList.add('open');
+  }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.cat-item.open').forEach(item => item.classList.remove('open'));
+  });
+
   // BOARDS를 카테고리별로 묶어서, 늘 같은 순서(감정·마음 → 감각·속도 늦추기 → 연결·온기 → 새 카테고리)로 반환
   function groupBoardsByCategory(){
     const groups = {};
@@ -690,9 +730,18 @@
 
     const catrowEl = document.getElementById('board-catrow');
     if(catrowEl){
-      catrowEl.innerHTML = BOARDS.map(b =>
-        `<span data-board="${b.slug}" onclick="openBoard('${b.slug}')">${escapeHtml(b.title)}</span>`
-      ).join('');
+      catrowEl.innerHTML = groups.map(g => {
+        const hasCurrent = g.boards.some(b => b.slug === currentBoard);
+        return `
+        <div class="cat-item${hasCurrent ? ' has-current' : ''}" onclick="toggleCatDropdown(event, this)">
+          <span class="cat-label">${escapeHtml(g.category)}</span>
+          <div class="cat-dropdown">
+            ${g.boards.map(b =>
+              `<span data-board="${b.slug}" class="${b.slug === currentBoard ? 'current' : ''}" onclick="event.stopPropagation();openBoard('${b.slug}')">${escapeHtml(b.title)}</span>`
+            ).join('')}
+          </div>
+        </div>`;
+      }).join('');
     }
 
     const sidebarEl = document.getElementById('board-sidebar');
@@ -911,6 +960,10 @@
       const on = el.dataset.board === currentBoard;
       el.classList.toggle('active', on);
       el.classList.toggle('current', on);
+    });
+    document.querySelectorAll('.cat-item').forEach(item => {
+      const hasCurrent = !!item.querySelector(`[data-board="${currentBoard}"]`);
+      item.classList.toggle('has-current', hasCurrent);
     });
     const tbody = document.getElementById('board-tbody');
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">불러오는 중...</td></tr>`;
