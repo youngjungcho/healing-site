@@ -127,25 +127,29 @@
     left:0;
     z-index:20;
     min-width:180px;
+    /* 라벨과 드롭다운 사이에 빈 여백을 두면 그 틈을 지나가는 순간 호버가
+       풀려버려서, margin 대신 투명 패딩으로 여백을 만들어 hover 영역을 이어붙임 */
+    padding-top:4px;
+  }
+  .cat-dropdown-inner{
     background:var(--panel);
     border:1px solid var(--line);
     border-radius:8px;
     box-shadow:0 6px 18px rgba(0,0,0,0.08);
     padding:6px 0;
-    margin-top:4px;
   }
   .cat-item.open .cat-dropdown{ display:block; }
   @media (hover: hover){
     .cat-item:hover .cat-dropdown{ display:block; }
   }
-  .cat-dropdown span{
+  .cat-dropdown-inner span{
     display:block;
     padding:9px 16px;
     cursor:pointer;
     white-space:nowrap;
   }
-  .cat-dropdown span:hover{ background:var(--accent-soft); }
-  .cat-dropdown span.current{ color:var(--point); font-weight:700; }
+  .cat-dropdown-inner span:hover{ background:var(--accent-soft); }
+  .cat-dropdown-inner span.current{ color:var(--point); font-weight:700; }
 
   .body-layout{ display:flex; }
 
@@ -736,9 +740,11 @@
         <div class="cat-item${hasCurrent ? ' has-current' : ''}" onclick="toggleCatDropdown(event, this)">
           <span class="cat-label">${escapeHtml(g.category)}</span>
           <div class="cat-dropdown">
-            ${g.boards.map(b =>
-              `<span data-board="${b.slug}" class="${b.slug === currentBoard ? 'current' : ''}" onclick="event.stopPropagation();openBoard('${b.slug}')">${escapeHtml(b.title)}</span>`
-            ).join('')}
+            <div class="cat-dropdown-inner">
+              ${g.boards.map(b =>
+                `<span data-board="${b.slug}" class="${b.slug === currentBoard ? 'current' : ''}" onclick="event.stopPropagation();openBoard('${b.slug}')">${escapeHtml(b.title)}</span>`
+              ).join('')}
+            </div>
           </div>
         </div>`;
       }).join('');
