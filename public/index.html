@@ -686,6 +686,7 @@
   function openBoard(slug){
     currentBoard = slug;
     showScreen('screen-board');
+    document.querySelectorAll('.cat-item.open').forEach(item => item.classList.remove('open'));
   }
 
   // PC는 CSS만으로 마우스오버 시 드롭다운이 열리지만, 터치 기기는 hover가 없어서
