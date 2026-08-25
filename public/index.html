@@ -386,6 +386,48 @@
     border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:22px; background:var(--accent-soft);
   }
   .board-admin-form h3{ margin:0 0 12px; font-size:14px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; }
+
+  .mypage-tabrow{
+    display:flex;
+    gap:22px;
+    padding-bottom:12px;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:13px;
+    color:var(--text);
+  }
+  .mypage-tab{ cursor:pointer; padding-bottom:8px; }
+  .mypage-tab.active{ color:var(--point); font-weight:700; border-bottom:2px solid var(--point); }
+  .mypage-panel{ margin-top:20px; }
+  .mypage-list{ list-style:none; margin:0; padding:0; }
+  .mypage-list li{
+    border-bottom:1px solid var(--line);
+    padding:14px 4px;
+    cursor:pointer;
+  }
+  .mypage-list li:hover{ background:var(--accent-soft); }
+  .mypage-item-board{
+    display:inline-block;
+    font-size:11px;
+    color:var(--sub);
+    background:var(--accent-soft);
+    border-radius:10px;
+    padding:2px 9px;
+    margin-bottom:6px;
+  }
+  .mypage-item-title{ font-size:14px; margin-bottom:4px; }
+  .mypage-item-meta{ font-size:11.5px; color:var(--sub); }
+  .mypage-item-body{ font-size:13px; color:var(--text); margin-bottom:6px; }
+  .mypage-empty{ color:var(--sub); font-size:13px; padding:20px 4px; }
+  .sanction-card{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:18px 20px;
+  }
+  .sanction-card.ok{ background:var(--accent-soft); }
+  .sanction-card.warn{ background:#fbeae5; color:#a15c4a; }
+  .sanction-card .violation-count{ font-size:12px; color:var(--sub); margin-top:8px; }
 </style>
 </head>
 <body>
@@ -402,7 +444,7 @@
     <div class="search"><input type="text" placeholder="검색어를 입력하세요"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
-      <span onclick="notReady('마이페이지')">마이페이지</span>
+      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
       <span onclick="requireLoginThen('screen-write')">글쓰기</span>
     </div>
   </div>
@@ -421,7 +463,7 @@
     <div class="search"><input type="text" placeholder="이 게시판에서 검색"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
-      <span onclick="notReady('마이페이지')">마이페이지</span>
+      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
     </div>
   </div>
   <div class="catrow" id="board-catrow"><!-- 카테고리 탭도 게시판 목록으로 자동 생성돼요 --></div>
@@ -575,6 +617,29 @@
       <button class="login-btn" onclick="doForgotPassword()">재설정 링크 받기</button>
       <div class="signup-link" onclick="showScreen('screen-login')">로그인으로 돌아가기</div>
     </div>
+  </div>
+</div>
+
+<!-- 화면 ⑥-2 마이페이지 -->
+<div class="site screen" id="screen-mypage">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-home')">홈으로</span></div>
+  </div>
+  <div class="write-wrap">
+    <h2>마이페이지</h2>
+    <div class="mypage-tabrow">
+      <span class="mypage-tab" data-tab="posts" onclick="switchMypageTab('posts')">내가 쓴 글</span>
+      <span class="mypage-tab" data-tab="comments" onclick="switchMypageTab('comments')">내가 쓴 댓글</span>
+      <span class="mypage-tab" data-tab="sanctions" onclick="switchMypageTab('sanctions')">제재 이력</span>
+    </div>
+
+    <div id="mypage-posts" class="mypage-panel">불러오는 중...</div>
+    <div id="mypage-comments" class="mypage-panel" style="display:none;">불러오는 중...</div>
+    <div id="mypage-sanctions" class="mypage-panel" style="display:none;">불러오는 중...</div>
   </div>
 </div>
 
@@ -778,6 +843,7 @@
     if(id === 'screen-board') renderBoardList();
     if(id === 'screen-write') populateWriteBoardSelect();
     if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); }
+    if(id === 'screen-mypage') initMypage();
     window.scrollTo(0,0);
   }
 
@@ -1061,6 +1127,89 @@
     }catch(e){
       closeReportModal();
       alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  // ---- 마이페이지 ----
+  let mypageLoaded = { posts: false, comments: false, sanctions: false };
+
+  function initMypage(){
+    mypageLoaded = { posts: false, comments: false, sanctions: false };
+    switchMypageTab('posts');
+  }
+
+  function switchMypageTab(tab){
+    document.querySelectorAll('.mypage-tab').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+    document.querySelectorAll('.mypage-panel').forEach(el => {
+      el.style.display = (el.id === 'mypage-' + tab) ? 'block' : 'none';
+    });
+    if(tab === 'posts' && !mypageLoaded.posts) loadMyPosts();
+    if(tab === 'comments' && !mypageLoaded.comments) loadMyComments();
+    if(tab === 'sanctions' && !mypageLoaded.sanctions) loadMySanctions();
+  }
+
+  async function loadMyPosts(){
+    const el = document.getElementById('mypage-posts');
+    try{
+      const res = await fetch('/api/me/posts');
+      const data = await res.json();
+      if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
+      mypageLoaded.posts = true;
+      if(!data.posts.length){
+        el.innerHTML = '<div class="mypage-empty">아직 쓴 글이 없어요.</div>';
+        return;
+      }
+      el.innerHTML = `<ul class="mypage-list">${data.posts.map(p => `
+        <li onclick="openPost(${p.id})">
+          <span class="mypage-item-board">${escapeHtml(p.boardTitle)}</span>
+          <div class="mypage-item-title">${escapeHtml(p.title)}${p.hidden ? ' <span style="color:#a15c4a;">(검토중)</span>' : ''}</div>
+          <div class="mypage-item-meta">${formatDate(p.createdAt)} · 댓글 ${p.commentCount} · 공감 ${p.hearts}</div>
+        </li>`).join('')}</ul>`;
+    }catch(e){
+      el.innerHTML = '서버와 통신 중 문제가 발생했어요.';
+    }
+  }
+
+  async function loadMyComments(){
+    const el = document.getElementById('mypage-comments');
+    try{
+      const res = await fetch('/api/me/comments');
+      const data = await res.json();
+      if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
+      mypageLoaded.comments = true;
+      if(!data.comments.length){
+        el.innerHTML = '<div class="mypage-empty">아직 쓴 댓글이 없어요.</div>';
+        return;
+      }
+      el.innerHTML = `<ul class="mypage-list">${data.comments.map(c => `
+        <li onclick="openPost(${c.postId})">
+          <span class="mypage-item-board">${escapeHtml(c.boardTitle)} · ${escapeHtml(c.postTitle)}</span>
+          <div class="mypage-item-body">${escapeHtml(c.body)}${c.hidden ? ' <span style="color:#a15c4a;">(검토중)</span>' : ''}</div>
+          <div class="mypage-item-meta">${formatDate(c.createdAt)}</div>
+        </li>`).join('')}</ul>`;
+    }catch(e){
+      el.innerHTML = '서버와 통신 중 문제가 발생했어요.';
+    }
+  }
+
+  async function loadMySanctions(){
+    const el = document.getElementById('mypage-sanctions');
+    try{
+      const res = await fetch('/api/me/sanctions');
+      const data = await res.json();
+      if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
+      mypageLoaded.sanctions = true;
+      const s = data.sanction;
+      const isClean = !s.banned && !s.message;
+      el.innerHTML = `
+        <div class="sanction-card ${isClean ? 'ok' : 'warn'}">
+          ${isClean ? '지금까지 제재 이력이 없어요. 다정한 이용 감사해요 :)' : escapeHtml(s.message)}
+          <div class="violation-count">누적 삭제 처리: ${s.violationCount}회</div>
+        </div>`;
+    }catch(e){
+      el.innerHTML = '서버와 통신 중 문제가 발생했어요.';
     }
   }
 

@@ -633,6 +633,77 @@ app.get('/api/me', (req, res) => {
   res.json({ ok: true, user: publicUser(user) });
 });
 
+// 마이페이지: 내가 쓴 글 모아보기 (게시판 구분 포함, 최신순)
+app.get('/api/me/posts', requireAuth, (req, res) => {
+  const posts = loadPosts();
+  const mine = posts
+    .filter(p => p.writerId === req.currentUser.id)
+    .slice()
+    .sort((a, b) => b.id - a.id)
+    .map(p => ({
+      id: p.id,
+      board: p.board || 'diary',
+      boardTitle: (getBoard(p.board) || {}).title || p.board,
+      title: p.title,
+      hearts: p.hearts,
+      commentCount: p.comments.length,
+      hidden: !!p.hidden,
+      createdAt: p.createdAt,
+    }));
+  res.json({ ok: true, posts: mine });
+});
+
+// 마이페이지: 내가 쓴 댓글 모아보기 (어느 글에 달았는지 포함, 최신순)
+app.get('/api/me/comments', requireAuth, (req, res) => {
+  const posts = loadPosts();
+  const mine = [];
+  posts.forEach(p => {
+    (p.comments || []).forEach(c => {
+      if (c.writerId === req.currentUser.id) {
+        mine.push({
+          postId: p.id,
+          commentId: c.id,
+          board: p.board || 'diary',
+          boardTitle: (getBoard(p.board) || {}).title || p.board,
+          postTitle: p.title,
+          body: c.body,
+          hidden: !!c.hidden,
+          createdAt: c.createdAt,
+        });
+      }
+    });
+  });
+  mine.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json({ ok: true, comments: mine });
+});
+
+// 신고 누적 제재(정지/일시제한) 상태만 안내하는 메시지. 이메일 미인증 안내는
+// sanctionMessage와 달리 여기서는 다루지 않음 (마이페이지 제재 이력용).
+function banOrLimitMessage(user) {
+  if (!user) return null;
+  if (user.banned) return '이용 정책 위반으로 계정이 영구 정지되었어요.';
+  if (user.sanctionUntil && new Date(user.sanctionUntil).getTime() > Date.now()) {
+    const d = new Date(user.sanctionUntil);
+    const dateStr = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+    return `신고 누적으로 ${dateStr}까지 글쓰기·댓글 작성이 제한돼요.`;
+  }
+  return null;
+}
+
+// 마이페이지: 내 제재 이력 (현재 상태 + 누적 위반 횟수)
+app.get('/api/me/sanctions', requireAuth, (req, res) => {
+  const user = req.currentUser;
+  res.json({
+    ok: true,
+    sanction: {
+      banned: !!user.banned,
+      sanctionUntil: user.sanctionUntil || null,
+      violationCount: user.violationCount || 0,
+      message: banOrLimitMessage(user),
+    },
+  });
+});
+
 // 게시판 목록 (숨김 처리된 게시판은 제외)
 app.get('/api/boards', (req, res) => {
   const boards = loadBoards().filter(b => !b.hidden).sort((a, b) => (a.order || 0) - (b.order || 0));
