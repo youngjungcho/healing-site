@@ -67,6 +67,8 @@ function isAdminUser(user) {
 const REPORT_THRESHOLD = 3; // 이 횟수만큼 신고가 누적되면 자동 숨김
 const REPORT_REASONS = ['욕설/비방', '광고', '신상 노출', '자해 조장', '기타'];
 const SEVERE_REPORT_REASONS = new Set(['신상 노출', '자해 조장']);
+const REPORT_SLA_MS = 24 * 60 * 60 * 1000; // 이 시간 안에 처리 안 되면 운영자에게 SLA 초과 메일 발송
+const REPORT_SLA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 이 주기로 SLA 초과 여부를 검사
 const BANNED_WORDS_FILE = path.join(DATA_DIR, 'bannedWords.json');
 
 // ---- 아주 가벼운 파일 기반 "DB" ----
@@ -904,6 +906,69 @@ app.post('/api/posts/:id/comments/:commentId/report', (req, res) => {
 // ---- 운영자 신고 관리 ----
 
 // 신고가 하나라도 있는 글/댓글 목록. 자해 조장 신고는 우선순위를 올려서 맨 위로 보여줌
+function slaEmailHtml(items) {
+  const rows = items.map(it => `
+    <li>
+      <strong>${it.type === 'post' ? '게시글' : '댓글'} · ${escapeHtmlServer(it.boardTitle)}</strong><br>
+      ${escapeHtmlServer(it.type === 'post' ? it.title : it.body).slice(0, 80)}<br>
+      신고 ${it.reportCount}건 · 최초 신고 ${it.oldestReportAt}
+    </li>`).join('');
+  return `<div style="font-family:sans-serif;line-height:1.7;">
+    <p>안녕하세요, 쉼표예요.</p>
+    <p>${items.length}건의 신고가 24시간 넘게 처리되지 않고 있어요. 운영자 화면에서 확인해주세요.</p>
+    <ul>${rows}</ul>
+    <p><a href="${APP_BASE_URL}/#screen-admin">운영자 화면 바로가기</a></p>
+  </div>`;
+}
+
+// 24시간 넘게 처리되지 않은 신고를 찾아 운영자 전체에게 메일로 알림. 같은 신고에는
+// 한 번만 보내도록 slaNotified 플래그를 남기고, 운영자가 처리(복구/삭제)하면
+// reports 배열이 초기화되거나 글/댓글째 지워지므로 플래그도 함께 사라짐.
+async function checkReportSla() {
+  if (!ADMIN_EMAILS.length) return;
+  const posts = loadPosts();
+  const boards = loadBoards();
+  const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
+  const now = Date.now();
+  const overdue = [];
+  let changed = false;
+
+  function checkTarget(target, type, post) {
+    const reports = target.reports || [];
+    if (!reports.length || target.slaNotified) return;
+    const oldest = reports.reduce((min, r) => Math.min(min, new Date(r.createdAt).getTime()), Infinity);
+    if (now - oldest < REPORT_SLA_MS) return;
+    overdue.push({
+      type,
+      boardTitle: boardTitleOf(post.board || 'diary'),
+      title: post.title,
+      body: target.body,
+      reportCount: reports.length,
+      oldestReportAt: new Date(oldest).toLocaleString('ko-KR'),
+    });
+    target.slaNotified = true;
+    changed = true;
+  }
+
+  posts.forEach(p => {
+    checkTarget(p, 'post', p);
+    (p.comments || []).forEach(c => checkTarget(c, 'comment', p));
+  });
+
+  if (!overdue.length) return;
+  if (changed) savePosts(posts);
+
+  try {
+    await sendMail({
+      to: ADMIN_EMAILS.join(','),
+      subject: `[쉼표] SLA 초과 신고 ${overdue.length}건 확인해주세요`,
+      html: slaEmailHtml(overdue),
+    });
+  } catch (err) {
+    console.error('SLA 알림 메일 발송 실패:', err);
+  }
+}
+
 app.get('/api/admin/reports', requireAdmin, (req, res) => {
   const posts = loadPosts();
   const boards = loadBoards();
@@ -989,6 +1054,7 @@ app.post('/api/admin/resolve', requireAdmin, (req, res) => {
   if (action === 'restore') {
     target.hidden = false;
     target.reports = [];
+    target.slaNotified = false;
     savePosts(posts);
     return res.json({ ok: true });
   }
@@ -1258,4 +1324,6 @@ app.get('/auth/google/callback', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`쉼표 로그인 서버가 http://localhost:${PORT} 에서 실행 중이에요.`);
+  checkReportSla();
+  setInterval(checkReportSla, REPORT_SLA_CHECK_INTERVAL_MS);
 });
