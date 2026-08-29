@@ -730,6 +730,32 @@ app.get('/api/posts', (req, res) => {
   res.json({ ok: true, board: board.slug, posts: sorted.map(publicPost) });
 });
 
+// 전체 게시판 검색 (제목·내용 대상). 숨김 게시판과 신고로 숨겨진 글은 결과에서 제외
+app.get('/api/search', (req, res) => {
+  const me = getCurrentUser(req);
+  const query = String(req.query.q || '').trim().toLowerCase();
+  if (!query) {
+    return res.json({ ok: true, query: '', posts: [] });
+  }
+  const boards = loadBoards();
+  const visibleBoardSlugs = new Set(boards.filter(b => !b.hidden).map(b => b.slug));
+  const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
+
+  const posts = loadPosts();
+  const matched = posts.filter(p => {
+    const board = p.board || 'diary';
+    if (!visibleBoardSlugs.has(board)) return false;
+    if (p.hidden && !(me && (me.id === p.writerId || isAdminUser(me)))) return false;
+    return p.title.toLowerCase().includes(query) || p.body.toLowerCase().includes(query);
+  });
+  const sorted = matched.slice().sort((a, b) => b.id - a.id);
+  res.json({
+    ok: true,
+    query,
+    posts: sorted.map(p => ({ ...publicPost(p), boardTitle: boardTitleOf(p.board || 'diary') })),
+  });
+});
+
 // 상세 (조회수 +1)
 app.get('/api/posts/:id', (req, res) => {
   const me = getCurrentUser(req);

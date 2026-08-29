@@ -442,6 +442,14 @@
     padding:2px 9px;
     margin-bottom:6px;
   }
+  .board-badge-inline{
+    display:inline-block;
+    font-size:10.5px;
+    color:var(--sub);
+    background:var(--accent-soft);
+    border-radius:10px;
+    padding:2px 8px;
+  }
   .mypage-item-title{ font-size:14px; margin-bottom:4px; }
   .mypage-item-meta{ font-size:11.5px; color:var(--sub); }
   .mypage-item-body{ font-size:13px; color:var(--text); margin-bottom:6px; }
@@ -533,7 +541,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="search"><input type="text" placeholder="검색어를 입력하세요"></div>
+    <div class="search"><input type="text" id="home-search-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
       <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
@@ -552,7 +560,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="search"><input type="text" placeholder="이 게시판에서 검색"></div>
+    <div class="search"><input type="text" id="board-search-input" placeholder="이 게시판에서 검색" onkeydown="if(event.key==='Enter')searchInBoard()"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
       <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
@@ -598,6 +606,35 @@
         <h4>익명 응원 릴레이</h4>
         <p>지금 3명이 서로에게 응원의 댓글을 남기고 있어요.</p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 ②-1 검색 결과 -->
+<div class="site screen" id="screen-search">
+  <div class="topbar">
+    <div>
+      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <div class="search"><input type="text" id="search-result-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
+    <div class="nav-links">
+      <span class="auth-slot" data-auth></span>
+      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
+    </div>
+  </div>
+  <div class="main" style="padding:20px 26px;">
+    <div class="board-title">
+      <h2 id="search-title-text">검색 결과</h2>
+      <span class="count" id="search-count">0건</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th class="num">번호</th><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
+        </thead>
+        <tbody id="search-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1152,6 +1189,7 @@
   let currentPage = 1;
 
   async function renderBoardList(){
+    document.getElementById('board-search-input').value = '';
     document.getElementById('board-title-text').textContent = boardTitle(currentBoard);
     document.querySelectorAll('#screen-board [data-board]').forEach(el => {
       const on = el.dataset.board === currentBoard;
@@ -1208,6 +1246,63 @@
     currentPage = page;
     renderBoardPage();
     window.scrollTo(0, 0);
+  }
+
+  // ---- 검색 ----
+
+  function renderSearchRows(tbodyId, posts, showBoardBadge){
+    const tbody = document.getElementById(tbodyId);
+    if(!posts.length){
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">검색 결과가 없어요.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = posts.map(p => `
+      <tr onclick="openPost(${p.id})">
+        <td class="num">${p.id}</td>
+        <td class="title-cell">
+          ${showBoardBadge ? `<span class="board-badge-inline" style="margin-right:6px;">${escapeHtml(p.boardTitle || boardTitle(p.board))}</span>` : ''}
+          <a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}
+        </td>
+        <td class="writer">${escapeHtml(p.writerNickname)}</td>
+        <td class="date">${formatDate(p.createdAt)}</td>
+        <td class="heart">♥ ${p.hearts}</td>
+      </tr>`).join('');
+  }
+
+  // 홈 화면 검색: 전체 게시판(숨김 게시판 제외) 대상으로 서버에서 검색
+  async function searchAllBoards(){
+    const query = (document.getElementById('home-search-input') || document.getElementById('search-result-input')).value.trim();
+    if(!query) return;
+    showScreen('screen-search');
+    document.getElementById('search-result-input').value = query;
+    document.getElementById('search-title-text').textContent = `"${query}" 검색 결과`;
+    document.getElementById('search-count').textContent = '불러오는 중...';
+    document.getElementById('search-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">불러오는 중...</td></tr>`;
+    try{
+      const res = await fetch('/api/search?q=' + encodeURIComponent(query));
+      const data = await res.json();
+      const posts = data.ok ? data.posts : [];
+      document.getElementById('search-count').textContent = `${posts.length}건`;
+      renderSearchRows('search-tbody', posts, true);
+    }catch(e){
+      document.getElementById('search-count').textContent = '0건';
+      document.getElementById('search-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">검색하지 못했어요. 서버가 실행 중인지 확인해주세요.</td></tr>`;
+    }
+  }
+
+  // 게시판 화면 검색: 이미 받아온 currentBoardPosts 안에서만 필터링 (재요청 없음)
+  function searchInBoard(){
+    const query = document.getElementById('board-search-input').value.trim().toLowerCase();
+    const paginationEl = document.getElementById('board-pagination');
+    if(!query){
+      currentPage = 1;
+      renderBoardPage();
+      return;
+    }
+    const filtered = currentBoardPosts.filter(p => p.title.toLowerCase().includes(query));
+    document.getElementById('board-count').textContent = `검색 결과 ${filtered.length}건`;
+    paginationEl.innerHTML = '';
+    renderSearchRows('board-tbody', filtered, false);
   }
 
   let currentPostWriterId = null; // 지금 상세 화면에 열려 있는 글의 작성자 id (본인 글 여부 판단용)
