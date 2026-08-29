@@ -428,6 +428,28 @@
   .sanction-card.ok{ background:var(--accent-soft); }
   .sanction-card.warn{ background:#fbeae5; color:#a15c4a; }
   .sanction-card .violation-count{ font-size:12px; color:var(--sub); margin-top:8px; }
+
+  .banned-word-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .banned-word-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:"Noto Sans KR",sans-serif;
+    font-size:12.5px;
+    background:var(--accent-soft);
+    border-radius:14px;
+    padding:6px 8px 6px 14px;
+  }
+  .banned-word-chip button{
+    border:none;
+    background:none;
+    color:var(--sub);
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+    padding:2px 4px;
+  }
+  .banned-word-chip button:hover{ color:#a15c4a; }
 </style>
 </head>
 <body>
@@ -698,6 +720,22 @@
     </div>
 
     <div id="board-admin-list">불러오는 중...</div>
+
+    <h2 style="margin-top:40px;">운영자 · 금칙어 관리</h2>
+    <div class="gentle-notice">글·댓글 등록 시 이 목록에 있는 단어가 포함되면 서버가 거부해요. 공백·특수문자·초성으로 우회한 표기도 정규화해서 잡아내니, 우회 표기까지 따로 등록할 필요는 없어요.</div>
+
+    <div class="board-admin-form">
+      <h3>단어 추가하기</h3>
+      <div class="form-row">
+        <label>단어</label>
+        <input type="text" id="new-banned-word" placeholder="추가할 금칙어" onkeydown="if(event.key==='Enter')addBannedWord()">
+      </div>
+      <div class="form-actions">
+        <button class="write-btn" onclick="addBannedWord()">추가하기</button>
+      </div>
+    </div>
+
+    <div id="banned-word-list">불러오는 중...</div>
   </div>
 </div>
 
@@ -842,7 +880,7 @@
     document.getElementById(id).classList.add('active');
     if(id === 'screen-board') renderBoardList();
     if(id === 'screen-write') populateWriteBoardSelect();
-    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); }
+    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); }
     if(id === 'screen-mypage') initMypage();
     window.scrollTo(0,0);
   }
@@ -1438,6 +1476,74 @@
       const data = await res.json();
       if(data.ok){
         await afterBoardsChanged();
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  // ---- 운영자 금칙어 관리 ----
+  async function loadBannedWords(){
+    const el = document.getElementById('banned-word-list');
+    el.innerHTML = '불러오는 중...';
+    try{
+      const res = await fetch('/api/admin/banned-words');
+      const data = await res.json();
+      if(!data.ok){
+        el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.');
+        return;
+      }
+      renderBannedWordList(data.words);
+    }catch(e){
+      el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  function renderBannedWordList(words){
+    const el = document.getElementById('banned-word-list');
+    if(!words.length){
+      el.innerHTML = '<p style="font-family:\'Noto Sans KR\',sans-serif;color:var(--sub);font-size:12.5px;">등록된 금칙어가 없어요.</p>';
+      return;
+    }
+    el.innerHTML = `<div class="banned-word-chips">${words.map(w => `
+      <span class="banned-word-chip">${escapeHtml(w)}<button onclick="removeBannedWord('${escapeAttr(w)}')" aria-label="삭제">×</button></span>
+    `).join('')}</div>`;
+  }
+
+  async function addBannedWord(){
+    const input = document.getElementById('new-banned-word');
+    const word = input.value.trim();
+    if(!word){ alert('추가할 단어를 입력해주세요.'); return; }
+    try{
+      const res = await fetch('/api/admin/banned-words', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        input.value = '';
+        renderBannedWordList(data.words);
+      } else {
+        alert(data.message || '추가하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function removeBannedWord(word){
+    try{
+      const res = await fetch('/api/admin/banned-words', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', word }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        renderBannedWordList(data.words);
       } else {
         alert(data.message || '삭제하지 못했어요.');
       }
