@@ -577,9 +577,7 @@
           <tbody id="board-tbody"></tbody>
         </table>
       </div>
-      <div class="pagination">
-        <span class="on">1</span><span onclick="notReady('페이지 이동')">2</span><span onclick="notReady('페이지 이동')">3</span>
-      </div>
+      <div class="pagination" id="board-pagination"></div>
     </div>
 
     <div class="rightbar">
@@ -1149,6 +1147,10 @@
     return (d.getMonth()+1) + '.' + d.getDate();
   }
 
+  const POSTS_PER_PAGE = 10;
+  let currentBoardPosts = []; // 지금 보고 있는 게시판의 전체 글 목록 (페이지 전환 시 재요청 없이 여기서 자름)
+  let currentPage = 1;
+
   async function renderBoardList(){
     document.getElementById('board-title-text').textContent = boardTitle(currentBoard);
     document.querySelectorAll('#screen-board [data-board]').forEach(el => {
@@ -1165,19 +1167,47 @@
     try{
       const res = await fetch('/api/posts?board=' + encodeURIComponent(currentBoard));
       const data = await res.json();
-      const posts = data.ok ? data.posts : [];
-      tbody.innerHTML = posts.map(p => `
-        <tr onclick="openPost(${p.id})">
-          <td class="num">${p.id}</td>
-          <td class="title-cell"><a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}</td>
-          <td class="writer">${escapeHtml(p.writerNickname)}</td>
-          <td class="date">${formatDate(p.createdAt)}</td>
-          <td class="heart">♥ ${p.hearts}</td>
-        </tr>`).join('');
-      document.getElementById('board-count').textContent = `전체 글 ${posts.length}`;
+      currentBoardPosts = data.ok ? data.posts : [];
+      currentPage = 1;
+      renderBoardPage();
     }catch(e){
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">글을 불러오지 못했어요. 서버가 실행 중인지 확인해주세요.</td></tr>`;
+      document.getElementById('board-pagination').innerHTML = '';
     }
+  }
+
+  // 이미 받아온 currentBoardPosts를 currentPage 기준으로 잘라서 테이블·페이지 번호만 다시 그림
+  // (서버에 재요청하지 않음)
+  function renderBoardPage(){
+    const tbody = document.getElementById('board-tbody');
+    const totalPages = Math.max(1, Math.ceil(currentBoardPosts.length / POSTS_PER_PAGE));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * POSTS_PER_PAGE;
+    const pagePosts = currentBoardPosts.slice(start, start + POSTS_PER_PAGE);
+
+    tbody.innerHTML = pagePosts.map(p => `
+      <tr onclick="openPost(${p.id})">
+        <td class="num">${p.id}</td>
+        <td class="title-cell"><a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}</td>
+        <td class="writer">${escapeHtml(p.writerNickname)}</td>
+        <td class="date">${formatDate(p.createdAt)}</td>
+        <td class="heart">♥ ${p.hearts}</td>
+      </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">아직 글이 없어요. 첫 글을 남겨보세요.</td></tr>`;
+    document.getElementById('board-count').textContent = `전체 글 ${currentBoardPosts.length}`;
+
+    const paginationEl = document.getElementById('board-pagination');
+    if(totalPages <= 1){
+      paginationEl.innerHTML = '';
+    } else {
+      paginationEl.innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
+        .map(n => `<span class="${n === currentPage ? 'on' : ''}" onclick="goToBoardPage(${n})">${n}</span>`).join('');
+    }
+  }
+
+  function goToBoardPage(page){
+    currentPage = page;
+    renderBoardPage();
+    window.scrollTo(0, 0);
   }
 
   let currentPostWriterId = null; // 지금 상세 화면에 열려 있는 글의 작성자 id (본인 글 여부 판단용)
