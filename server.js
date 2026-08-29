@@ -16,6 +16,9 @@ const PORT = process.env.PORT || 3000;
 // ---- 무차별 대입·스팸 방지용 요청 제한 ----
 // IP 기준으로 세는 가벼운 방식. 실제 서비스에서 프록시/로드밸런서 뒤에 두면
 // trust proxy 설정도 함께 확인해야 정확한 IP로 카운트돼요.
+// 개발 중(localhost)에는 같은 사람이 반복 테스트하다 금방 막혀서 오히려 방해가 되므로,
+// NODE_ENV=production일 때만 실제로 제한을 걸어요.
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 function rateLimitJson(message) {
   return { ok: false, message };
 }
@@ -24,6 +27,7 @@ const loginLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !IS_PRODUCTION,
   message: rateLimitJson('로그인 시도가 너무 많아요. 15분 후 다시 시도해주세요.'),
 });
 const signupLimiter = rateLimit({
@@ -31,6 +35,7 @@ const signupLimiter = rateLimit({
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !IS_PRODUCTION,
   message: rateLimitJson('회원가입 시도가 너무 많아요. 잠시 후 다시 시도해주세요.'),
 });
 const forgotPasswordLimiter = rateLimit({
@@ -38,6 +43,7 @@ const forgotPasswordLimiter = rateLimit({
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !IS_PRODUCTION,
   message: rateLimitJson('비밀번호 찾기 요청이 너무 많아요. 잠시 후 다시 시도해주세요.'),
 });
 
