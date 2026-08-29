@@ -316,6 +316,7 @@
     font-size:12.5px; color:var(--point); background:var(--accent-soft); border:none;
     padding:8px 20px; border-radius:20px; cursor:pointer;
   }
+  .react-btn.hearted{ color:#fff; background:var(--point); cursor:default; }
   .comment-title{ font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); margin-bottom:10px; }
   .comment{
     display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);
@@ -696,7 +697,7 @@
       </div>
     </div>
     <div class="react-row">
-      <button class="react-btn" onclick="toggleHeart()">♥ 공감 보내기 · <span id="detail-heart-count"></span></button>
+      <button class="react-btn" id="detail-heart-btn" onclick="toggleHeart()">♥ 공감 보내기 · <span id="detail-heart-count"></span></button>
       <button class="report-btn" onclick="openReportModal('post', currentPostId)">🚨 신고</button>
       <span id="detail-owner-actions" style="display:none;">
         <button class="btn-ghost" onclick="startPostEdit()">수정</button>
@@ -1335,6 +1336,7 @@
       document.getElementById('detail-hidden-notice').style.display = p.hidden ? 'block' : 'none';
       document.getElementById('detail-body').textContent = p.body;
       document.getElementById('detail-heart-count').textContent = p.hearts;
+      setHeartButtonState(!!p.hearted);
       document.getElementById('detail-owner-actions').style.display =
         (currentUser && currentUser.id === p.writerId) ? 'inline' : 'none';
       cancelPostEdit();
@@ -1908,13 +1910,26 @@
     }
   }
 
+  function setHeartButtonState(hearted){
+    const btn = document.getElementById('detail-heart-btn');
+    btn.classList.toggle('hearted', hearted);
+    btn.firstChild.textContent = hearted ? '♥ 공감 보냄 · ' : '♥ 공감 보내기 · ';
+  }
+
   async function toggleHeart(){
     if(!currentPostId) return;
+    const btn = document.getElementById('detail-heart-btn');
+    if(btn.classList.contains('hearted')) return; // 이미 보낸 공감은 다시 누를 수 없음
     try{
       const res = await fetch(`/api/posts/${currentPostId}/heart`, { method: 'POST' });
       const data = await res.json();
       if(data.ok){
         document.getElementById('detail-heart-count').textContent = data.hearts;
+        setHeartButtonState(true);
+      } else if(res.status === 409){
+        // 다른 탭 등에서 이미 보낸 상태 — 화면 표시를 실제 상태에 맞춰줌
+        if(data.hearts !== undefined) document.getElementById('detail-heart-count').textContent = data.hearts;
+        setHeartButtonState(true);
       }
     }catch(e){}
   }

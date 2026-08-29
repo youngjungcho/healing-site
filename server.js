@@ -310,10 +310,11 @@ function getCurrentUser(req) {
   return users.find(u => u.id === req.session.userId) || null;
 }
 
-// 신고한 사람을 구분하기 위한 식별자. 로그인했으면 계정 id, 아니면 세션 기준(중복 신고 방지용)
-function getReporterId(req) {
+// 방문자를 구분하기 위한 식별자. 로그인했으면 계정 id, 아니면 세션 기준
+// (신고·공감 중복 방지에 공통으로 사용)
+function getVisitorId(req) {
   if (req.session.userId) return 'u:' + req.session.userId;
-  req.session.reported = true; // 세션이 저장되도록 값 하나를 기록해둠
+  req.session.visited = true; // 세션이 저장되도록 값 하나를 기록해둠
   return 's:' + req.sessionID;
 }
 
@@ -772,7 +773,9 @@ app.get('/api/posts/:id', (req, res) => {
     post.views = (post.views || 0) + 1;
     savePosts(posts);
   }
-  res.json({ ok: true, post: { ...post, comments: visibleComments(post.comments, me) } });
+  const hearted = (post.hearters || []).includes(getVisitorId(req));
+  const { hearters, ...safePost } = post;
+  res.json({ ok: true, post: { ...safePost, hearted, comments: visibleComments(post.comments, me) } });
 });
 
 // 글쓰기 (로그인 필요, 정지·제한 계정은 불가)
@@ -867,9 +870,15 @@ app.post('/api/posts/:id/heart', (req, res) => {
   if (!post) {
     return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
   }
+  post.hearters = post.hearters || [];
+  const visitorId = getVisitorId(req);
+  if (post.hearters.includes(visitorId)) {
+    return res.status(409).json({ ok: false, message: '이미 공감을 보낸 글이에요.', hearts: post.hearts });
+  }
+  post.hearters.push(visitorId);
   post.hearts = (post.hearts || 0) + 1;
   savePosts(posts);
-  res.json({ ok: true, hearts: post.hearts });
+  res.json({ ok: true, hearts: post.hearts, hearted: true });
 });
 
 // 댓글 작성 (로그인 불필요, 로그인했으면 닉네임으로 표시)
@@ -983,7 +992,7 @@ app.post('/api/posts/:id/report', (req, res) => {
     return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
   }
   post.reports = post.reports || [];
-  const reporterId = getReporterId(req);
+  const reporterId = getVisitorId(req);
   if (post.reports.some(r => r.reporterId === reporterId)) {
     return res.status(409).json({ ok: false, message: '이미 신고한 글이에요.' });
   }
@@ -1011,7 +1020,7 @@ app.post('/api/posts/:id/comments/:commentId/report', (req, res) => {
     return res.status(404).json({ ok: false, message: '댓글을 찾을 수 없어요.' });
   }
   comment.reports = comment.reports || [];
-  const reporterId = getReporterId(req);
+  const reporterId = getVisitorId(req);
   if (comment.reports.some(r => r.reporterId === reporterId)) {
     return res.status(409).json({ ok: false, message: '이미 신고한 댓글이에요.' });
   }
