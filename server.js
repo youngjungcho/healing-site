@@ -7,6 +7,8 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +79,42 @@ async function sendMail({ to, subject, html }) {
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+// ---- 이미지 업로드 (Cloudinary) ----
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
+const cloudinaryConfigured = !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
+if (cloudinaryConfigured) {
+  cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET,
+  });
+}
+
+// 업로드 파일은 디스크에 남기지 않고 메모리에서 바로 Cloudinary로 전달
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter(req, file, cb) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('jpg, png, webp 형식의 이미지만 업로드할 수 있어요.'));
+    }
+    cb(null, true);
+  },
+});
+
+function uploadBufferToCloudinary(buffer, folder) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ folder }, (err, result) => {
+      if (err) return reject(err);
+      resolve(result.secure_url);
+    });
+    stream.end(buffer);
+  });
 }
 
 // 실제 카카오/구글 서버 주소. 테스트 시에만 환경변수로 가짜 서버 주소를 넣어 검증해요.
@@ -236,13 +274,27 @@ function publicPost(p) {
   return {
     id: p.id, board: p.board || 'diary', title: p.title, writerNickname: p.writerNickname,
     hearts: p.hearts, views: p.views, commentCount: p.comments.length, createdAt: p.createdAt,
-    hidden: !!p.hidden,
+    hidden: !!p.hidden, hasImages: !!(p.images && p.images.length),
   };
 }
 
 // 신고 누적으로 숨겨진 댓글은 작성자 본인/운영자에게만 보이게 걸러냄
 function visibleComments(comments, me) {
   return (comments || []).filter(c => !c.hidden || (me && (me.id === c.writerId || isAdminUser(me))));
+}
+
+// 글/댓글 목록에 작성자의 "지금" 프로필 사진을 붙여줌. 익명으로 표시되는 글·댓글은
+// 작성자를 특정할 수 없어야 하므로 프로필 사진도 붙이지 않음.
+// users를 미리 불러와서 넘기면(같은 요청 안에서 여러 항목 처리할 때) 반복 조회를 피할 수 있음
+function attachWriterProfileImages(items, users) {
+  const list = users || loadUsers();
+  return items.map(item => {
+    if (item.writerNickname === '익명' || !item.writerId) {
+      return { ...item, writerProfileImage: null };
+    }
+    const writer = list.find(u => u.id === item.writerId);
+    return { ...item, writerProfileImage: (writer && writer.profileImage) || null };
+  });
 }
 
 // ---- 금칙어 필터 ----
@@ -316,6 +368,7 @@ function publicUser(u) {
     banned: !!u.banned,
     sanctionUntil: u.sanctionUntil || null,
     emailVerified: isEmailVerified(u),
+    profileImage: u.profileImage || null,
   };
 }
 
@@ -805,12 +858,64 @@ app.get('/api/posts/:id', (req, res) => {
   }
   const hearted = (post.hearters || []).includes(getVisitorId(req));
   const { hearters, ...safePost } = post;
-  res.json({ ok: true, post: { ...safePost, hearted, comments: visibleComments(post.comments, me) } });
+  const users = loadUsers();
+  const [postWithProfile] = attachWriterProfileImages([safePost], users);
+  const comments = attachWriterProfileImages(visibleComments(post.comments, me), users);
+  res.json({ ok: true, post: { ...postWithProfile, hearted, comments } });
+});
+
+// 글쓰기용 이미지 업로드 (최대 5장). 실제 글 저장과는 별도 — 먼저 업로드해서 URL을 받고,
+// 그 URL들을 글쓰기 요청(POST /api/posts)의 images 필드에 담아 보내는 방식
+app.post('/api/upload/post-images', requireCanWrite, imageUpload.array('images', 5), async (req, res) => {
+  if (!cloudinaryConfigured) {
+    return res.status(500).json({ ok: false, message: '이미지 업로드가 아직 설정되지 않았어요. 관리자에게 문의해주세요.' });
+  }
+  const files = req.files || [];
+  if (!files.length) {
+    return res.status(400).json({ ok: false, message: '업로드할 이미지를 선택해주세요.' });
+  }
+  try {
+    const urls = await Promise.all(files.map(f => uploadBufferToCloudinary(f.buffer, 'healing-site/posts')));
+    res.json({ ok: true, urls });
+  } catch (err) {
+    console.error('이미지 업로드 실패:', err);
+    res.status(500).json({ ok: false, message: '이미지 업로드에 실패했어요. 잠시 후 다시 시도해주세요.' });
+  }
+});
+
+// 프로필 사진 업로드 (1장). 성공하면 바로 내 계정에 반영
+app.post('/api/upload/profile', requireAuth, imageUpload.single('image'), async (req, res) => {
+  if (!cloudinaryConfigured) {
+    return res.status(500).json({ ok: false, message: '이미지 업로드가 아직 설정되지 않았어요. 관리자에게 문의해주세요.' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ ok: false, message: '업로드할 이미지를 선택해주세요.' });
+  }
+  try {
+    const url = await uploadBufferToCloudinary(req.file.buffer, 'healing-site/profiles');
+    const users = loadUsers();
+    const user = users.find(u => u.id === req.currentUser.id);
+    user.profileImage = url;
+    saveUsers(users);
+    res.json({ ok: true, profileImage: url });
+  } catch (err) {
+    console.error('프로필 사진 업로드 실패:', err);
+    res.status(500).json({ ok: false, message: '이미지 업로드에 실패했어요. 잠시 후 다시 시도해주세요.' });
+  }
 });
 
 // 글쓰기 (로그인 필요, 정지·제한 계정은 불가)
+// 업로드 API가 돌려준 Cloudinary URL만 통과시켜서, 임의 URL이 글에 끼어드는 걸 막음
+function sanitizeImageUrls(images) {
+  if (!Array.isArray(images)) return [];
+  const cloudinaryPrefix = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/`;
+  return images
+    .filter(url => typeof url === 'string' && url.startsWith(cloudinaryPrefix))
+    .slice(0, 5);
+}
+
 app.post('/api/posts', requireCanWrite, (req, res) => {
-  const { title, body, anonymous, board } = req.body || {};
+  const { title, body, anonymous, board, images } = req.body || {};
   const boardObj = getBoard(board);
   if (!boardObj) {
     return res.status(400).json({ ok: false, message: '올바른 게시판을 선택해주세요.' });
@@ -831,6 +936,7 @@ app.post('/api/posts', requireCanWrite, (req, res) => {
     board,
     title: trimmedTitle,
     body: trimmedBody,
+    images: sanitizeImageUrls(images),
     // 글쓴이는 클라이언트가 아니라 서버의 로그인 세션 기준으로 결정 (닉네임 위조 방지)
     writerId: req.currentUser.id,
     writerNickname: anonymous ? '익명' : req.currentUser.nickname,
@@ -1479,6 +1585,23 @@ app.get('/auth/google/callback', async (req, res) => {
     console.error('구글 로그인 오류:', err);
     res.redirect('/?auth_error=google');
   }
+});
+
+// multer(이미지 업로드)에서 난 에러를 JSON으로 응답. 다른 라우트의 에러는 각자 처리하므로
+// 여기까지 오지 않음 — 반드시 라우트 등록 전부가 끝난 뒤, 마지막에 있어야 동작함
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? '이미지 하나의 용량은 5MB를 넘을 수 없어요.'
+      : err.code === 'LIMIT_UNEXPECTED_FILE'
+        ? '이미지는 최대 5장까지 첨부할 수 있어요.'
+        : '이미지를 업로드하지 못했어요.';
+    return res.status(400).json({ ok: false, message });
+  }
+  if (err && err.message && err.message.includes('jpg, png, webp')) {
+    return res.status(400).json({ ok: false, message: err.message });
+  }
+  next(err);
 });
 
 app.listen(PORT, () => {

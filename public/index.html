@@ -256,6 +256,24 @@
     outline:none; resize:none; background:#fffdf9;
   }
   .form-hint{ font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--sub); margin-top:6px; text-align:right; }
+  .image-preview-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .image-preview-item{ position:relative; width:72px; height:72px; }
+  .image-preview-item img{ width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+  .image-preview-item button{
+    position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
+    border:none; background:var(--point); color:#fff; font-size:12px; line-height:1; cursor:pointer;
+  }
+  .post-images{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+  .post-images img{ max-width:100%; max-height:420px; border-radius:8px; cursor:zoom-in; }
+  .writer-avatar{
+    display:inline-block; width:20px; height:20px; border-radius:50%; object-fit:cover;
+    vertical-align:middle; margin-right:5px; background:var(--accent-soft);
+  }
+  .profile-photo-row{ display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+  .profile-photo-preview{
+    width:64px; height:64px; border-radius:50%; object-fit:cover; background:var(--accent-soft);
+    border:1px solid var(--line);
+  }
   .anon-row{
     display:flex; align-items:center; gap:6px; font-family:"Noto Sans KR",sans-serif;
     font-size:12px; color:var(--text); margin-bottom:18px;
@@ -665,6 +683,12 @@
       <textarea id="write-body" placeholder="오늘 하루, 어땠나요? 편하게 적어주세요." oninput="updateCharCount()"></textarea>
       <div class="form-hint" id="char-count">0 / 1000자</div>
     </div>
+    <div class="form-row">
+      <label>사진 (선택, 최대 5장)</label>
+      <input type="file" id="write-image-input" accept="image/jpeg,image/png,image/webp" multiple onchange="handleImageSelect()">
+      <div class="image-preview-row" id="write-image-preview"></div>
+      <div class="form-hint" id="image-upload-status"></div>
+    </div>
     <div class="anon-row"><input type="checkbox" id="write-anon" checked> 익명으로 작성하기</div>
     <div class="form-actions">
       <button class="btn-ghost" onclick="showScreen('screen-board')">취소</button>
@@ -688,6 +712,7 @@
     <div class="post-meta" id="detail-meta"></div>
     <div class="gentle-notice" id="detail-hidden-notice" style="display:none;">🔍 신고가 접수되어 검토 중인 글이에요. 운영자 확인 후 다시 보여요. (지금은 작성자 본인에게만 보이는 상태예요)</div>
     <div class="post-body" id="detail-body"></div>
+    <div class="post-images" id="detail-images"></div>
     <div class="post-edit-form" id="detail-edit-form" style="display:none;">
       <input type="text" id="detail-edit-title" maxlength="200">
       <textarea id="detail-edit-body" maxlength="1000"></textarea>
@@ -773,6 +798,14 @@
   </div>
   <div class="write-wrap">
     <h2>마이페이지</h2>
+    <div class="profile-photo-row">
+      <img class="profile-photo-preview" id="profile-photo-preview" src="">
+      <div>
+        <input type="file" id="profile-photo-input" accept="image/jpeg,image/png,image/webp" onchange="uploadProfilePhoto()" style="display:none;">
+        <button class="btn-ghost" onclick="document.getElementById('profile-photo-input').click()">프로필 사진 바꾸기</button>
+        <div class="form-hint" id="profile-photo-status" style="text-align:left;margin-top:6px;"></div>
+      </div>
+    </div>
     <div class="mypage-tabrow">
       <span class="mypage-tab" data-tab="posts" onclick="switchMypageTab('posts')">내가 쓴 글</span>
       <span class="mypage-tab" data-tab="comments" onclick="switchMypageTab('comments')">내가 쓴 댓글</span>
@@ -999,7 +1032,12 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     if(id === 'screen-board') renderBoardList();
-    if(id === 'screen-write') populateWriteBoardSelect();
+    if(id === 'screen-write'){
+      populateWriteBoardSelect();
+      selectedWriteImages = [];
+      document.getElementById('write-image-preview').innerHTML = '';
+      document.getElementById('image-upload-status').textContent = '';
+    }
     if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); }
     if(id === 'screen-mypage') initMypage();
     window.scrollTo(0,0);
@@ -1332,9 +1370,12 @@
       currentBoard = p.board || currentBoard;
       document.getElementById('detail-board-label').textContent = boardTitle(currentBoard);
       document.getElementById('detail-title').textContent = p.title;
-      document.getElementById('detail-meta').innerHTML = `<span>${escapeHtml(p.writerNickname)}</span><span>${formatDate(p.createdAt)}</span><span>조회 ${p.views}</span>`;
+      const writerAvatar = p.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(p.writerProfileImage)}">` : '';
+      document.getElementById('detail-meta').innerHTML = `<span>${writerAvatar}${escapeHtml(p.writerNickname)}</span><span>${formatDate(p.createdAt)}</span><span>조회 ${p.views}</span>`;
       document.getElementById('detail-hidden-notice').style.display = p.hidden ? 'block' : 'none';
       document.getElementById('detail-body').textContent = p.body;
+      document.getElementById('detail-images').innerHTML = (p.images || [])
+        .map(url => `<img src="${escapeAttr(url)}" onclick="window.open('${escapeAttr(url)}', '_blank')">`).join('');
       document.getElementById('detail-heart-count').textContent = p.hearts;
       setHeartButtonState(!!p.hearted);
       document.getElementById('detail-owner-actions').style.display =
@@ -1414,9 +1455,10 @@
       const isMine = currentUser && currentUser.id === c.writerId;
       const ownerActions = isMine
         ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
+      const commentAvatar = c.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(c.writerProfileImage)}">` : '';
       return `
       <div class="comment">
-        <div><span class="c-writer">${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span>${ownerActions}</div>
+        <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span>${ownerActions}</div>
         <div class="c-heart">♥ ${c.hearts}</div>
       </div>`;
     }).join('');
@@ -1507,9 +1549,39 @@
   // ---- 마이페이지 ----
   let mypageLoaded = { posts: false, comments: false, sanctions: false };
 
+  // 프로필 사진이 없을 때 보여줄 기본 아이콘 (외부 이미지 서비스에 의존하지 않도록 인라인 SVG로)
+  const DEFAULT_AVATAR_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#f1ece1"/><circle cx="32" cy="24" r="12" fill="#b7a888"/><ellipse cx="32" cy="54" rx="20" ry="16" fill="#b7a888"/></svg>'
+  );
+
   function initMypage(){
     mypageLoaded = { posts: false, comments: false, sanctions: false };
+    document.getElementById('profile-photo-preview').src = currentUser.profileImage || DEFAULT_AVATAR_SVG;
     switchMypageTab('posts');
+  }
+
+  async function uploadProfilePhoto(){
+    const input = document.getElementById('profile-photo-input');
+    const file = input.files && input.files[0];
+    if(!file) return;
+    const statusEl = document.getElementById('profile-photo-status');
+    statusEl.textContent = '업로드 중...';
+    try{
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch('/api/upload/profile', { method: 'POST', body: formData });
+      const data = await res.json();
+      if(data.ok){
+        currentUser.profileImage = data.profileImage;
+        document.getElementById('profile-photo-preview').src = data.profileImage;
+        statusEl.textContent = '변경됐어요.';
+      } else {
+        statusEl.textContent = data.message || '업로드하지 못했어요.';
+      }
+    }catch(e){
+      statusEl.textContent = '서버와 통신 중 문제가 발생했어요.';
+    }
+    input.value = '';
   }
 
   function switchMypageTab(tab){
@@ -1945,6 +2017,40 @@
     sel.value = currentBoard;
   }
 
+  let selectedWriteImages = []; // 글쓰기 화면에서 선택된 파일들 (File 객체, 최대 5장)
+
+  function handleImageSelect(){
+    const input = document.getElementById('write-image-input');
+    const incoming = Array.from(input.files || []);
+    selectedWriteImages = [...selectedWriteImages, ...incoming].slice(0, 5);
+    input.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 나도록 초기화
+    renderImagePreview();
+  }
+
+  function removeSelectedImage(index){
+    selectedWriteImages.splice(index, 1);
+    renderImagePreview();
+  }
+
+  function renderImagePreview(){
+    const row = document.getElementById('write-image-preview');
+    row.innerHTML = selectedWriteImages.map((file, i) => `
+      <div class="image-preview-item">
+        <img src="${URL.createObjectURL(file)}">
+        <button type="button" onclick="removeSelectedImage(${i})" aria-label="삭제">×</button>
+      </div>`).join('');
+  }
+
+  async function uploadWriteImages(){
+    if(!selectedWriteImages.length) return [];
+    const formData = new FormData();
+    selectedWriteImages.forEach(file => formData.append('images', file));
+    const res = await fetch('/api/upload/post-images', { method: 'POST', body: formData });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.message || '이미지 업로드에 실패했어요.');
+    return data.urls;
+  }
+
   async function submitPost(){
     if(!currentUser){
       alert('글을 쓰려면 먼저 로그인해주세요.');
@@ -1957,17 +2063,26 @@
     const body = document.getElementById('write-body').value.trim();
     if(!title || !body){ alert('제목과 내용을 모두 입력해주세요.'); return; }
     const anon = document.getElementById('write-anon').checked;
+    const statusEl = document.getElementById('image-upload-status');
 
     try{
+      let images = [];
+      if(selectedWriteImages.length){
+        statusEl.textContent = '사진 업로드 중...';
+        images = await uploadWriteImages();
+        statusEl.textContent = '';
+      }
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body, anonymous: anon, board }),
+        body: JSON.stringify({ title, body, anonymous: anon, board, images }),
       });
       const data = await res.json();
       if(data.ok){
         document.getElementById('write-title').value = '';
         document.getElementById('write-body').value = '';
+        selectedWriteImages = [];
+        renderImagePreview();
         updateCharCount();
         currentBoard = board;
         showScreen('screen-board');
@@ -1975,7 +2090,8 @@
         alert(data.message || '글을 등록하지 못했어요.');
       }
     }catch(e){
-      alert('서버와 통신 중 문제가 발생했어요.');
+      statusEl.textContent = '';
+      alert(e.message || '서버와 통신 중 문제가 발생했어요.');
     }
   }
 
