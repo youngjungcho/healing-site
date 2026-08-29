@@ -387,9 +387,7 @@ function sanctionMessage(user) {
     const dateStr = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
     return `신고 누적으로 ${dateStr}까지 글쓰기·댓글 작성이 제한돼요.`;
   }
-  if (!isEmailVerified(user)) {
-    return '이메일 인증 후 글쓰기·댓글을 쓸 수 있어요. 가입하신 이메일함을 확인해주세요.';
-  }
+  // 이메일 미인증은 더 이상 글쓰기·댓글을 막지 않음 (마이페이지에서 인증 여부만 안내)
   return null;
 }
 
@@ -531,27 +529,6 @@ function verifyResultPage(success, message) {
   <a href="/">← 홈으로 돌아가기</a>
   </body>`;
 }
-
-// 인증 메일 재발송 (로그인 상태에서, 아직 미인증인 경우)
-app.post('/api/resend-verification', requireAuth, async (req, res) => {
-  const user = req.currentUser;
-  if (user.emailVerified) {
-    return res.status(400).json({ ok: false, message: '이미 인증이 완료된 계정이에요.' });
-  }
-  const users = loadUsers();
-  const target = users.find(u => u.id === user.id);
-  target.verifyToken = generateToken();
-  target.verifyTokenExpires = new Date(Date.now() + EMAIL_VERIFY_TTL_MS).toISOString();
-  saveUsers(users);
-
-  try {
-    await sendVerificationEmail(target);
-  } catch (err) {
-    console.error('인증 메일 재발송 실패:', err);
-    return res.status(500).json({ ok: false, message: '메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.' });
-  }
-  res.json({ ok: true });
-});
 
 // 로그인
 app.post('/api/login', loginLimiter, (req, res) => {
