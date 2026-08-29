@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>쉼표 — 잠깐 멈춰가는 하루</title>
 <style>
   :root{
@@ -450,6 +451,50 @@
     padding:2px 4px;
   }
   .banned-word-chip button:hover{ color:#a15c4a; }
+
+  /* ---- 모바일(768px 이하) 반응형 ---- */
+  @media (max-width: 768px){
+    .proto-banner{ margin:0 0 0; border-radius:0; }
+    .site{ margin:0 0 0; max-width:none; border-left:none; border-right:none; border-radius:0; }
+
+    .topbar{
+      flex-wrap:wrap;
+      gap:10px;
+      padding:14px 16px;
+    }
+    .search{ order:3; width:100%; }
+    .search input{ width:100%; }
+    .nav-links{ font-size:12.5px; gap:10px; flex-wrap:wrap; }
+
+    .catrow{ padding:10px 16px; gap:14px; flex-wrap:wrap; }
+    .cat-dropdown{ min-width:160px; }
+
+    /* 게시판 화면: 사이드바 · 우측 위젯은 숨기고 본문만 전체 폭으로 */
+    .sidebar, .rightbar{ display:none; }
+    .main{ padding:16px; min-width:0; }
+    .board-title h2{ font-size:17px; }
+
+    /* 글 목록 테이블이 화면 밖으로 뚫고 나가지 않도록 가로 스크롤 허용 */
+    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table{ min-width:480px; }
+
+    .home-grid{ grid-template-columns:1fr; padding:16px; gap:12px; }
+    .section-title{ padding:16px 16px 4px; }
+
+    .write-wrap{ padding:18px 16px 24px; }
+    .post-detail{ padding:18px 16px; }
+
+    .login-card{ width:100%; max-width:320px; }
+
+    .board-admin-form{ padding:14px; }
+    .mypage-tabrow{ overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
+
+    /* 신고·삭제 등 버튼류 터치 영역 확대 */
+    .report-link{ padding:6px 4px; }
+    .admin-item-actions button, .form-actions button{ padding:9px 14px; }
+    .banned-word-chip button{ padding:6px 8px; font-size:17px; }
+    .stamp{ width:32px; height:32px; }
+  }
 </style>
 </head>
 <body>
@@ -499,12 +544,14 @@
         <span class="count" id="board-count">전체 글 0</span>
         <button class="write-btn" onclick="requireLoginThen('screen-write')">글쓰기</button>
       </div>
-      <table>
-        <thead>
-          <tr><th class="num">번호</th><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
-        </thead>
-        <tbody id="board-tbody"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th class="num">번호</th><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
+          </thead>
+          <tbody id="board-tbody"></tbody>
+        </table>
+      </div>
       <div class="pagination">
         <span class="on">1</span><span onclick="notReady('페이지 이동')">2</span><span onclick="notReady('페이지 이동')">3</span>
       </div>
