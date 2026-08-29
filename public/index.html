@@ -1076,7 +1076,7 @@
         if(currentUser.banned) status = ' <span style="color:#a15c4a;">(정지됨)</span>';
         else if(currentUser.sanctionUntil && new Date(currentUser.sanctionUntil) > new Date()) status = ' <span style="color:#a15c4a;">(제한 중)</span>';
         const verifyNotice = !currentUser.emailVerified
-          ? ` <span style="color:#a15c4a;cursor:pointer;" onclick="doResendVerification()">(이메일 미인증 · 인증 메일 다시 받기)</span>` : '';
+          ? ` <span style="color:var(--point);cursor:pointer;" onclick="doResendVerification()">(이메일 인증하고 글쓰기 편하게 하기)</span>` : '';
         const adminLink = currentUser.isAdmin ? ` <span onclick="showScreen('screen-admin')">운영자</span>` : '';
         slot.innerHTML = `<span class="nickname">${escapeHtml(currentUser.nickname)}님</span>${status}${verifyNotice}${adminLink} <span onclick="doLogout()">로그아웃</span>`;
       } else {
