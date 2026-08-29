@@ -741,16 +741,17 @@ app.get('/api/posts/:id', (req, res) => {
   if (post.hidden && !(me && (me.id === post.writerId || isAdminUser(me)))) {
     return res.status(403).json({ ok: false, message: '신고가 접수되어 검토 중인 글이에요.' });
   }
-  post.views = (post.views || 0) + 1;
-  savePosts(posts);
+  // 댓글 수정·삭제 후 목록만 다시 불러올 때는 이 헤더를 보내서 조회수가 중복으로 올라가지 않게 함
+  if (!req.get('X-No-View-Count')) {
+    post.views = (post.views || 0) + 1;
+    savePosts(posts);
+  }
   res.json({ ok: true, post: { ...post, comments: visibleComments(post.comments, me) } });
 });
 
 // 글쓰기 (로그인 필요, 정지·제한 계정은 불가)
 app.post('/api/posts', requireCanWrite, (req, res) => {
   const { title, body, anonymous, board } = req.body || {};
-  const trimmedTitle = (title || '').trim();
-  const trimmedBody = (body || '').trim();
   const boardObj = getBoard(board);
   if (!boardObj) {
     return res.status(400).json({ ok: false, message: '올바른 게시판을 선택해주세요.' });
@@ -758,16 +759,12 @@ app.post('/api/posts', requireCanWrite, (req, res) => {
   if (boardObj.hidden) {
     return res.status(400).json({ ok: false, message: '지금은 글을 쓸 수 없는 게시판이에요.' });
   }
-  if (!trimmedTitle || !trimmedBody) {
-    return res.status(400).json({ ok: false, message: '제목과 내용을 모두 입력해주세요.' });
+  const errorMessage = validatePostContent(title, body);
+  if (errorMessage) {
+    return res.status(400).json({ ok: false, message: errorMessage });
   }
-  if (trimmedTitle.length > 200 || trimmedBody.length > 1000) {
-    return res.status(400).json({ ok: false, message: '제목 또는 내용이 너무 길어요.' });
-  }
-  const banned = findBannedWord(trimmedTitle) || findBannedWord(trimmedBody);
-  if (banned) {
-    return res.status(400).json({ ok: false, message: '욕설·비속어로 보이는 표현이 포함되어 있어 등록할 수 없어요. 다정한 말로 다시 적어주세요.' });
-  }
+  const trimmedTitle = String(title).trim();
+  const trimmedBody = String(body).trim();
 
   const posts = loadPosts();
   const newPost = {
@@ -788,6 +785,53 @@ app.post('/api/posts', requireCanWrite, (req, res) => {
   posts.push(newPost);
   savePosts(posts);
   res.json({ ok: true, post: newPost });
+});
+
+// 제목·내용 유효성 검사 (글쓰기·글수정 공통). 통과하면 null, 실패하면 에러 메시지 반환
+function validatePostContent(title, body) {
+  const trimmedTitle = (title || '').trim();
+  const trimmedBody = (body || '').trim();
+  if (!trimmedTitle || !trimmedBody) return '제목과 내용을 모두 입력해주세요.';
+  if (trimmedTitle.length > 200 || trimmedBody.length > 1000) return '제목 또는 내용이 너무 길어요.';
+  const banned = findBannedWord(trimmedTitle) || findBannedWord(trimmedBody);
+  if (banned) return '욕설·비속어로 보이는 표현이 포함되어 있어 등록할 수 없어요. 다정한 말로 다시 적어주세요.';
+  return null;
+}
+
+// 본인 글 수정 (제목·내용만). 작성자 본인만 가능, 제재·미인증 상태면 불가
+app.patch('/api/posts/:id', requireCanWrite, (req, res) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  if (!post) {
+    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
+  }
+  if (post.writerId !== req.currentUser.id) {
+    return res.status(403).json({ ok: false, message: '본인이 쓴 글만 수정할 수 있어요.' });
+  }
+  const { title, body } = req.body || {};
+  const errorMessage = validatePostContent(title, body);
+  if (errorMessage) {
+    return res.status(400).json({ ok: false, message: errorMessage });
+  }
+  post.title = String(title).trim();
+  post.body = String(body).trim();
+  savePosts(posts);
+  res.json({ ok: true, post });
+});
+
+// 본인 글 삭제 (완전 삭제). 작성자 본인만 가능, 제재·미인증 상태면 불가
+app.delete('/api/posts/:id', requireCanWrite, (req, res) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  if (!post) {
+    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
+  }
+  if (post.writerId !== req.currentUser.id) {
+    return res.status(403).json({ ok: false, message: '본인이 쓴 글만 삭제할 수 있어요.' });
+  }
+  posts.splice(posts.indexOf(post), 1);
+  savePosts(posts);
+  res.json({ ok: true });
 });
 
 // 공감 보내기 (로그인 불필요 — 가볍게 응원 보내는 용도)
@@ -849,6 +893,56 @@ app.post('/api/posts/:id/comments', (req, res) => {
   post.comments.push(newComment);
   savePosts(posts);
   res.json({ ok: true, comment: newComment, commentCount: post.comments.length });
+});
+
+// 본인 댓글 수정. 작성자 본인만 가능, 제재·미인증 상태면 불가
+app.patch('/api/posts/:id/comments/:commentId', requireCanWrite, (req, res) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  if (!post) {
+    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
+  }
+  const comment = post.comments.find(c => c.id === Number(req.params.commentId));
+  if (!comment) {
+    return res.status(404).json({ ok: false, message: '댓글을 찾을 수 없어요.' });
+  }
+  if (comment.writerId !== req.currentUser.id) {
+    return res.status(403).json({ ok: false, message: '본인이 쓴 댓글만 수정할 수 있어요.' });
+  }
+  const { body } = req.body || {};
+  const trimmedBody = (body || '').trim();
+  if (!trimmedBody) {
+    return res.status(400).json({ ok: false, message: '댓글 내용을 입력해주세요.' });
+  }
+  if (trimmedBody.length > 300) {
+    return res.status(400).json({ ok: false, message: '댓글이 너무 길어요.' });
+  }
+  const bannedWord = findBannedWord(trimmedBody);
+  if (bannedWord) {
+    return res.status(400).json({ ok: false, message: '욕설·비속어로 보이는 표현이 포함되어 있어 등록할 수 없어요. 다정한 말로 다시 적어주세요.' });
+  }
+  comment.body = trimmedBody;
+  savePosts(posts);
+  res.json({ ok: true, comment });
+});
+
+// 본인 댓글 삭제 (완전 삭제). 작성자 본인만 가능, 제재·미인증 상태면 불가
+app.delete('/api/posts/:id/comments/:commentId', requireCanWrite, (req, res) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  if (!post) {
+    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
+  }
+  const comment = post.comments.find(c => c.id === Number(req.params.commentId));
+  if (!comment) {
+    return res.status(404).json({ ok: false, message: '댓글을 찾을 수 없어요.' });
+  }
+  if (comment.writerId !== req.currentUser.id) {
+    return res.status(403).json({ ok: false, message: '본인이 쓴 댓글만 삭제할 수 있어요.' });
+  }
+  post.comments.splice(post.comments.indexOf(comment), 1);
+  savePosts(posts);
+  res.json({ ok: true, commentCount: post.comments.length });
 });
 
 // 게시글 신고

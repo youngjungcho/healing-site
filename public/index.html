@@ -282,6 +282,31 @@
     padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:20px;
   }
   .post-body{ font-size:15px; line-height:1.9; color:var(--text); margin-bottom:24px; white-space:pre-line; }
+  .post-edit-form{ margin-bottom:24px; }
+  .post-edit-form input{
+    width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 12px;
+    font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:16px; margin-bottom:10px; outline:none;
+  }
+  .post-edit-form textarea{
+    width:100%; min-height:140px; border:1px solid var(--line); border-radius:6px; padding:12px;
+    font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:14px; line-height:1.8; outline:none; margin-bottom:10px;
+  }
+  #detail-owner-actions{ margin-left:8px; }
+  #detail-owner-actions .btn-ghost{
+    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; padding:6px 14px;
+  }
+  .comment .c-actions{ font-size:11px; color:var(--sub); }
+  .comment .c-actions span{ cursor:pointer; margin-left:8px; }
+  .comment .c-actions span:hover{ color:var(--point); }
+  .comment-edit-form{ display:flex; gap:6px; flex:1; }
+  .comment-edit-form input{
+    flex:1; border:1px solid var(--line); border-radius:14px; padding:6px 12px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; outline:none;
+  }
+  .comment-edit-form button{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; border:none; border-radius:14px;
+    padding:6px 12px; cursor:pointer; background:var(--point); color:#fff;
+  }
   .react-row{
     text-align:center; padding:16px 0; border-top:1px solid var(--line);
     border-bottom:1px solid var(--line); margin-bottom:22px;
@@ -627,9 +652,21 @@
     <div class="post-meta" id="detail-meta"></div>
     <div class="gentle-notice" id="detail-hidden-notice" style="display:none;">🔍 신고가 접수되어 검토 중인 글이에요. 운영자 확인 후 다시 보여요. (지금은 작성자 본인에게만 보이는 상태예요)</div>
     <div class="post-body" id="detail-body"></div>
+    <div class="post-edit-form" id="detail-edit-form" style="display:none;">
+      <input type="text" id="detail-edit-title" maxlength="200">
+      <textarea id="detail-edit-body" maxlength="1000"></textarea>
+      <div class="form-actions">
+        <button class="btn-ghost" onclick="cancelPostEdit()">취소</button>
+        <button class="write-btn" onclick="savePostEdit()">저장</button>
+      </div>
+    </div>
     <div class="react-row">
       <button class="react-btn" onclick="toggleHeart()">♥ 공감 보내기 · <span id="detail-heart-count"></span></button>
       <button class="report-btn" onclick="openReportModal('post', currentPostId)">🚨 신고</button>
+      <span id="detail-owner-actions" style="display:none;">
+        <button class="btn-ghost" onclick="startPostEdit()">수정</button>
+        <button class="btn-ghost" onclick="deletePost()">삭제</button>
+      </span>
     </div>
     <div class="comment-title">댓글 <span id="comment-count"></span></div>
     <div id="comment-list"></div>
@@ -1143,6 +1180,18 @@
     }
   }
 
+  let currentPostWriterId = null; // 지금 상세 화면에 열려 있는 글의 작성자 id (본인 글 여부 판단용)
+
+  // 댓글 수정/삭제 후에는 조회수를 또 올리지 않도록, openPost 전체를 다시 부르지 않고
+  // 댓글 목록만 가볍게 다시 불러옴
+  async function reloadComments(){
+    try{
+      const res = await fetch('/api/posts/' + currentPostId, { method: 'GET', headers: { 'X-No-View-Count': '1' } });
+      const data = await res.json();
+      if(data.ok) renderComments(data.post.comments);
+    }catch(e){ /* 무시 */ }
+  }
+
   async function openPost(id){
     try{
       const res = await fetch('/api/posts/' + id);
@@ -1153,6 +1202,7 @@
       }
       const p = data.post;
       currentPostId = id;
+      currentPostWriterId = p.writerId;
       currentBoard = p.board || currentBoard;
       document.getElementById('detail-board-label').textContent = boardTitle(currentBoard);
       document.getElementById('detail-title').textContent = p.title;
@@ -1160,6 +1210,9 @@
       document.getElementById('detail-hidden-notice').style.display = p.hidden ? 'block' : 'none';
       document.getElementById('detail-body').textContent = p.body;
       document.getElementById('detail-heart-count').textContent = p.hearts;
+      document.getElementById('detail-owner-actions').style.display =
+        (currentUser && currentUser.id === p.writerId) ? 'inline' : 'none';
+      cancelPostEdit();
       renderComments(p.comments);
       showScreen('screen-detail');
     }catch(e){
@@ -1167,13 +1220,122 @@
     }
   }
 
+  function startPostEdit(){
+    document.getElementById('detail-edit-title').value = document.getElementById('detail-title').textContent;
+    document.getElementById('detail-edit-body').value = document.getElementById('detail-body').textContent;
+    document.getElementById('detail-title').style.display = 'none';
+    document.getElementById('detail-body').style.display = 'none';
+    document.getElementById('detail-edit-form').style.display = 'block';
+  }
+  function cancelPostEdit(){
+    document.getElementById('detail-title').style.display = '';
+    document.getElementById('detail-body').style.display = '';
+    document.getElementById('detail-edit-form').style.display = 'none';
+  }
+  async function savePostEdit(){
+    const title = document.getElementById('detail-edit-title').value.trim();
+    const body = document.getElementById('detail-edit-body').value.trim();
+    if(!title || !body){ alert('제목과 내용을 모두 입력해주세요.'); return; }
+    try{
+      const res = await fetch('/api/posts/' + currentPostId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        document.getElementById('detail-title').textContent = data.post.title;
+        document.getElementById('detail-body').textContent = data.post.body;
+        cancelPostEdit();
+      } else {
+        alert(data.message || '수정하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+  async function deletePost(){
+    if(!confirm('이 글을 삭제할까요? 삭제하면 되돌릴 수 없어요.')) return;
+    try{
+      const res = await fetch('/api/posts/' + currentPostId, { method: 'DELETE' });
+      const data = await res.json();
+      if(data.ok){
+        showScreen('screen-board');
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  let editingCommentId = null;
+
   function renderComments(comments){
     document.getElementById('comment-count').textContent = comments.length;
-    document.getElementById('comment-list').innerHTML = comments.map(c => `
+    document.getElementById('comment-list').innerHTML = comments.map(c => {
+      if(editingCommentId === c.id){
+        return `
+        <div class="comment">
+          <div class="comment-edit-form">
+            <input type="text" id="comment-edit-input" maxlength="300" value="${escapeAttr(c.body)}">
+            <button onclick="saveCommentEdit(${c.id})">저장</button>
+            <button onclick="cancelCommentEdit()">취소</button>
+          </div>
+        </div>`;
+      }
+      const isMine = currentUser && currentUser.id === c.writerId;
+      const ownerActions = isMine
+        ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
+      return `
       <div class="comment">
-        <div><span class="c-writer">${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></div>
+        <div><span class="c-writer">${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span>${ownerActions}</div>
         <div class="c-heart">♥ ${c.hearts}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+  }
+
+  function startCommentEdit(commentId){
+    editingCommentId = commentId;
+    reloadComments();
+  }
+  function cancelCommentEdit(){
+    editingCommentId = null;
+    reloadComments();
+  }
+  async function saveCommentEdit(commentId){
+    const body = document.getElementById('comment-edit-input').value.trim();
+    if(!body){ alert('댓글 내용을 입력해주세요.'); return; }
+    try{
+      const res = await fetch(`/api/posts/${currentPostId}/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        editingCommentId = null;
+        reloadComments();
+      } else {
+        alert(data.message || '수정하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+  async function deleteComment(commentId){
+    if(!confirm('이 댓글을 삭제할까요?')) return;
+    try{
+      const res = await fetch(`/api/posts/${currentPostId}/comments/${commentId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if(data.ok){
+        reloadComments();
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
   }
 
   function openReportModal(type, postId, commentId){
@@ -1612,10 +1774,7 @@
       const data = await res.json();
       if(data.ok){
         input.value = '';
-        // 최신 댓글 목록을 다시 불러와서 반영
-        const postRes = await fetch('/api/posts/' + currentPostId);
-        const postData = await postRes.json();
-        if(postData.ok) renderComments(postData.post.comments);
+        reloadComments();
       } else {
         alert(data.message || '댓글을 남기지 못했어요.');
       }
