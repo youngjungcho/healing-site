@@ -6,9 +6,39 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ---- 무차별 대입·스팸 방지용 요청 제한 ----
+// IP 기준으로 세는 가벼운 방식. 실제 서비스에서 프록시/로드밸런서 뒤에 두면
+// trust proxy 설정도 함께 확인해야 정확한 IP로 카운트돼요.
+function rateLimitJson(message) {
+  return { ok: false, message };
+}
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitJson('로그인 시도가 너무 많아요. 15분 후 다시 시도해주세요.'),
+});
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitJson('회원가입 시도가 너무 많아요. 잠시 후 다시 시도해주세요.'),
+});
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: rateLimitJson('비밀번호 찾기 요청이 너무 많아요. 잠시 후 다시 시도해주세요.'),
+});
+
 const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
@@ -372,7 +402,7 @@ async function sendVerificationEmail(user) {
 }
 
 // 회원가입
-app.post('/api/signup', async (req, res) => {
+app.post('/api/signup', signupLimiter, async (req, res) => {
   const { email, password, nickname } = req.body || {};
 
   if (!email || !EMAIL_RE.test(String(email).trim())) {
@@ -465,7 +495,7 @@ app.post('/api/resend-verification', requireAuth, async (req, res) => {
 });
 
 // 로그인
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginLimiter, (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ ok: false, message: '이메일과 비밀번호를 입력해주세요.' });
@@ -506,7 +536,7 @@ function resetPasswordMailHtml(link) {
 
 // 비밀번호 찾기: 이메일 입력 → 재설정 링크 발송.
 // 가입 여부를 노출하지 않기 위해 계정이 없거나 소셜 전용 계정이어도 항상 같은 응답을 돌려줌.
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', forgotPasswordLimiter, async (req, res) => {
   const { email } = req.body || {};
   if (!email || !EMAIL_RE.test(String(email).trim())) {
     return res.status(400).json({ ok: false, message: '올바른 이메일을 입력해주세요.' });
