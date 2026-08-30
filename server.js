@@ -1480,7 +1480,14 @@ app.patch('/api/admin/boards/:slug', requireAdmin, (req, res) => {
   if (category !== undefined) {
     const c = String(category).trim();
     if (!c) return res.status(400).json({ ok: false, message: '카테고리를 입력해주세요.' });
-    b.category = c;
+    if (c !== b.category) {
+      // 다른 카테고리로 옮길 때는 그 카테고리의 맨 끝 순서로 배치해요.
+      // (order 값을 그대로 두면 새 카테고리의 다른 게시판들과 순서가 뒤섞여요.)
+      const siblingsInNewCategory = boards.filter(x => x.category === c && x.slug !== b.slug);
+      const maxOrder = siblingsInNewCategory.length ? Math.max(...siblingsInNewCategory.map(x => x.order || 0)) : 0;
+      b.category = c;
+      b.order = maxOrder + 1;
+    }
   }
   if (description !== undefined) b.description = String(description).trim().slice(0, 80);
   if (tag !== undefined) b.tag = String(tag).trim().slice(0, 20);
