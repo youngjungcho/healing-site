@@ -427,6 +427,21 @@
   .admin-item-meta{ font-size:11px; color:var(--sub); margin-bottom:10px; }
   .admin-item-actions{ display:flex; gap:8px; flex-wrap:wrap; }
   .admin-item-actions button{ font-size:11.5px; padding:6px 12px; }
+  .admin-search-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .admin-search-row input{
+    flex:1; border:1px solid var(--line); border-radius:6px; padding:9px 12px;
+    font-family:"Noto Sans KR",sans-serif; font-size:13px; outline:none;
+  }
+  .admin-status-badge{
+    font-size:11px; padding:2px 8px; border-radius:10px; margin-left:6px;
+  }
+  .admin-status-badge.ok{ background:var(--accent-soft); color:#6f8f6f; }
+  .admin-status-badge.warn{ background:#fbeae5; color:#a15c4a; }
+  .admin-sanction-form{ display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  .admin-sanction-form input[type=number]{
+    width:70px; border:1px solid var(--line); border-radius:6px; padding:6px 8px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; outline:none;
+  }
   .board-admin-form{
     border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:22px; background:var(--accent-soft);
   }
@@ -888,6 +903,22 @@
     </div>
 
     <div id="banned-word-list">불러오는 중...</div>
+
+    <h2 style="margin-top:40px;">운영자 · 회원 관리</h2>
+    <div class="gentle-notice">신고가 쌓이지 않아도 필요하면 직접 제재하거나 풀어줄 수 있어요. 운영자 계정은 제재할 수 없어요.</div>
+    <div class="admin-search-row">
+      <input type="text" id="admin-user-search" placeholder="이메일 또는 닉네임으로 검색" onkeydown="if(event.key==='Enter')loadAdminUsers()">
+      <button class="btn-ghost" onclick="loadAdminUsers()">검색</button>
+    </div>
+    <div id="admin-user-list">불러오는 중...</div>
+
+    <h2 style="margin-top:40px;">운영자 · 게시글 관리</h2>
+    <div class="gentle-notice">신고 여부와 상관없이 전체 게시글을 찾아서 바로 삭제할 수 있어요. 이 삭제는 작성자 제재(경고 누적)에는 영향을 주지 않아요.</div>
+    <div class="admin-search-row">
+      <input type="text" id="admin-post-search" placeholder="제목으로 검색" onkeydown="if(event.key==='Enter')loadAdminPosts()">
+      <button class="btn-ghost" onclick="loadAdminPosts()">검색</button>
+    </div>
+    <div id="admin-post-list">불러오는 중...</div>
   </div>
 </div>
 
@@ -1037,7 +1068,7 @@
       document.getElementById('write-image-preview').innerHTML = '';
       document.getElementById('image-upload-status').textContent = '';
     }
-    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); }
+    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); loadAdminUsers(); loadAdminPosts(); }
     if(id === 'screen-mypage') initMypage();
     window.scrollTo(0,0);
   }
@@ -1939,6 +1970,143 @@
       const data = await res.json();
       if(data.ok){
         renderBannedWordList(data.words);
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  // ---- 운영자 회원 관리 ----
+  async function loadAdminUsers(){
+    const el = document.getElementById('admin-user-list');
+    el.innerHTML = '불러오는 중...';
+    const query = document.getElementById('admin-user-search').value.trim();
+    try{
+      const res = await fetch('/api/admin/users?q=' + encodeURIComponent(query));
+      const data = await res.json();
+      if(!data.ok){
+        el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.');
+        return;
+      }
+      if(!data.users.length){
+        el.innerHTML = '<p style="font-family:\'Noto Sans KR\',sans-serif;color:var(--sub);font-size:12.5px;">회원이 없어요.</p>';
+        return;
+      }
+      el.innerHTML = data.users.map(renderAdminUserRow).join('');
+    }catch(e){
+      el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  function renderAdminUserRow(u){
+    let statusBadge = '<span class="admin-status-badge ok">정상</span>';
+    if(u.banned) statusBadge = '<span class="admin-status-badge warn">영구정지</span>';
+    else if(u.sanctionUntil && new Date(u.sanctionUntil) > new Date()){
+      statusBadge = `<span class="admin-status-badge warn">제한중 · ${formatDate(u.sanctionUntil)}까지</span>`;
+    }
+    const actions = u.isAdmin
+      ? '<span style="font-size:11.5px;color:var(--sub);">운영자 계정</span>'
+      : (u.banned || (u.sanctionUntil && new Date(u.sanctionUntil) > new Date()))
+        ? `<button class="btn-ghost" onclick="unsanctionUser(${u.id})">제재 해제</button>`
+        : `
+          <div class="admin-sanction-form">
+            <input type="number" id="sanction-days-${u.id}" placeholder="일수" min="1">
+            <button class="btn-ghost" onclick="sanctionUser(${u.id}, 'limit')">기간 제한</button>
+            <button class="btn-ghost" onclick="sanctionUser(${u.id}, 'ban')">영구정지</button>
+          </div>`;
+    return `
+      <div class="admin-item">
+        <div class="admin-item-head">
+          <span class="admin-type">${escapeHtml(u.provider)}</span>
+          ${statusBadge}
+        </div>
+        <div class="admin-item-body"><strong>${escapeHtml(u.nickname)}</strong> · ${escapeHtml(u.email || '(이메일 없음)')}</div>
+        <div class="admin-item-meta">가입일 ${formatDate(u.createdAt)}</div>
+        <div class="admin-item-actions">${actions}</div>
+      </div>`;
+  }
+
+  async function sanctionUser(userId, type){
+    const daysInput = document.getElementById('sanction-days-' + userId);
+    const days = daysInput ? daysInput.value.trim() : '';
+    if(type === 'limit' && !days){
+      alert('제한할 일수를 입력해주세요.');
+      return;
+    }
+    if(type === 'ban' && !confirm('이 계정을 영구정지할까요?')) return;
+    try{
+      const res = await fetch(`/api/admin/users/${userId}/sanction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, days: days ? Number(days) : undefined }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        loadAdminUsers();
+      } else {
+        alert(data.message || '처리하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  async function unsanctionUser(userId){
+    try{
+      const res = await fetch(`/api/admin/users/${userId}/unsanction`, { method: 'POST' });
+      const data = await res.json();
+      if(data.ok){
+        loadAdminUsers();
+      } else {
+        alert(data.message || '처리하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
+  }
+
+  // ---- 운영자 게시글 관리 ----
+  async function loadAdminPosts(){
+    const el = document.getElementById('admin-post-list');
+    el.innerHTML = '불러오는 중...';
+    const query = document.getElementById('admin-post-search').value.trim();
+    try{
+      const res = await fetch('/api/admin/posts?q=' + encodeURIComponent(query));
+      const data = await res.json();
+      if(!data.ok){
+        el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.');
+        return;
+      }
+      if(!data.posts.length){
+        el.innerHTML = '<p style="font-family:\'Noto Sans KR\',sans-serif;color:var(--sub);font-size:12.5px;">게시글이 없어요.</p>';
+        return;
+      }
+      el.innerHTML = data.posts.map(p => `
+        <div class="admin-item">
+          <div class="admin-item-head">
+            <span class="admin-type">${escapeHtml(p.boardTitle)}</span>
+            ${p.hidden ? '<span class="hidden-badge">숨김됨</span>' : ''}
+          </div>
+          <div class="admin-item-body"><strong>${escapeHtml(p.title)}</strong></div>
+          <div class="admin-item-meta">${escapeHtml(p.writerNickname)} · ${formatDate(p.createdAt)} · 댓글 ${p.commentCount}</div>
+          <div class="admin-item-actions">
+            <button class="btn-ghost" onclick="adminDeletePost(${p.id})">삭제</button>
+          </div>
+        </div>`).join('');
+    }catch(e){
+      el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  async function adminDeletePost(postId){
+    if(!confirm('이 글을 삭제할까요? 삭제하면 되돌릴 수 없어요.')) return;
+    try{
+      const res = await fetch('/api/admin/posts/' + postId, { method: 'DELETE' });
+      const data = await res.json();
+      if(data.ok){
+        loadAdminPosts();
       } else {
         alert(data.message || '삭제하지 못했어요.');
       }

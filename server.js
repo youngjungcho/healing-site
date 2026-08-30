@@ -1457,6 +1457,99 @@ app.delete('/api/admin/boards/:slug', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- 운영자 회원 관리 ----
+
+// 전체 회원 목록 (이메일·닉네임으로 검색 가능). 비밀번호 해시 등은 publicUser로 걸러서 내려줌
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  const query = String(req.query.q || '').trim().toLowerCase();
+  const users = loadUsers();
+  const filtered = query
+    ? users.filter(u =>
+        (u.email || '').toLowerCase().includes(query) ||
+        (u.nickname || '').toLowerCase().includes(query))
+    : users;
+  const sorted = filtered.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json({ ok: true, users: sorted.map(publicUser) });
+});
+
+// 회원 직접 제재: 영구정지(ban) 또는 지정 일수 제한(limit)
+app.post('/api/admin/users/:id/sanction', requireAdmin, (req, res) => {
+  const { type, days } = req.body || {};
+  if (!['ban', 'limit'].includes(type)) {
+    return res.status(400).json({ ok: false, message: '잘못된 제재 방식이에요.' });
+  }
+  const users = loadUsers();
+  const user = users.find(u => u.id === Number(req.params.id));
+  if (!user) {
+    return res.status(404).json({ ok: false, message: '회원을 찾을 수 없어요.' });
+  }
+  if (isAdminUser(user)) {
+    return res.status(400).json({ ok: false, message: '운영자 계정은 제재할 수 없어요.' });
+  }
+  if (type === 'ban') {
+    user.banned = true;
+    user.sanctionUntil = null;
+  } else {
+    const numDays = Number(days);
+    if (!numDays || numDays <= 0) {
+      return res.status(400).json({ ok: false, message: '제한할 일수를 입력해주세요.' });
+    }
+    user.sanctionUntil = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000).toISOString();
+  }
+  saveUsers(users);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+// 제재 해제 (영구정지·기간제한 모두 풀어줌)
+app.post('/api/admin/users/:id/unsanction', requireAdmin, (req, res) => {
+  const users = loadUsers();
+  const user = users.find(u => u.id === Number(req.params.id));
+  if (!user) {
+    return res.status(404).json({ ok: false, message: '회원을 찾을 수 없어요.' });
+  }
+  user.banned = false;
+  user.sanctionUntil = null;
+  saveUsers(users);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+// ---- 운영자 게시글 관리 ----
+
+// 전체 게시글 목록 (신고 여부와 무관, 제목으로 검색 가능)
+app.get('/api/admin/posts', requireAdmin, (req, res) => {
+  const query = String(req.query.q || '').trim().toLowerCase();
+  const posts = loadPosts();
+  const boards = loadBoards();
+  const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
+  const filtered = query ? posts.filter(p => p.title.toLowerCase().includes(query)) : posts;
+  const sorted = filtered.slice().sort((a, b) => b.id - a.id);
+  res.json({
+    ok: true,
+    posts: sorted.map(p => ({
+      id: p.id,
+      board: p.board || 'diary',
+      boardTitle: boardTitleOf(p.board || 'diary'),
+      title: p.title,
+      writerNickname: p.writerNickname,
+      commentCount: p.comments.length,
+      hidden: !!p.hidden,
+      createdAt: p.createdAt,
+    })),
+  });
+});
+
+// 신고 여부와 무관하게 운영자가 직접 게시글 삭제 (제재 사다리에는 영향 없음)
+app.delete('/api/admin/posts/:id', requireAdmin, (req, res) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  if (!post) {
+    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
+  }
+  posts.splice(posts.indexOf(post), 1);
+  savePosts(posts);
+  res.json({ ok: true });
+});
+
 // ---- 카카오 로그인 ----
 app.get('/auth/kakao', (req, res) => {
   if (!KAKAO_CLIENT_ID) {
