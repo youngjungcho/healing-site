@@ -262,6 +262,78 @@ const SEED_POSTS = [
     ], createdAt: '2026-08-20T15:10:00.000Z' },
   { id: 1241, board: 'comfort-others', title: '새벽에 잠 못 드는 분들께', writerNickname: '구름한점', writerId: null, hearts: 10, views: 27,
     body: '잠이 안 와서 뒤척이고 계신다면, 그 시간도 그냥 흘러가는 대로 두셔도 괜찮아요. 내일이 조금 늦게 시작돼도 괜찮으니까요.', comments: [], createdAt: '2026-08-20T15:50:00.000Z' },
+
+  { id: 1250, board: 'gratitude', title: '오늘 감사했던 일 세 가지', writerNickname: '산책러', writerId: null, hearts: 14, views: 40,
+    body: '1. 아침에 늦잠 안 잔 것\n2. 점심에 좋아하는 반찬이 나온 것\n3. 퇴근길에 노을이 예뻤던 것\n\n적어보니 별거 아닌데도 마음이 따뜻해지네요.', comments: [
+      { id: 1, writerNickname: '구름한점', writerId: null, body: '이렇게 세 가지씩 적는 거 저도 해봐야겠어요.', hearts: 3, createdAt: '2026-08-21T08:20:00.000Z' },
+    ], createdAt: '2026-08-21T08:10:00.000Z' },
+  { id: 1251, board: 'gratitude', title: '별 거 아니지만 감사한 것들', writerNickname: '늦은오후', writerId: null, hearts: 9, views: 25,
+    body: '오늘도 무사히 하루를 마쳤다는 것, 따뜻한 물로 샤워할 수 있었다는 것, 그리고 이렇게 글을 남길 곳이 있다는 것.', comments: [], createdAt: '2026-08-21T08:45:00.000Z' },
+  { id: 1252, board: 'gratitude', title: '오늘은 이 세 가지', writerNickname: '익명', writerId: null, hearts: 7, views: 19,
+    body: '1. 엄마가 보내준 문자 한 줄\n2. 회사 앞 카페 아메리카노\n3. 집에 와서 마신 시원한 물 한 잔', comments: [
+      { id: 1, writerNickname: '빗소리', writerId: null, body: '엄마 문자 저도 오늘 받았는데 반가워요 ㅎㅎ', hearts: 2, createdAt: '2026-08-21T09:30:00.000Z' },
+    ], createdAt: '2026-08-21T09:15:00.000Z' },
+
+  { id: 1255, board: 'self-praise', title: '오늘도 미루지 않고 해냈다', writerNickname: '구름한점', writerId: null, hearts: 16, views: 38,
+    body: '하기 싫었던 일인데 결국 다 끝냈다. 잘했다 나, 정말.', comments: [], createdAt: '2026-08-21T10:00:00.000Z' },
+  { id: 1256, board: 'self-praise', title: '거절할 줄 알게 된 나를 칭찬해', writerNickname: '산책러', writerId: null, hearts: 22, views: 51,
+    body: '예전 같으면 그냥 다 받아줬을 텐데, 오늘은 무리한 부탁을 정중히 거절했어요. 나 좀 컸다.', comments: [
+      { id: 1, writerNickname: '늦은오후', writerId: null, body: '멋져요! 그거 진짜 어려운 건데.', hearts: 5, createdAt: '2026-08-21T10:40:00.000Z' },
+    ], createdAt: '2026-08-21T10:20:00.000Z' },
+  { id: 1257, board: 'self-praise', title: '작은 습관 3일째 지키는 중', writerNickname: '익명', writerId: null, hearts: 8, views: 22,
+    body: '매일 물 2리터 마시기, 겨우 3일이지만 꾸준히 하고 있는 나 칭찬해주고 싶어요.', comments: [], createdAt: '2026-08-21T11:05:00.000Z' },
+
+  { id: 1260, board: 'anonymous-worry', title: '요즘 자꾸 비교하게 돼요', writerNickname: '익명', writerId: null, hearts: 12, views: 47,
+    body: 'SNS 보다 보면 다들 잘 사는 것 같아서 자꾸 나만 뒤처지는 기분이 들어요. 다른 사람들도 이런 생각 하시나요.', comments: [
+      { id: 1, writerNickname: '익명', writerId: null, body: '저도 그래요. SNS는 원래 좋은 순간만 올리는 거니까 너무 비교하지 않으셨으면 좋겠어요.', hearts: 6, createdAt: '2026-08-21T12:10:00.000Z' },
+      { id: 2, writerNickname: '빗소리', writerId: null, body: '조언 아니고 그냥 공감만 남길게요. 저도 요즘 딱 그런 마음이에요.', hearts: 4, createdAt: '2026-08-21T12:25:00.000Z' },
+    ], createdAt: '2026-08-21T12:00:00.000Z' },
+  { id: 1261, board: 'anonymous-worry', title: '이직 고민 중인데 자신이 없어요', writerNickname: '익명', writerId: null, hearts: 9, views: 33,
+    body: '지금 회사도 지치는데 막상 이직하려니 겁이 나요. 이런 마음 아시는 분 있을까요.', comments: [
+      { id: 1, writerNickname: '초록손가락', writerId: null, body: '그 마음 너무 잘 알아요. 천천히 생각하셔도 괜찮아요.', hearts: 3, createdAt: '2026-08-21T13:15:00.000Z' },
+    ], createdAt: '2026-08-21T13:00:00.000Z' },
+
+  { id: 1265, board: 'transcription', title: '무소유 중에서', writerNickname: '책벌레', writerId: null, hearts: 19, views: 44,
+    body: '"버리고 비우는 일은 얻고 채우는 일보다 어렵고 중요하다." 이 문장 필사하면서 마음이 차분해졌어요.', comments: [], createdAt: '2026-08-21T14:00:00.000Z' },
+  { id: 1266, board: 'transcription', title: '나태주 시인의 풀꽃', writerNickname: '구름한점', writerId: null, hearts: 24, views: 60,
+    body: '"자세히 보아야 예쁘다. 오래 보아야 사랑스럽다. 너도 그렇다."\n\n손글씨로 옮겨 적으니 문장이 더 오래 마음에 남네요.', comments: [
+      { id: 1, writerNickname: '산책러', writerId: null, body: '이 시 정말 좋아해요. 필사하면 느낌이 또 다르네요.', hearts: 5, createdAt: '2026-08-21T14:35:00.000Z' },
+    ], createdAt: '2026-08-21T14:20:00.000Z' },
+
+  { id: 1270, board: 'digital-detox', title: '오늘 스마트폰 대신 산책 1시간', writerNickname: '산책러', writerId: null, hearts: 15, views: 36,
+    body: '핸드폰 집에 두고 동네 한 바퀴 걸었어요. 처음엔 허전했는데 나중엔 오히려 개운했어요.', comments: [], createdAt: '2026-08-21T15:00:00.000Z' },
+  { id: 1271, board: 'digital-detox', title: '저녁 8시 이후 폰 안 보기 3일차', writerNickname: '늦은오후', writerId: null, hearts: 11, views: 28,
+    body: '대신 책을 좀 읽었더니 잠도 더 잘 오는 것 같아요. 다들 해보세요, 생각보다 할 만해요.', comments: [
+      { id: 1, writerNickname: '익명', writerId: null, body: '저도 오늘부터 도전해볼게요!', hearts: 2, createdAt: '2026-08-21T15:40:00.000Z' },
+    ], createdAt: '2026-08-21T15:25:00.000Z' },
+
+  { id: 1275, board: 'slow-routine', title: '아침마다 차 한 잔의 여유', writerNickname: '초록손가락', writerId: null, hearts: 13, views: 31,
+    body: '눈뜨자마자 폰 보는 대신, 따뜻한 차 한 잔 우리면서 창밖 보는 시간을 만들었어요. 하루가 훨씬 차분하게 시작돼요.', comments: [], createdAt: '2026-08-21T16:00:00.000Z' },
+  { id: 1276, board: 'slow-routine', title: '자기 전 10분 스트레칭', writerNickname: '빗소리', writerId: null, hearts: 10, views: 24,
+    body: '별거 아닌데 이거 하나로 잠드는 속도가 확실히 달라졌어요. 다들 하루 10분 내보시길.', comments: [
+      { id: 1, writerNickname: '실뭉치', writerId: null, body: '저도 해봤는데 진짜 효과 있더라고요!', hearts: 3, createdAt: '2026-08-21T16:35:00.000Z' },
+    ], createdAt: '2026-08-21T16:20:00.000Z' },
+
+  { id: 1280, board: 'small-kindness', title: '버스에서 자리 양보받았어요', writerNickname: '익명', writerId: null, hearts: 17, views: 39,
+    body: '짐이 많아 힘들어 보였는지 학생이 자리를 양보해줬어요. 별거 아닌데 하루 종일 기분이 좋았어요.', comments: [
+      { id: 1, writerNickname: '구름한점', writerId: null, body: '따뜻한 학생이네요 :) 저도 오늘 누군가에게 양보해야겠어요.', hearts: 4, createdAt: '2026-08-22T08:20:00.000Z' },
+    ], createdAt: '2026-08-22T08:10:00.000Z' },
+  { id: 1281, board: 'small-kindness', title: '편의점 알바생분이 우산을 빌려주셨어요', writerNickname: '산책러', writerId: null, hearts: 20, views: 45,
+    body: '갑자기 비가 왔는데 알바생분이 여분 우산을 그냥 빌려주셨어요. 다음에 꼭 돌려드리려고요. 세상 아직 따뜻하네요.', comments: [], createdAt: '2026-08-22T08:50:00.000Z' },
+
+  { id: 1285, board: 'playlist', title: '비 오는 날 듣기 좋은 노래', writerNickname: '늦은오후', writerId: null, hearts: 18, views: 42,
+    body: '오늘처럼 비 오는 날엔 잔잔한 어쿠스틱 노래가 최고예요. 창밖 보면서 듣기 딱 좋아요.', comments: [
+      { id: 1, writerNickname: '빗소리', writerId: null, body: '저도 비 오는 날엔 어쿠스틱만 들어요 ㅎㅎ', hearts: 3, createdAt: '2026-08-22T09:30:00.000Z' },
+    ], createdAt: '2026-08-22T09:10:00.000Z' },
+  { id: 1286, board: 'playlist', title: '요즘 마시는 캐모마일 차 추천', writerNickname: '초록손가락', writerId: null, hearts: 8, views: 20,
+    body: '잠들기 전에 캐모마일 차 한 잔 마시면 확실히 마음이 편안해져요. 은은한 향도 좋고요.', comments: [], createdAt: '2026-08-22T09:50:00.000Z' },
+
+  { id: 1290, board: 'goodnight', title: '오늘 하루도 고생 많으셨어요', writerNickname: '구름한점', writerId: null, hearts: 26, views: 55,
+    body: '여기까지 읽어주신 분들, 오늘 하루도 정말 애쓰셨어요. 편안한 밤 되세요.', comments: [
+      { id: 1, writerNickname: '익명', writerId: null, body: '따뜻한 인사 감사해요. 좋은 밤 되세요 :)', hearts: 6, createdAt: '2026-08-22T22:20:00.000Z' },
+    ], createdAt: '2026-08-22T22:10:00.000Z' },
+  { id: 1291, board: 'goodnight', title: '내일은 오늘보다 조금 더 편안하시길', writerNickname: '산책러', writerId: null, hearts: 15, views: 34,
+    body: '오늘 힘드셨던 분들 모두, 내일은 오늘보다 조금이라도 편안한 하루 되시길 바라요. 잘 자요.', comments: [], createdAt: '2026-08-22T22:45:00.000Z' },
 ];
 
 function loadPosts() {
