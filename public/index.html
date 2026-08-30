@@ -6,24 +6,27 @@
 <title>쉼표 — 잠깐 멈춰가는 하루</title>
 <style>
   :root{
-    --bg: #1b2028;
-    --panel: #242a35;
-    --panel-raised: #2b3240;
-    --line: #333a47;
-    --text: #e8e4da;
-    --sub: #8a8f9c;
-    --accent: #3a4152;
-    --accent-soft: #2d3442;
-    --point: #e0a458;
-    --point-text: #1b2028;
-    --warn: #e8927c;
-    --warn-bg: #3a2a2a;
-    --ok: #8bb38a;
+    --bg: #f6f1e6;
+    --panel: #fffdf8;
+    --panel-raised: #fbf6ea;
+    --line: #e6dcc6;
+    --text: #3c3627;
+    --sub: #a89b7c;
+    --accent: #f0e6cf;
+    --accent-soft: #f1e6cd;
+    --point: #c96f4a;
+    --point2: #7d8f63;
+    --point-text: #fffdf8;
+    --warn: #b5432a;
+    --warn-bg: #f6ded6;
+    --ok: #5c7a4e;
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background:var(--bg);
+    background:
+      repeating-linear-gradient(var(--bg) 0px, var(--bg) 27px, #ecdfc2 28px),
+      var(--bg);
     color:var(--text);
     font-family: "Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
     line-height:1.6;
@@ -45,11 +48,17 @@
     margin:18px auto 48px;
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:6px;
+    border-radius:8px;
     overflow:hidden;
-    box-shadow:0 8px 28px rgba(0,0,0,0.35);
+    box-shadow:1px 3px 16px rgba(120,100,60,0.14);
+    position:relative;
   }
-  .screen{ display:none; }
+  .site::before{
+    content:"";
+    position:absolute; left:10px; top:0; bottom:0; width:1px;
+    background:#e0a6a0; opacity:0.5; z-index:0; pointer-events:none;
+  }
+  .screen{ display:none; position:relative; z-index:1; }
   .screen.active{ display:block; }
 
   /* header */
@@ -75,6 +84,12 @@
     color:var(--sub);
     margin-top:2px;
     letter-spacing:1px;
+  }
+  .datestamp{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--point);
+    border:1.5px solid var(--point); border-radius:4px; padding:3px 8px;
+    transform:rotate(-4deg); display:inline-block; font-weight:700; letter-spacing:.5px;
+    white-space:nowrap;
   }
   .search{ display:flex; align-items:center; gap:8px; }
   .search input{
@@ -231,35 +246,39 @@
   .stamp:hover{ border-color:var(--point); }
 
   /* home cards view */
-  .home-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:10px 28px 24px; }
+  .home-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; padding:8px 28px 26px; }
   .card{
-    border:1px solid var(--line); border-radius:10px; padding:18px; background:var(--panel-raised);
-    cursor:pointer; transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    position:relative;
+    border:1px solid var(--line); border-radius:3px 14px 14px 3px; padding:18px 18px 18px 20px;
+    background:var(--panel-raised); cursor:pointer;
+    box-shadow:1px 2px 8px rgba(120,100,60,0.10);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .card::before{
+    content:""; position:absolute; left:-1px; top:16px; bottom:16px; width:3px;
+    background:var(--point2); border-radius:2px;
   }
   .card:hover{
-    border-color:var(--point); transform:translateY(-2px);
-    box-shadow:0 10px 24px rgba(0,0,0,0.28);
+    transform:translateY(-2px) rotate(-0.4deg);
+    box-shadow:2px 8px 18px rgba(120,100,60,0.18);
   }
   .card h3{ margin:0 0 6px; font-size:15px; font-family:"Noto Serif KR","Nanum Myeongjo",serif; }
-  .card p{ margin:0 0 10px; font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub); line-height:1.6; }
+  .card p{ margin:0 0 10px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:12px; color:var(--sub); line-height:1.65; }
   .card .tag{
-    display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10.5px;
-    color:var(--point); background:var(--accent-soft); padding:3px 9px; border-radius:12px;
+    display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10px;
+    color:#8a5a30; background:#f0d9a8; padding:2px 9px 3px; margin-bottom:8px;
+    font-weight:600; transform:rotate(-1deg); box-shadow:0 1px 2px rgba(0,0,0,0.08);
   }
   .section-title{
     position:relative;
-    padding:26px 28px 4px 44px; font-family:"Noto Sans KR",sans-serif; font-size:13px;
-    color:var(--sub); letter-spacing:1px; border-top:1px solid var(--line);
+    padding:24px 28px 10px; font-family:"Noto Serif KR","Nanum Myeongjo",serif; font-size:15px;
+    color:var(--text); font-weight:700; border-top:1px solid var(--line);
+    display:flex; align-items:center; gap:8px;
   }
   .section-title::before{
-    content:",";
-    position:absolute;
-    left:22px; top:2px;
-    font-family:"Noto Serif KR",serif;
-    font-size:42px;
-    font-weight:900;
+    content:"✎";
+    font-size:14px;
     color:var(--point);
-    line-height:1;
   }
 
   /* write form */
@@ -568,9 +587,9 @@
     .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
     table{ min-width:480px; }
 
-    .home-grid{ grid-template-columns:1fr; padding:8px 16px 16px; gap:12px; }
-    .section-title{ padding:20px 16px 4px 34px; }
-    .section-title::before{ left:10px; font-size:32px; }
+    .home-grid{ grid-template-columns:1fr; padding:6px 16px 16px; gap:12px; }
+    .section-title{ padding:18px 16px 8px; font-size:14px; }
+    .section-title::before{ font-size:13px; }
 
     .write-wrap{ padding:18px 16px 24px; }
     .post-detail{ padding:18px 16px; }
@@ -595,9 +614,12 @@
 <!-- 화면 ① 홈 -->
 <div class="site screen active" id="screen-home">
   <div class="topbar">
-    <div>
-      <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
-      <div class="tagline">잠깐 멈춰가는 하루</div>
+    <div style="display:flex; align-items:baseline; gap:12px;">
+      <div>
+        <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
+        <div class="tagline">잠깐 멈춰가는 하루</div>
+      </div>
+      <span class="datestamp" id="home-datestamp"></span>
     </div>
     <div class="search"><input type="text" id="home-search-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
@@ -1593,7 +1615,7 @@
 
   // 프로필 사진이 없을 때 보여줄 기본 아이콘 (외부 이미지 서비스에 의존하지 않도록 인라인 SVG로)
   const DEFAULT_AVATAR_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#2b3240"/><circle cx="32" cy="24" r="12" fill="#5b6274"/><ellipse cx="32" cy="54" rx="20" ry="16" fill="#5b6274"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#f1e6cd"/><circle cx="32" cy="24" r="12" fill="#c2a877"/><ellipse cx="32" cy="54" rx="20" ry="16" fill="#c2a877"/></svg>'
   );
 
   function initMypage(){
@@ -2307,6 +2329,12 @@
   loadBoards().then(() => { renderBoardNav(); renderBoardList(); });
   refreshAuth();
   handleAuthErrorParam();
+
+  const datestampEl = document.getElementById('home-datestamp');
+  if(datestampEl){
+    const today = new Date();
+    datestampEl.textContent = (today.getMonth() + 1) + '월 ' + today.getDate() + '일';
+  }
 </script>
 </body>
 </html>
