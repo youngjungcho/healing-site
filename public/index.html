@@ -245,8 +245,40 @@
   }
   .stamp:hover{ border-color:var(--point); }
 
+  /* 홈 화면 상단 "오늘의 표지" */
+  .home-cover{
+    margin:18px 28px 4px; padding:20px 22px; background:var(--panel); border:1px solid var(--line);
+    border-radius:4px 16px 16px 4px; box-shadow:1px 3px 10px rgba(120,100,60,0.10);
+    position:relative; display:flex; gap:22px; align-items:center; flex-wrap:wrap;
+  }
+  .home-cover::before{
+    content:""; position:absolute; left:-1px; top:14px; bottom:14px; width:3px;
+    background:var(--point); border-radius:2px;
+  }
+  .home-cover-quote{ flex:1; min-width:200px; }
+  .home-cover-quote .eyebrow{
+    font-family:"Noto Sans KR",sans-serif; font-size:10.5px; color:var(--point); font-weight:700;
+    letter-spacing:.5px; margin-bottom:6px;
+  }
+  .home-cover-quote p{
+    margin:0; font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:16px; line-height:1.7; color:var(--text);
+  }
+  .home-cover-stamps{ display:flex; flex-direction:column; align-items:center; gap:8px; flex-shrink:0; }
+  .home-cover-stamps .label{ font-family:"Noto Sans KR",sans-serif; font-size:10px; color:var(--sub); }
+  .home-cover-write{
+    flex-shrink:0; background:var(--point); color:var(--point-text); border:none; padding:11px 18px;
+    border-radius:20px; font-family:"Noto Sans KR",sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
+    white-space:nowrap;
+  }
+
   /* home cards view */
-  .home-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; padding:8px 28px 26px; }
+  .home-grid{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:16px; padding:8px 28px 26px; }
+  .home-grid .card.big{ grid-row:span 2; display:flex; flex-direction:column; justify-content:center; }
+  .home-grid .card.big .tag{ align-self:flex-start; }
+  .home-grid .card.big h3{ font-size:17px; }
+  .home-grid .card.big p{ font-size:12.5px; }
+  .home-grid .card.tilt{ transform:rotate(-0.6deg); }
+  .home-grid .card.tilt2{ transform:rotate(0.5deg); }
   .card{
     position:relative;
     border:1px solid var(--line); border-radius:3px 14px 14px 3px; padding:18px 18px 18px 20px;
@@ -588,6 +620,10 @@
     table{ min-width:480px; }
 
     .home-grid{ grid-template-columns:1fr; padding:6px 16px 16px; gap:12px; }
+    .home-grid .card.big{ grid-row:auto; }
+    .home-grid .card.tilt, .home-grid .card.tilt2{ transform:none; }
+    .home-cover{ margin:14px 16px 4px; padding:16px 18px; flex-direction:column; align-items:flex-start; }
+    .home-cover-write{ width:100%; text-align:center; }
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
 
@@ -629,6 +665,23 @@
     </div>
   </div>
   <div class="notice-bar">🌿 이곳은 욕설·비방이 금지된 공간입니다. 서로에게 다정한 말을 건네주세요.</div>
+
+  <div class="home-cover">
+    <div class="home-cover-quote">
+      <div class="eyebrow">🌿 오늘의 위로 한마디</div>
+      <p>"오늘 하루도 애썼어요. 그거면 충분해요."</p>
+    </div>
+    <div class="home-cover-stamps">
+      <div class="label">오늘 기분은?</div>
+      <div class="stamp-row">
+        <div class="stamp" onclick="pickStamp('🙂')">🙂</div>
+        <div class="stamp" onclick="pickStamp('😌')">😌</div>
+        <div class="stamp" onclick="pickStamp('😔')">😔</div>
+        <div class="stamp" onclick="pickStamp('🌧️')">🌧️</div>
+      </div>
+    </div>
+    <button class="home-cover-write" onclick="requireLoginThen('screen-write')">오늘 글쓰기</button>
+  </div>
 
   <div id="home-board-sections"><!-- 게시판 카드는 서버의 게시판 목록으로 여기에 자동으로 그려져요 --></div>
 </div>
@@ -1056,8 +1109,8 @@
       homeEl.innerHTML = groups.map(g => `
         <div class="section-title">${escapeHtml(g.category)}</div>
         <div class="home-grid">
-          ${g.boards.map(b => `
-            <div class="card" onclick="openBoard('${b.slug}')">
+          ${g.boards.map((b, i) => `
+            <div class="card ${i === 0 ? 'big' : (i % 2 === 0 ? 'tilt2' : 'tilt')}" onclick="openBoard('${b.slug}')">
               <span class="tag">${escapeHtml(b.tag || g.category)}</span>
               <h3>${escapeHtml(b.title)}</h3>
               <p>${escapeHtml(b.description || '')}</p>
