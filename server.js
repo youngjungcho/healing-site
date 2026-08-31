@@ -1820,6 +1820,8 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`쉼표 로그인 서버가 http://localhost:${PORT} 에서 실행 중이에요.`);
+  console.log(`DATA_DIR 실제 경로: ${DATA_DIR}`);
+  console.log(`USERS_FILE 존재 여부: ${fs.existsSync(USERS_FILE)}`);
   checkReportSla();
   setInterval(checkReportSla, REPORT_SLA_CHECK_INTERVAL_MS);
 });
