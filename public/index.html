@@ -615,9 +615,31 @@
     .main{ padding:16px; min-width:0; }
     .board-title h2{ font-size:17px; }
 
-    /* 글 목록 테이블이 화면 밖으로 뚫고 나가지 않도록 가로 스크롤 허용 */
-    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    table{ min-width:480px; }
+    /* 좁은 화면에서는 표 대신 세로 카드 리스트로 보여줘요.
+       마크업(table/tr/td)은 그대로 두고 display만 바꿔서 카드처럼 흐르게 함.
+       tr을 2행 grid로 만들어 1행엔 제목, 2행엔 작성자·날짜·공감을 나란히 배치 */
+    table{ display:block; border-collapse:separate; }
+    thead{ display:none; }
+    tbody{ display:flex; flex-direction:column; gap:10px; }
+    tbody tr{
+      display:grid;
+      grid-template-columns:auto auto 1fr;
+      grid-template-areas:"title title title" "writer date heart";
+      row-gap:6px; column-gap:8px;
+      position:relative;
+      background:var(--panel-raised); border:1px solid var(--line);
+      border-radius:3px 12px 12px 3px; padding:13px 14px 13px 16px;
+    }
+    tbody tr::before{
+      content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
+      background:var(--point2); border-radius:2px;
+    }
+    tbody td{ padding:0; border-bottom:none; }
+    .num{ display:none; }
+    .title-cell{ grid-area:title; font-size:14.5px; font-weight:700; width:auto; }
+    .writer{ grid-area:writer; width:auto; font-size:11px; font-weight:600; color:var(--text); justify-self:start; white-space:nowrap; }
+    .date{ grid-area:date; width:auto; font-size:11px; color:var(--sub); justify-self:start; white-space:nowrap; }
+    .heart{ grid-area:heart; width:auto; font-size:11px; color:var(--point); font-weight:600; text-align:right; justify-self:end; }
 
     .home-grid{ grid-template-columns:1fr; padding:6px 16px 16px; gap:12px; }
     .home-grid .card.big{ grid-row:auto; }
