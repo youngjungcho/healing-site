@@ -773,7 +773,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th class="num">번호</th><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
+          <tr><th class="title-cell">제목</th><th class="writer">글쓴이</th><th class="date">날짜</th><th class="heart">공감</th></tr>
         </thead>
         <tbody id="search-tbody"></tbody>
       </table>
@@ -1388,14 +1388,19 @@
     const start = (currentPage - 1) * POSTS_PER_PAGE;
     const pagePosts = currentBoardPosts.slice(start, start + POSTS_PER_PAGE);
 
-    tbody.innerHTML = pagePosts.map(p => `
+    // currentBoardPosts는 최신순(id 내림차순)이라, 화면 번호는 이 게시판에서 가장 오래된
+    // 글이 1번이 되도록 뒤에서부터 매겨요 (게시글의 실제 id와는 별개의 표시용 번호).
+    tbody.innerHTML = pagePosts.map((p, i) => {
+      const displayNum = currentBoardPosts.length - (start + i);
+      return `
       <tr onclick="openPost(${p.id})">
-        <td class="num">${p.id}</td>
+        <td class="num">${displayNum}</td>
         <td class="title-cell"><a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}</td>
         <td class="writer">${escapeHtml(p.writerNickname)}</td>
         <td class="date">${formatDate(p.createdAt)}</td>
         <td class="heart">♥ ${p.hearts}</td>
-      </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">아직 글이 없어요. 첫 글을 남겨보세요.</td></tr>`;
+      </tr>`;
+    }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">아직 글이 없어요. 첫 글을 남겨보세요.</td></tr>`;
     document.getElementById('board-count').textContent = `전체 글 ${currentBoardPosts.length}`;
 
     const paginationEl = document.getElementById('board-pagination');
@@ -1418,12 +1423,11 @@
   function renderSearchRows(tbodyId, posts, showBoardBadge){
     const tbody = document.getElementById(tbodyId);
     if(!posts.length){
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">검색 결과가 없어요.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">검색 결과가 없어요.</td></tr>`;
       return;
     }
     tbody.innerHTML = posts.map(p => `
       <tr onclick="openPost(${p.id})">
-        <td class="num">${p.id}</td>
         <td class="title-cell">
           ${showBoardBadge ? `<span class="board-badge-inline" style="margin-right:6px;">${escapeHtml(p.boardTitle || boardTitle(p.board))}</span>` : ''}
           <a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}
@@ -1442,7 +1446,7 @@
     document.getElementById('search-result-input').value = query;
     document.getElementById('search-title-text').textContent = `"${query}" 검색 결과`;
     document.getElementById('search-count').textContent = '불러오는 중...';
-    document.getElementById('search-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">불러오는 중...</td></tr>`;
+    document.getElementById('search-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">불러오는 중...</td></tr>`;
     try{
       const res = await fetch('/api/search?q=' + encodeURIComponent(query));
       const data = await res.json();
@@ -1451,7 +1455,7 @@
       renderSearchRows('search-tbody', posts, true);
     }catch(e){
       document.getElementById('search-count').textContent = '0건';
-      document.getElementById('search-tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">검색하지 못했어요. 서버가 실행 중인지 확인해주세요.</td></tr>`;
+      document.getElementById('search-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">검색하지 못했어요. 서버가 실행 중인지 확인해주세요.</td></tr>`;
     }
   }
 
@@ -1467,7 +1471,20 @@
     const filtered = currentBoardPosts.filter(p => p.title.toLowerCase().includes(query));
     document.getElementById('board-count').textContent = `검색 결과 ${filtered.length}건`;
     paginationEl.innerHTML = '';
-    renderSearchRows('board-tbody', filtered, false);
+    const tbody = document.getElementById('board-tbody');
+    // currentBoardPosts 안에서의 위치를 기준으로 이 게시판에서의 번호(오래된 글이 1번)를 계산
+    tbody.innerHTML = filtered.map(p => {
+      const indexInBoard = currentBoardPosts.findIndex(x => x.id === p.id);
+      const displayNum = currentBoardPosts.length - indexInBoard;
+      return `
+      <tr onclick="openPost(${p.id})">
+        <td class="num">${displayNum}</td>
+        <td class="title-cell"><a>${escapeHtml(p.title)}</a>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}${p.hidden ? '<span class="hidden-badge">검토중</span>' : ''}</td>
+        <td class="writer">${escapeHtml(p.writerNickname)}</td>
+        <td class="date">${formatDate(p.createdAt)}</td>
+        <td class="heart">♥ ${p.hearts}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">검색 결과가 없어요.</td></tr>`;
   }
 
   let currentPostWriterId = null; // 지금 상세 화면에 열려 있는 글의 작성자 id (본인 글 여부 판단용)
