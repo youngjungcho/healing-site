@@ -272,8 +272,8 @@
   }
 
   /* home cards view */
-  .home-grid{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:16px; padding:8px 28px 26px; }
-  .home-grid .card.big{ grid-row:span 2; display:flex; flex-direction:column; justify-content:center; }
+  .home-grid{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:16px; padding:8px 28px 26px; align-items:start; }
+  .home-grid .card.big{ grid-row:span 2; align-self:stretch; display:flex; flex-direction:column; justify-content:center; }
   .home-grid .card.big .tag{ align-self:flex-start; }
   .home-grid .card.big h3{ font-size:17px; }
   .home-grid .card.big p{ font-size:12.5px; }
