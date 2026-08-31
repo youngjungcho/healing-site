@@ -166,6 +166,29 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
+// ---- 오늘의 위로 한마디 ----
+// 매주 같은 문구가 이어지도록, 연도의 몇 번째 주인지를 계산해서 그 주에 맞는 문구를
+// 목록에서 순서대로 골라요. 문구 개수만큼 돌면 처음부터 다시 반복돼요.
+const WEEKLY_COMFORT_QUOTES = [
+  '오늘 하루도 애썼어요. 그거면 충분해요.',
+  '천천히 가도 괜찮아요. 멈추지만 않으면 돼요.',
+  '오늘의 나에게 조금 더 다정해도 괜찮아요.',
+  '완벽하지 않아도 오늘 하루는 이미 잘 살아낸 거예요.',
+  '잠깐 쉬어가도 아무 일도 일어나지 않아요.',
+  '오늘 느낀 마음, 그 무엇도 틀리지 않았어요.',
+  '애쓰지 않아도 되는 순간이 있어요, 지금이 그때예요.',
+  '누군가는 오늘 당신의 하루를 응원하고 있어요.',
+  '작은 것에 감사할 수 있는 오늘이면 충분해요.',
+  '지금 이 순간, 숨 쉬고 있는 것만으로도 잘하고 있어요.',
+];
+function getWeeklyComfortQuote() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const daysSinceYearStart = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  const weekNumber = Math.floor(daysSinceYearStart / 7);
+  return WEEKLY_COMFORT_QUOTES[weekNumber % WEEKLY_COMFORT_QUOTES.length];
+}
+
 // ---- 게시판 목록 ----
 // 게시판은 이제 코드가 아니라 data/boards.json에 저장돼요. 운영자 화면(운영자 > 게시판 관리)에서
 // 추가·이름 변경·숨김·삭제를 직접 할 수 있어요. (처음 사용자가 제안한 5개로 시작함)
@@ -880,6 +903,11 @@ app.get('/api/me/sanctions', requireAuth, (req, res) => {
 app.get('/api/boards', (req, res) => {
   const boards = loadBoards().filter(b => !b.hidden).sort((a, b) => (a.order || 0) - (b.order || 0));
   res.json({ ok: true, boards });
+});
+
+// 이번 주 위로 한마디 (매주 자동으로 바뀜)
+app.get('/api/weekly-quote', (req, res) => {
+  res.json({ ok: true, quote: getWeeklyComfortQuote() });
 });
 
 // ---- 게시글 ----
