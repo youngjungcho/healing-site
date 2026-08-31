@@ -14,11 +14,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ---- 무차별 대입·스팸 방지용 요청 제한 ----
-// IP 기준으로 세는 가벼운 방식. 실제 서비스에서 프록시/로드밸런서 뒤에 두면
-// trust proxy 설정도 함께 확인해야 정확한 IP로 카운트돼요.
+// IP 기준으로 세는 가벼운 방식. Render 같은 플랫폼은 프록시 뒤에서 앱을 실행하므로
+// trust proxy를 켜지 않으면 모든 요청이 프록시 IP 하나로 잡혀 실제 사용자들이
+// 서로의 요청 횟수에 영향을 주게 됨 (한 명이 막히면 다같이 막힘).
 // 개발 중(localhost)에는 같은 사람이 반복 테스트하다 금방 막혀서 오히려 방해가 되므로,
 // NODE_ENV=production일 때만 실제로 제한을 걸어요.
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
 function rateLimitJson(message) {
   return { ok: false, message };
 }
@@ -427,6 +431,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
+    secure: IS_PRODUCTION,
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7일
   },
 }));
