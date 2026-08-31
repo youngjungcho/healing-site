@@ -1820,8 +1820,16 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`쉼표 로그인 서버가 http://localhost:${PORT} 에서 실행 중이에요.`);
+  // Persistent Disk가 재배포 후에도 데이터를 제대로 유지하는지 확인하기 위한 디버그 로그.
+  // (배포 플랫폼에서 디스크가 정상 마운트되고 있는지 검증이 끝나면 지워도 됨)
   console.log(`DATA_DIR 실제 경로: ${DATA_DIR}`);
   console.log(`USERS_FILE 존재 여부: ${fs.existsSync(USERS_FILE)}`);
+  try {
+    const userCount = loadUsers().length;
+    console.log(`현재 저장된 사용자 수: ${userCount}`);
+  } catch (e) {
+    console.log(`사용자 파일 읽기 실패: ${e.message}`);
+  }
   checkReportSla();
   setInterval(checkReportSla, REPORT_SLA_CHECK_INTERVAL_MS);
 });
