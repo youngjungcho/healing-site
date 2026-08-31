@@ -4,6 +4,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
@@ -424,9 +425,16 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// express-session 기본 저장소(MemoryStore)는 "프로덕션에 적합하지 않다"는 경고가 뜨고
+// 실제로 서버 재시작 시 모든 로그인이 풀리며 트래픽이 늘면 메모리 누수 위험도 있음.
+// Persistent Disk(data/)에 세션을 파일로 저장해서 재배포·재시작에도 로그인이 유지되게 함.
 app.use(session({
   name: 'healing.sid',
   secret: process.env.SESSION_SECRET || 'change-this-secret-before-real-deploy',
+  store: new FileStore({
+    path: path.join(DATA_DIR, 'sessions'),
+    logFn: () => {}, // 콘솔에 매 요청마다 로그 찍는 걸 막음
+  }),
   resave: false,
   saveUninitialized: false,
   cookie: {
