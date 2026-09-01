@@ -1272,6 +1272,14 @@ app.post('/api/posts/:id/report', (req, res) => {
     post.hidden = true;
   }
   savePosts(posts);
+  const board = getBoard(post.board || 'diary');
+  notifyNewReport({
+    type: 'post',
+    boardTitle: (board && board.title) || post.board || 'diary',
+    title: post.title,
+    reason,
+    reportCount: post.reports.length,
+  });
   res.json({ ok: true, reportCount: post.reports.length, hidden: !!post.hidden });
 });
 
@@ -1300,6 +1308,14 @@ app.post('/api/posts/:id/comments/:commentId/report', (req, res) => {
     comment.hidden = true;
   }
   savePosts(posts);
+  const board = getBoard(post.board || 'diary');
+  notifyNewReport({
+    type: 'comment',
+    boardTitle: (board && board.title) || post.board || 'diary',
+    body: comment.body,
+    reason,
+    reportCount: comment.reports.length,
+  });
   res.json({ ok: true, reportCount: comment.reports.length, hidden: !!comment.hidden });
 });
 
@@ -1319,6 +1335,32 @@ function slaEmailHtml(items) {
     <ul>${rows}</ul>
     <p><a href="${APP_BASE_URL}/#screen-admin">운영자 화면 바로가기</a></p>
   </div>`;
+}
+
+function newReportEmailHtml({ type, boardTitle, title, body, reason, reportCount }) {
+  const preview = escapeHtmlServer((type === 'post' ? title : body) || '').slice(0, 80);
+  return `<div style="font-family:sans-serif;line-height:1.7;">
+    <p>안녕하세요, 쉼표예요.</p>
+    <p>${type === 'post' ? '게시글' : '댓글'}이 새로 신고됐어요. 확인해주세요.</p>
+    <ul>
+      <li><strong>${escapeHtmlServer(boardTitle)}</strong></li>
+      <li>${preview}</li>
+      <li>신고 사유: ${escapeHtmlServer(reason)}</li>
+      <li>누적 신고: ${reportCount}건</li>
+    </ul>
+    <p><a href="${APP_BASE_URL}/#screen-admin">운영자 화면 바로가기</a></p>
+  </div>`;
+}
+
+// 신고가 접수될 때마다(24시간 SLA 알림과 별개로) 운영자에게 바로 메일을 보냄.
+// 메일 발송 실패가 신고 접수 자체를 막지 않도록 항상 별도로 실행하고 에러만 기록.
+function notifyNewReport(params) {
+  if (!ADMIN_EMAILS.length) return;
+  sendMail({
+    to: ADMIN_EMAILS.join(','),
+    subject: `[쉼표] 새 신고가 접수됐어요 (${params.type === 'post' ? '게시글' : '댓글'})`,
+    html: newReportEmailHtml(params),
+  }).catch(err => console.error('신고 접수 알림 메일 발송 실패:', err));
 }
 
 // 24시간 넘게 처리되지 않은 신고를 찾아 운영자 전체에게 메일로 알림. 같은 신고에는

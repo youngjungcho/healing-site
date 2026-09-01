@@ -2470,10 +2470,16 @@
     }
   }
 
-  // 아래 두 줄은 페이지가 열리자마자 실행돼요. history.replaceState가 (파일 미리보기 같은
-  // 샌드박스 환경에서) 에러를 던지더라도 게시판 목록 로딩(loadBoards)까지는 반드시 이어지도록
+  // 페이지가 열리자마자 실행돼요. 메일 알림 등에서 #screen-admin 같은 링크로 바로
+  // 들어올 수 있으므로, 주소창의 해시가 실제 존재하는 화면이면 그 화면으로 시작하고
+  // 아니면 홈 화면으로 시작함. history.replaceState가 (파일 미리보기 같은 샌드박스
+  // 환경에서) 에러를 던지더라도 게시판 목록 로딩(loadBoards)까지는 반드시 이어지도록
   // try/catch로 감싸요 — 그래야 화면 자체는 정상적으로 보여요.
-  try{ history.replaceState({ screen: 'screen-home' }, '', '#screen-home'); }catch(e){ /* 무시 */ }
+  const initialHash = location.hash.replace('#', '');
+  const initialScreen = (initialHash && document.getElementById(initialHash) && document.getElementById(initialHash).classList.contains('screen'))
+    ? initialHash : 'screen-home';
+  try{ history.replaceState({ screen: initialScreen }, '', '#' + initialScreen); }catch(e){ /* 무시 */ }
+  renderScreen(initialScreen);
   loadBoards().then(() => { renderBoardNav(); renderBoardList(); });
   refreshAuth();
   handleAuthErrorParam();
