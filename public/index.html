@@ -303,15 +303,32 @@
   }
 
   /* 홈 화면 "지금 인기 있는 글" */
+  .best-post-scroller{ position:relative; padding:0 28px 26px; }
   .best-post-row{
-    display:flex; gap:12px; overflow-x:auto; padding:0 28px 26px;
-    -webkit-overflow-scrolling:touch;
+    display:flex; gap:12px; overflow-x:auto;
+    -webkit-overflow-scrolling:touch; cursor:grab;
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .best-post-row::-webkit-scrollbar{ display:none; }
+  .best-post-row.dragging{ cursor:grabbing; scroll-behavior:auto; }
+  .best-post-nav{
+    display:none; position:absolute; top:50%; transform:translateY(-50%);
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--line);
+    background:var(--panel); color:var(--point); font-size:18px; line-height:1; cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,0.12); z-index:2; align-items:center; justify-content:center;
+  }
+  .best-post-nav:hover{ background:var(--accent-soft); }
+  .best-post-nav.prev{ left:2px; }
+  .best-post-nav.next{ right:2px; }
+  @media (hover: hover){
+    .best-post-scroller:hover .best-post-nav{ display:flex; }
   }
   .best-post-card{
     position:relative; flex:0 0 200px;
     border:1px solid var(--line); border-radius:3px 12px 12px 3px; padding:14px 14px 14px 16px;
     background:var(--panel-raised); cursor:pointer;
     box-shadow:1px 2px 8px rgba(120,100,60,0.10);
+    user-select:none;
   }
   .best-post-card::before{
     content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
@@ -677,9 +694,11 @@
     .home-cover{ margin:14px 16px 4px; padding:16px 18px; flex-direction:column; align-items:stretch; }
     .home-cover-stamps{ align-items:center; margin-top:4px; }
     .home-cover-write{ width:100%; text-align:center; }
-    .best-post-row{ padding:0 16px 20px; gap:10px; }
+    .best-post-scroller{ padding:0 16px 20px; }
+    .best-post-row{ gap:10px; }
     .best-post-card{ flex-basis:170px; }
     .best-post-empty{ padding:0 16px 20px; }
+    .best-post-nav{ display:none !important; }
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
 
@@ -738,7 +757,11 @@
   </div>
 
   <div class="section-title">지금 인기 있는 글</div>
-  <div id="home-best-posts" class="best-post-row"><!-- 공감 많은 글이 여기 자동으로 그려져요 --></div>
+  <div class="best-post-scroller">
+    <button class="best-post-nav prev" onclick="scrollBestPosts(-1)" aria-label="이전 글">‹</button>
+    <div id="home-best-posts" class="best-post-row"><!-- 공감 많은 글이 여기 자동으로 그려져요 --></div>
+    <button class="best-post-nav next" onclick="scrollBestPosts(1)" aria-label="다음 글">›</button>
+  </div>
 
   <div id="home-board-sections"><!-- 게시판 카드는 서버의 게시판 목록으로 여기에 자동으로 그려져요 --></div>
 </div>
@@ -2545,12 +2568,15 @@
     setWeeklyQuoteText('"오늘 하루도 애썼어요. 그거면 충분해요."');
   });
 
-  // 홈 화면 "지금 인기 있는 글": 전체 게시판 통틀어 공감 상위 글을 가로로 나열
+  // 홈 화면 "지금 인기 있는 글": 전체 게시판 통틀어 공감 상위 글을 가로로 나열.
+  // 마우스로 카드 목록을 붙잡고 옆으로 끌면(grab-to-scroll) 스크롤되고, 좌우 화살표
+  // 버튼으로도 한 화면 폭만큼씩 넘길 수 있음 (모바일은 화살표 대신 터치 스와이프로 넘김).
   fetch('/api/best-posts?limit=8').then(res => res.json()).then(data => {
     const el = document.getElementById('home-best-posts');
     if(!el) return;
     if(!data.ok || !data.posts.length){
-      el.outerHTML = '<div class="best-post-empty" id="home-best-posts">아직 공감을 받은 글이 없어요. 첫 공감의 주인공이 되어보세요.</div>';
+      const scroller = el.closest('.best-post-scroller');
+      if(scroller) scroller.outerHTML = '<div class="best-post-empty">아직 공감을 받은 글이 없어요. 첫 공감의 주인공이 되어보세요.</div>';
       return;
     }
     el.innerHTML = data.posts.map((p, i) => `
@@ -2560,7 +2586,55 @@
         <div class="title">${escapeHtml(p.title)}</div>
         <div class="heart">♥ ${p.hearts}</div>
       </div>`).join('');
+    setupBestPostDrag(el);
   }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
+
+  // 브라우저의 scrollTo({behavior:'smooth'})에 기대지 않고 직접 애니메이션을 굴려서
+  // 어떤 환경에서도 동일하게 동작하게 함.
+  function scrollBestPosts(direction){
+    const el = document.getElementById('home-best-posts');
+    if(!el) return;
+    const start = el.scrollLeft;
+    const max = el.scrollWidth - el.clientWidth;
+    const target = Math.max(0, Math.min(max, start + direction * el.clientWidth * 0.8));
+    const distance = target - start;
+    const duration = 320;
+    const startTime = performance.now();
+    function step(now){
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.scrollLeft = start + distance * eased;
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // 마우스 드래그로 가로 스크롤. 클릭과 드래그를 구분하기 위해, 실제로 몇 픽셀 이상
+  // 움직였을 때만 "드래그로 취급"해서 그 다음 클릭(openPost)이 실수로 발동하지 않게 함.
+  function setupBestPostDrag(el){
+    let isDown = false, moved = false, startX = 0, startScroll = 0;
+    el.addEventListener('mousedown', (e) => {
+      isDown = true; moved = false;
+      startX = e.pageX; startScroll = el.scrollLeft;
+      el.classList.add('dragging');
+    });
+    window.addEventListener('mouseup', () => {
+      isDown = false;
+      el.classList.remove('dragging');
+    });
+    el.addEventListener('mouseleave', () => {
+      if(isDown){ isDown = false; el.classList.remove('dragging'); }
+    });
+    el.addEventListener('mousemove', (e) => {
+      if(!isDown) return;
+      const dx = e.pageX - startX;
+      if(Math.abs(dx) > 5) moved = true;
+      el.scrollLeft = startScroll - dx;
+    });
+    el.addEventListener('click', (e) => {
+      if(moved){ e.stopPropagation(); e.preventDefault(); }
+    }, true);
+  }
 </script>
 </body>
 </html>
