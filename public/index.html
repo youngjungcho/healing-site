@@ -302,6 +302,39 @@
     color:var(--point);
   }
 
+  /* 홈 화면 "지금 인기 있는 글" */
+  .best-post-row{
+    display:flex; gap:12px; overflow-x:auto; padding:0 28px 26px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .best-post-card{
+    position:relative; flex:0 0 200px;
+    border:1px solid var(--line); border-radius:3px 12px 12px 3px; padding:14px 14px 14px 16px;
+    background:var(--panel-raised); cursor:pointer;
+    box-shadow:1px 2px 8px rgba(120,100,60,0.10);
+  }
+  .best-post-card::before{
+    content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
+    background:var(--point); border-radius:2px;
+  }
+  .best-post-rank{
+    font-family:"Noto Serif KR",serif; font-size:18px; font-weight:900; color:var(--point);
+    margin-bottom:4px;
+  }
+  .best-post-card .board{
+    font-family:"Noto Sans KR",sans-serif; font-size:10.5px; color:var(--sub); margin-bottom:4px;
+  }
+  .best-post-card .title{
+    font-size:13px; font-weight:700; margin-bottom:8px; line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .best-post-card .heart{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--point); font-weight:600;
+  }
+  .best-post-empty{
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); padding:0 28px 26px;
+  }
+
   /* write form */
   .write-wrap{ padding:26px 32px 32px; }
   .write-wrap h2{ font-size:19px; margin:0 0 18px; }
@@ -644,6 +677,9 @@
     .home-cover{ margin:14px 16px 4px; padding:16px 18px; flex-direction:column; align-items:stretch; }
     .home-cover-stamps{ align-items:center; margin-top:4px; }
     .home-cover-write{ width:100%; text-align:center; }
+    .best-post-row{ padding:0 16px 20px; gap:10px; }
+    .best-post-card{ flex-basis:170px; }
+    .best-post-empty{ padding:0 16px 20px; }
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
 
@@ -700,6 +736,9 @@
     </div>
     <button class="home-cover-write" onclick="requireLoginThen('screen-write')">오늘 글쓰기</button>
   </div>
+
+  <div class="section-title">지금 인기 있는 글</div>
+  <div id="home-best-posts" class="best-post-row"><!-- 공감 많은 글이 여기 자동으로 그려져요 --></div>
 
   <div id="home-board-sections"><!-- 게시판 카드는 서버의 게시판 목록으로 여기에 자동으로 그려져요 --></div>
 </div>
@@ -2505,6 +2544,23 @@
   }).catch(() => {
     setWeeklyQuoteText('"오늘 하루도 애썼어요. 그거면 충분해요."');
   });
+
+  // 홈 화면 "지금 인기 있는 글": 전체 게시판 통틀어 공감 상위 글을 가로로 나열
+  fetch('/api/best-posts?limit=8').then(res => res.json()).then(data => {
+    const el = document.getElementById('home-best-posts');
+    if(!el) return;
+    if(!data.ok || !data.posts.length){
+      el.outerHTML = '<div class="best-post-empty" id="home-best-posts">아직 공감을 받은 글이 없어요. 첫 공감의 주인공이 되어보세요.</div>';
+      return;
+    }
+    el.innerHTML = data.posts.map((p, i) => `
+      <div class="best-post-card" onclick="openPost(${p.id})">
+        <div class="best-post-rank">${i + 1}</div>
+        <div class="board">${escapeHtml(p.boardTitle)}</div>
+        <div class="title">${escapeHtml(p.title)}</div>
+        <div class="heart">♥ ${p.hearts}</div>
+      </div>`).join('');
+  }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
 </script>
 </body>
 </html>

@@ -928,6 +928,30 @@ app.get('/api/posts', (req, res) => {
   res.json({ ok: true, board: board.slug, posts: sorted.map(publicPost) });
 });
 
+// 전체 게시판을 통틀어 공감을 가장 많이 받은 글. 홈 화면 "베스트 글" 섹션에서 사용.
+// 숨김 게시판과 신고로 숨겨진 글은 제외하고, 공감 수가 같으면 최신 글을 우선함.
+app.get('/api/best-posts', (req, res) => {
+  const me = getCurrentUser(req);
+  const limit = Math.min(Number(req.query.limit) || 6, 20);
+  const boards = loadBoards();
+  const visibleBoardSlugs = new Set(boards.filter(b => !b.hidden).map(b => b.slug));
+  const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
+
+  const posts = loadPosts();
+  const visible = posts.filter(p => {
+    const board = p.board || 'diary';
+    if (!visibleBoardSlugs.has(board)) return false;
+    if (p.hidden && !(me && (me.id === p.writerId || isAdminUser(me)))) return false;
+    return true;
+  });
+  const sorted = visible.slice().sort((a, b) => (b.hearts - a.hearts) || (b.id - a.id));
+  const top = sorted.slice(0, limit);
+  res.json({
+    ok: true,
+    posts: top.map(p => ({ ...publicPost(p), boardTitle: boardTitleOf(p.board || 'diary') })),
+  });
+});
+
 // 전체 게시판 검색 (제목·내용 대상). 숨김 게시판과 신고로 숨겨진 글은 결과에서 제외
 app.get('/api/search', (req, res) => {
   const me = getCurrentUser(req);
