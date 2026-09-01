@@ -2609,9 +2609,13 @@
     requestAnimationFrame(step);
   }
 
-  // 마우스 드래그로 가로 스크롤. 클릭과 드래그를 구분하기 위해, 실제로 몇 픽셀 이상
-  // 움직였을 때만 "드래그로 취급"해서 그 다음 클릭(openPost)이 실수로 발동하지 않게 함.
+  // 마우스 드래그로 가로 스크롤. 터치 기기는 브라우저 네이티브 스와이프가 이미 부드럽게
+  // 동작하는데, 터치가 합성 mouse 이벤트로도 전달되는 경우 이 리스너가 scrollLeft를
+  // 강제로 덮어쓰면서 네이티브 스크롤과 충돌할 수 있어 마우스가 있는 기기에서만 등록함.
+  // 클릭과 드래그를 구분하기 위해, 실제로 몇 픽셀 이상 움직였을 때만 "드래그로 취급"해서
+  // 그 다음 클릭(openPost)이 실수로 발동하지 않게 함.
   function setupBestPostDrag(el){
+    if(!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
     let isDown = false, moved = false, startX = 0, startScroll = 0;
     el.addEventListener('mousedown', (e) => {
       isDown = true; moved = false;
