@@ -1133,7 +1133,7 @@ app.post('/api/posts/:id/heart', (req, res) => {
 
 // 댓글 작성 (로그인 불필요, 로그인했으면 닉네임으로 표시)
 app.post('/api/posts/:id/comments', (req, res) => {
-  const { body } = req.body || {};
+  const { body, parentId } = req.body || {};
   const trimmedBody = (body || '').trim();
   if (!trimmedBody) {
     return res.status(400).json({ ok: false, message: '댓글 내용을 입력해주세요.' });
@@ -1152,6 +1152,17 @@ app.post('/api/posts/:id/comments', (req, res) => {
     return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
   }
 
+  // 답글이면 부모 댓글이 실제로 이 글에 있는지 확인 (답글의 답글도 허용하되, 화면에서는
+  // 부모 댓글 아래로 한 단계만 평평하게 모아서 보여줌)
+  let normalizedParentId = null;
+  if (parentId !== undefined && parentId !== null) {
+    const parentComment = post.comments.find(c => c.id === Number(parentId));
+    if (!parentComment) {
+      return res.status(404).json({ ok: false, message: '답글을 달려는 댓글을 찾을 수 없어요.' });
+    }
+    normalizedParentId = parentComment.parentId || parentComment.id;
+  }
+
   let writerNickname = '익명';
   let writerId = null;
   if (req.session.userId) {
@@ -1167,6 +1178,7 @@ app.post('/api/posts/:id/comments', (req, res) => {
 
   const newComment = {
     id: post.comments.length ? Math.max(...post.comments.map(c => c.id)) + 1 : 1,
+    parentId: normalizedParentId,
     writerId,
     writerNickname,
     body: trimmedBody,
@@ -1211,7 +1223,10 @@ app.patch('/api/posts/:id/comments/:commentId', requireCanWrite, (req, res) => {
   res.json({ ok: true, comment });
 });
 
-// 본인 댓글 삭제 (완전 삭제). 작성자 본인만 가능, 제재·미인증 상태면 불가
+// 본인 댓글 삭제. 작성자 본인만 가능, 제재·미인증 상태면 불가.
+// 답글이 달려있으면 완전히 지우는 대신 본문만 "삭제된 댓글입니다"로 남겨서
+// 그 아래 답글들이 부모를 잃고 화면에서 통째로 사라지는 일이 없게 함.
+// 답글이 하나도 없으면 그냥 완전히 삭제.
 app.delete('/api/posts/:id/comments/:commentId', requireCanWrite, (req, res) => {
   const posts = loadPosts();
   const post = posts.find(p => p.id === Number(req.params.id));
@@ -1225,7 +1240,13 @@ app.delete('/api/posts/:id/comments/:commentId', requireCanWrite, (req, res) => 
   if (comment.writerId !== req.currentUser.id) {
     return res.status(403).json({ ok: false, message: '본인이 쓴 댓글만 삭제할 수 있어요.' });
   }
-  post.comments.splice(post.comments.indexOf(comment), 1);
+  const hasReplies = post.comments.some(c => c.parentId === comment.id);
+  if (hasReplies) {
+    comment.body = '삭제된 댓글입니다.';
+    comment.deleted = true;
+  } else {
+    post.comments.splice(post.comments.indexOf(comment), 1);
+  }
   savePosts(posts);
   res.json({ ok: true, commentCount: post.comments.length });
 });

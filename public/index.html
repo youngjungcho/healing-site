@@ -405,6 +405,20 @@
   }
   .comment .c-writer{ color:var(--sub); font-size:11px; margin-right:6px; }
   .comment .c-heart{ color:var(--point); font-size:11px; white-space:nowrap; }
+  .comment.is-reply{
+    margin-left:26px; padding-left:14px; border-left:2px solid var(--line); border-bottom:none;
+    padding-top:8px; padding-bottom:8px;
+  }
+  .comment.is-reply + .comment.is-reply{ padding-top:0; }
+  .reply-form{ display:flex; gap:6px; margin:8px 0 8px 26px; }
+  .reply-form input{
+    flex:1; border:1px solid var(--line); border-radius:14px; padding:6px 12px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12px; outline:none;
+  }
+  .reply-form button{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; border:none; border-radius:14px;
+    padding:6px 12px; cursor:pointer; background:var(--point); color:var(--point-text);
+  }
   .comment-input{ display:flex; gap:8px; margin-top:16px; }
   .comment-input input{
     flex:1; border:1px solid var(--line); border-radius:20px; padding:9px 16px;
@@ -451,11 +465,6 @@
     font-size:12.5px; color:var(--warn); background:var(--warn-bg); border:none;
     padding:8px 16px; border-radius:20px; cursor:pointer; margin-left:8px;
   }
-  .report-link{
-    font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--sub);
-    cursor:pointer; margin-left:8px;
-  }
-  .report-link:hover{ color:var(--warn); }
   .hidden-badge{
     display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10.5px;
     color:var(--warn); background:var(--warn-bg); padding:2px 8px; border-radius:10px; margin-left:6px;
@@ -647,7 +656,7 @@
     .mypage-tabrow{ overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
 
     /* 신고·삭제 등 버튼류 터치 영역 확대 */
-    .report-link{ padding:6px 4px; }
+    .c-actions span{ padding:6px 4px; display:inline-block; }
     .admin-item-actions button, .form-actions button{ padding:9px 14px; }
     .banned-word-chip button{ padding:6px 8px; font-size:17px; }
     .stamp{ width:32px; height:32px; }
@@ -1581,30 +1590,90 @@
   }
 
   let editingCommentId = null;
+  let replyingToId = null;
+
+  function renderOneComment(c, isReply){
+    if(c.deleted){
+      return `
+      <div class="comment${isReply ? ' is-reply' : ''}">
+        <div><span class="c-body" style="color:var(--sub);font-style:italic;">${escapeHtml(c.body)}</span></div>
+      </div>`;
+    }
+    if(editingCommentId === c.id){
+      return `
+      <div class="comment${isReply ? ' is-reply' : ''}">
+        <div class="comment-edit-form">
+          <input type="text" id="comment-edit-input" maxlength="300" value="${escapeAttr(c.body)}">
+          <button onclick="saveCommentEdit(${c.id})">저장</button>
+          <button onclick="cancelCommentEdit()">취소</button>
+        </div>
+      </div>`;
+    }
+    const isMine = currentUser && currentUser.id === c.writerId;
+    const ownerActions = isMine
+      ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
+    const commentAvatar = c.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(c.writerProfileImage)}">` : '';
+    const replyAction = !isReply ? `<span onclick="startReply(${c.id})">답글</span>` : '';
+    let html = `
+    <div class="comment${isReply ? ' is-reply' : ''}">
+      <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="c-actions">${replyAction}<span onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></span>${ownerActions}</div>
+      <div class="c-heart">♥ ${c.hearts}</div>
+    </div>`;
+    if(replyingToId === c.id){
+      html += `
+      <div class="reply-form">
+        <input type="text" id="reply-input-field" maxlength="300" placeholder="답글을 남겨보세요" onkeydown="if(event.key==='Enter')submitReply(${c.id})">
+        <button onclick="submitReply(${c.id})">등록</button>
+        <button onclick="cancelReply()">취소</button>
+      </div>`;
+    }
+    return html;
+  }
 
   function renderComments(comments){
     document.getElementById('comment-count').textContent = comments.length;
-    document.getElementById('comment-list').innerHTML = comments.map(c => {
-      if(editingCommentId === c.id){
-        return `
-        <div class="comment">
-          <div class="comment-edit-form">
-            <input type="text" id="comment-edit-input" maxlength="300" value="${escapeAttr(c.body)}">
-            <button onclick="saveCommentEdit(${c.id})">저장</button>
-            <button onclick="cancelCommentEdit()">취소</button>
-          </div>
-        </div>`;
-      }
-      const isMine = currentUser && currentUser.id === c.writerId;
-      const ownerActions = isMine
-        ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
-      const commentAvatar = c.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(c.writerProfileImage)}">` : '';
-      return `
-      <div class="comment">
-        <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="report-link" onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span>${ownerActions}</div>
-        <div class="c-heart">♥ ${c.hearts}</div>
-      </div>`;
+    // 댓글은 서버에서 flat 배열로 오므로, 최상위 댓글(parentId 없음)을 먼저 그리고
+    // 그 댓글의 답글들을 바로 아래에 작성 순서대로 붙여서 대댓글처럼 보이게 함.
+    const topLevel = comments.filter(c => !c.parentId);
+    const repliesByParent = {};
+    comments.filter(c => c.parentId).forEach(c => {
+      (repliesByParent[c.parentId] = repliesByParent[c.parentId] || []).push(c);
+    });
+    document.getElementById('comment-list').innerHTML = topLevel.map(c => {
+      const replies = (repliesByParent[c.id] || []).map(r => renderOneComment(r, true)).join('');
+      return renderOneComment(c, false) + replies;
     }).join('');
+  }
+
+  function startReply(commentId){
+    replyingToId = commentId;
+    editingCommentId = null;
+    reloadComments();
+  }
+  function cancelReply(){
+    replyingToId = null;
+    reloadComments();
+  }
+  async function submitReply(parentId){
+    const input = document.getElementById('reply-input-field');
+    const text = input.value.trim();
+    if(!text || !currentPostId) return;
+    try{
+      const res = await fetch(`/api/posts/${currentPostId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text, parentId }),
+      });
+      const data = await res.json();
+      if(data.ok){
+        replyingToId = null;
+        reloadComments();
+      } else {
+        alert(data.message || '답글을 남기지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
+    }
   }
 
   function startCommentEdit(commentId){
