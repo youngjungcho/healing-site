@@ -1257,10 +1257,13 @@
   function showScreen(id){
     renderScreen(id);
     if(!history.state || history.state.screen !== id){
+      // 홈 화면은 주소 끝에 #screen-home이 붙지 않도록 해시를 비워둠. 다른 화면은
+      // 그대로 #id를 남겨서 메일 링크(#screen-admin 등)로 바로 들어오는 게 계속 동작함.
       // 이 페이지를 파일 미리보기 같은 샌드박스(예: srcdoc iframe) 안에서 열면
       // history API가 막혀서 여기서 에러가 날 수 있어요. 그런 경우에도 화면 전환 자체는
       // 계속되도록(뒤로가기만 못 쓰는 정도로) 조용히 넘어가요.
-      try{ history.pushState({ screen: id }, '', '#' + id); }catch(e){ /* 무시 */ }
+      const hash = id === 'screen-home' ? location.pathname + location.search : '#' + id;
+      try{ history.pushState({ screen: id }, '', hash); }catch(e){ /* 무시 */ }
     }
   }
 
@@ -2540,7 +2543,9 @@
   const initialHash = location.hash.replace('#', '');
   const initialScreen = (initialHash && document.getElementById(initialHash) && document.getElementById(initialHash).classList.contains('screen'))
     ? initialHash : 'screen-home';
-  try{ history.replaceState({ screen: initialScreen }, '', '#' + initialScreen); }catch(e){ /* 무시 */ }
+  // 홈 화면으로 시작할 때는 주소 끝에 #screen-home을 남기지 않음.
+  const initialUrlHash = initialScreen === 'screen-home' ? location.pathname + location.search : '#' + initialScreen;
+  try{ history.replaceState({ screen: initialScreen }, '', initialUrlHash); }catch(e){ /* 무시 */ }
   renderScreen(initialScreen);
   loadBoards().then(() => { renderBoardNav(); renderBoardList(); });
   refreshAuth();
