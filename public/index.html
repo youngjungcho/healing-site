@@ -352,6 +352,28 @@
     font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); padding:0 28px 26px;
   }
 
+  /* 홈 화면 "방금 올라온 글" — 여러 게시판 글을 한 줄씩 촘촘하게 나열 */
+  .recent-post-list{
+    list-style:none; margin:0; padding:0 28px 26px; font-family:"Noto Sans KR",sans-serif;
+  }
+  .recent-post-list li{
+    display:flex; align-items:baseline; gap:8px; padding:9px 2px;
+    border-bottom:1px solid var(--line); cursor:pointer; font-size:13px;
+  }
+  .recent-post-list li:hover{ background:var(--accent-soft); }
+  .recent-post-list .board-badge-inline{ flex-shrink:0; }
+  .recent-post-list .title{
+    flex:1; min-width:0; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .recent-post-list .cmt{ color:var(--point); font-size:11px; flex-shrink:0; }
+  .recent-post-list .meta{
+    flex-shrink:0; color:var(--sub); font-size:11px; white-space:nowrap;
+  }
+  .recent-post-empty{
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); padding:0 28px 26px;
+  }
+
   /* write form */
   .write-wrap{ padding:26px 32px 32px; }
   .write-wrap h2{ font-size:19px; margin:0 0 18px; }
@@ -699,6 +721,9 @@
     .best-post-card{ flex-basis:170px; }
     .best-post-empty{ padding:0 16px 20px; }
     .best-post-nav{ display:none !important; }
+    .recent-post-list{ padding:0 16px 20px; }
+    .recent-post-list li{ font-size:12.5px; gap:6px; }
+    .recent-post-empty{ padding:0 16px 20px; }
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
 
@@ -762,6 +787,9 @@
     <div id="home-best-posts" class="best-post-row"><!-- 공감 많은 글이 여기 자동으로 그려져요 --></div>
     <button class="best-post-nav next" onclick="scrollBestPosts(1)" aria-label="다음 글">›</button>
   </div>
+
+  <div class="section-title">방금 올라온 글</div>
+  <ul id="home-recent-posts" class="recent-post-list"><!-- 전체 게시판 최신 글이 여기 자동으로 그려져요 --></ul>
 
   <div id="home-board-sections"><!-- 게시판 카드는 서버의 게시판 목록으로 여기에 자동으로 그려져요 --></div>
 </div>
@@ -2592,6 +2620,22 @@
         <div class="heart">♥ ${p.hearts}</div>
       </div>`).join('');
     setupBestPostDrag(el);
+  }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
+
+  // 홈 화면 "방금 올라온 글": 전체 게시판을 통틀어 가장 최근 글 10개를 한 줄씩 나열.
+  fetch('/api/recent-posts?limit=10').then(res => res.json()).then(data => {
+    const el = document.getElementById('home-recent-posts');
+    if(!el) return;
+    if(!data.ok || !data.posts.length){
+      el.outerHTML = '<div class="recent-post-empty" id="home-recent-posts">아직 올라온 글이 없어요.</div>';
+      return;
+    }
+    el.innerHTML = data.posts.map(p => `
+      <li onclick="openPost(${p.id})">
+        <span class="board-badge-inline">${escapeHtml(p.boardTitle)}</span>
+        <span class="title">${escapeHtml(p.title)}</span>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}
+        <span class="meta">조회 ${p.views} · ♥ ${p.hearts} · ${formatDate(p.createdAt)}</span>
+      </li>`).join('');
   }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
 
   // 브라우저의 scrollTo({behavior:'smooth'})에 기대지 않고 직접 애니메이션을 굴려서

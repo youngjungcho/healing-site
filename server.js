@@ -952,6 +952,30 @@ app.get('/api/best-posts', (req, res) => {
   });
 });
 
+// 전체 게시판을 통틀어 가장 최근에 올라온 글. 홈 화면 "최신 글" 섹션에서 사용.
+// 숨김 게시판과 신고로 숨겨진 글은 제외.
+app.get('/api/recent-posts', (req, res) => {
+  const me = getCurrentUser(req);
+  const limit = Math.min(Number(req.query.limit) || 10, 30);
+  const boards = loadBoards();
+  const visibleBoardSlugs = new Set(boards.filter(b => !b.hidden).map(b => b.slug));
+  const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
+
+  const posts = loadPosts();
+  const visible = posts.filter(p => {
+    const board = p.board || 'diary';
+    if (!visibleBoardSlugs.has(board)) return false;
+    if (p.hidden && !(me && (me.id === p.writerId || isAdminUser(me)))) return false;
+    return true;
+  });
+  const sorted = visible.slice().sort((a, b) => b.id - a.id);
+  const recent = sorted.slice(0, limit);
+  res.json({
+    ok: true,
+    posts: recent.map(p => ({ ...publicPost(p), boardTitle: boardTitleOf(p.board || 'diary') })),
+  });
+});
+
 // 전체 게시판 검색 (제목·내용 대상). 숨김 게시판과 신고로 숨겨진 글은 결과에서 제외
 app.get('/api/search', (req, res) => {
   const me = getCurrentUser(req);
