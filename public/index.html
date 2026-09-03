@@ -714,6 +714,15 @@
     border-radius:10px;
     padding:2px 8px;
   }
+  .tone-badge{
+    display:inline-block; flex-shrink:0;
+    font-family:"Noto Sans KR",sans-serif; font-size:10.5px; font-weight:600;
+    border-radius:10px; padding:2px 8px;
+  }
+  .tone-badge.tone-feeling{ color:var(--point); background:var(--warn-bg); }
+  .tone-badge.tone-senses{ color:var(--point2); background:var(--accent-soft); }
+  .tone-badge.tone-connect{ color:#7a8bb0; background:#e4e8f2; }
+  html[data-theme="dark"] .tone-badge.tone-connect{ color:#a7b6dc; background:#2c3142; }
   .mypage-item-title{ font-size:14px; margin-bottom:4px; }
   .mypage-item-meta{ font-size:11.5px; color:var(--sub); }
   .mypage-item-body{ font-size:13px; color:var(--text); margin-bottom:6px; }
@@ -1281,6 +1290,17 @@
   function boardTitle(slug){
     const b = BOARDS.find(x => x.slug === slug);
     return b ? b.title : slug;
+  }
+  const CATEGORY_TONE_CLASS = {
+    '감정 · 마음': 'tone-feeling',
+    '감각 · 속도 늦추기': 'tone-senses',
+    '연결 · 온기': 'tone-connect',
+  };
+  function boardToneBadge(slug){
+    const b = BOARDS.find(x => x.slug === slug);
+    if(!b || !b.tag) return '';
+    const cls = CATEGORY_TONE_CLASS[b.category] || 'tone-feeling';
+    return `<span class="tone-badge ${cls}">${escapeHtml(b.tag)}</span>`;
   }
   async function loadBoards(){
     try{
@@ -2805,8 +2825,8 @@
       return;
     }
     el.innerHTML = data.posts.map(p => `
-      <li onclick="openPost(${p.id})">
-        <span class="board-badge-inline">${escapeHtml(p.boardTitle)}</span>
+      <li onclick="openPost(${p.id})" title="${escapeHtml(p.boardTitle)}">
+        ${boardToneBadge(p.board)}
         <span class="title">${escapeHtml(p.title)}</span>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}
         <span class="meta">조회 ${p.views} · ♥ ${p.hearts} · ${formatDate(p.createdAt)}</span>
       </li>`).join('');
