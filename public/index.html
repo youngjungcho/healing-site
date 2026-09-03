@@ -85,16 +85,21 @@
 
   .theme-toggle{
     position:fixed; right:18px; bottom:18px; z-index:999;
-    width:44px; height:44px; border-radius:50%;
+    height:44px; padding:0 16px; border-radius:22px;
     background:var(--panel); border:1px solid var(--line);
     box-shadow:1px 3px 12px var(--shadow);
-    display:flex; align-items:center; justify-content:center;
-    font-size:19px; cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    font-size:15px; font-family:"Noto Sans KR",sans-serif; color:var(--text);
+    cursor:pointer; user-select:none;
     transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
   }
-  .theme-toggle:hover{ transform:scale(1.06); }
+  .theme-toggle:hover{ transform:scale(1.04); border-color:var(--point); }
+  .theme-toggle .icon{ font-size:18px; line-height:1; }
+  .theme-toggle .label{ white-space:nowrap; }
   @media (max-width:600px){
-    .theme-toggle{ right:12px; bottom:12px; width:40px; height:40px; font-size:17px; }
+    .theme-toggle{ right:12px; bottom:12px; width:40px; height:40px; padding:0; border-radius:50%; }
+    .theme-toggle .icon{ font-size:17px; }
+    .theme-toggle .label{ display:none; }
   }
 
   /* header */
@@ -826,7 +831,9 @@
 </head>
 <body>
 
-<div class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="화면 모드 전환" role="button" aria-label="화면 모드 전환"></div>
+<div class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="화면 모드 전환" role="button" aria-label="화면 모드 전환">
+  <span class="icon" id="theme-toggle-icon"></span><span class="label" id="theme-toggle-label"></span>
+</div>
 
 <!-- 화면 ① 홈 -->
 <div class="site screen active" id="screen-home">
@@ -1239,7 +1246,8 @@
 <script>
   function applyThemeIcon(){
     const on = document.documentElement.getAttribute('data-theme') === 'dark';
-    document.getElementById('theme-toggle').textContent = on ? '☀️' : '🌙';
+    document.getElementById('theme-toggle-icon').textContent = on ? '☀️' : '🌙';
+    document.getElementById('theme-toggle-label').textContent = on ? '라이트 모드' : '다크 모드';
   }
   function toggleTheme(){
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
