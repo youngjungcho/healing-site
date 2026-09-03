@@ -470,7 +470,14 @@
     padding:8px 20px; border-radius:20px; cursor:pointer;
   }
   .react-btn.hearted{ color:var(--point-text); background:var(--point); cursor:default; }
-  .comment-title{ font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); margin-bottom:10px; }
+  .comment-title-row{
+    display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px;
+  }
+  .comment-title{ font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); }
+  .comment-sort{ font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub); display:flex; gap:10px; }
+  .comment-sort span{ cursor:pointer; }
+  .comment-sort span:hover{ color:var(--point); }
+  .comment-sort span.on{ color:var(--point); font-weight:700; }
   .comment{
     display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);
     font-family:"Noto Sans KR",sans-serif; font-size:12.5px;
@@ -969,7 +976,10 @@
         <button class="btn-ghost" onclick="deletePost()">삭제</button>
       </span>
     </div>
-    <div class="comment-title">댓글 <span id="comment-count"></span></div>
+    <div class="comment-title-row">
+      <div class="comment-title">댓글 <span id="comment-count"></span></div>
+      <div class="comment-sort" id="comment-sort"></div>
+    </div>
     <div id="comment-list"></div>
     <div class="comment-input">
       <input type="text" id="comment-input-field" placeholder="따뜻한 댓글을 남겨보세요" onkeydown="if(event.key==='Enter')addComment()">
@@ -1723,6 +1733,8 @@
 
   let editingCommentId = null;
   let replyingToId = null;
+  let currentComments = []; // 지금 보고 있는 글의 댓글 원본(서버가 준 등록순). 정렬 옵션을 바꿀 때 재요청 없이 여기서 다시 정렬함
+  let commentSortOrder = 'oldest'; // 'oldest'(등록순) | 'popular'(공감순)
 
   function renderOneComment(c, isReply){
     if(c.deleted){
@@ -1762,19 +1774,33 @@
     return html;
   }
 
+  // 정렬은 새로 요청하지 않고 이미 받아온 currentComments를 다시 정렬만 해서 다시 그림.
+  // 답글은 정렬 대상이 아니라, 항상 자기 부모 댓글 아래 등록순(작성 순서)으로 붙음 —
+  // 대화 흐름이 있는 답글까지 정렬해버리면 문맥이 끊겨서 최상위 댓글에만 적용함.
   function renderComments(comments){
+    currentComments = comments;
     document.getElementById('comment-count').textContent = comments.length;
-    // 댓글은 서버에서 flat 배열로 오므로, 최상위 댓글(parentId 없음)을 먼저 그리고
-    // 그 댓글의 답글들을 바로 아래에 작성 순서대로 붙여서 대댓글처럼 보이게 함.
-    const topLevel = comments.filter(c => !c.parentId);
+    const topLevelRaw = comments.filter(c => !c.parentId);
+    const topLevel = commentSortOrder === 'popular'
+      ? topLevelRaw.slice().sort((a, b) => (b.hearts - a.hearts) || (a.id - b.id))
+      : topLevelRaw;
     const repliesByParent = {};
     comments.filter(c => c.parentId).forEach(c => {
       (repliesByParent[c.parentId] = repliesByParent[c.parentId] || []).push(c);
     });
+    document.getElementById('comment-sort').innerHTML = `
+      <span class="${commentSortOrder === 'oldest' ? 'on' : ''}" onclick="setCommentSort('oldest')">등록순</span>
+      <span class="${commentSortOrder === 'popular' ? 'on' : ''}" onclick="setCommentSort('popular')">공감순</span>`;
     document.getElementById('comment-list').innerHTML = topLevel.map(c => {
       const replies = (repliesByParent[c.id] || []).map(r => renderOneComment(r, true)).join('');
       return renderOneComment(c, false) + replies;
     }).join('');
+  }
+
+  function setCommentSort(order){
+    if(commentSortOrder === order) return;
+    commentSortOrder = order;
+    renderComments(currentComments);
   }
 
   function startReply(commentId){
