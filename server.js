@@ -1023,7 +1023,23 @@ app.get('/api/posts/:id', (req, res) => {
   const users = loadUsers();
   const [postWithProfile] = attachWriterProfileImages([safePost], users);
   const comments = attachWriterProfileImages(visibleComments(post.comments, me), users);
-  res.json({ ok: true, post: { ...postWithProfile, hearted, comments } });
+
+  // 같은 게시판 안에서 이전글/다음글(목록과 같은 최신순 기준)을 찾아서 함께 내려줌.
+  // 목록에서 보이는 글 순서와 동일하게, 신고로 숨겨진 글은 작성자 본인/운영자가 아니면 건너뜀.
+  const boardSlug = post.board || 'diary';
+  const sameBoardVisible = posts
+    .filter(p => (p.board || 'diary') === boardSlug && (!p.hidden || (me && (me.id === p.writerId || isAdminUser(me)))))
+    .sort((a, b) => b.id - a.id);
+  const currentIndex = sameBoardVisible.findIndex(p => p.id === post.id);
+  const prevPost = currentIndex >= 0 ? sameBoardVisible[currentIndex + 1] : null; // 더 오래된 글
+  const nextPost = currentIndex >= 0 ? sameBoardVisible[currentIndex - 1] : null; // 더 최신 글
+
+  res.json({
+    ok: true,
+    post: { ...postWithProfile, hearted, comments },
+    prevPost: prevPost ? { id: prevPost.id, title: prevPost.title } : null,
+    nextPost: nextPost ? { id: nextPost.id, title: nextPost.title } : null,
+  });
 });
 
 // 글쓰기용 이미지 업로드 (최대 5장). 실제 글 저장과는 별도 — 먼저 업로드해서 URL을 받고,

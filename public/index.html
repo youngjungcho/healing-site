@@ -501,6 +501,24 @@
     color:var(--point-text); border:none; padding:9px 18px; border-radius:20px; cursor:pointer;
   }
 
+  /* 글 상세 하단 이전글/다음글 */
+  .post-nav{
+    margin-top:22px; border-top:1px solid var(--line); font-family:"Noto Sans KR",sans-serif;
+  }
+  .post-nav-item{
+    display:flex; align-items:center; gap:10px; padding:12px 4px;
+    border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .post-nav-item:hover{ background:var(--accent-soft); }
+  .post-nav-item .dir{
+    flex-shrink:0; font-size:11px; color:var(--sub); width:44px;
+  }
+  .post-nav-item .title{
+    flex:1; min-width:0; font-size:13px; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .post-nav-empty{ font-size:11px; color:var(--sub); }
+
   /* login */
   .login-wrap{ display:flex; justify-content:center; align-items:center; padding:60px 0 70px; }
   .login-card{ width:300px; text-align:center; }
@@ -957,6 +975,7 @@
       <input type="text" id="comment-input-field" placeholder="따뜻한 댓글을 남겨보세요" onkeydown="if(event.key==='Enter')addComment()">
       <button onclick="addComment()">등록</button>
     </div>
+    <div class="post-nav" id="post-nav"><!-- 같은 게시판의 이전글/다음글 링크가 여기 자동으로 그려져요 --></div>
   </div>
 </div>
 
@@ -1627,10 +1646,30 @@
         (currentUser && currentUser.id === p.writerId) ? 'inline' : 'none';
       cancelPostEdit();
       renderComments(p.comments);
+      renderPostNav(data.prevPost, data.nextPost);
       showScreen('screen-detail');
     }catch(e){
       alert('글을 불러오지 못했어요.');
     }
+  }
+
+  // 같은 게시판의 이전글(더 오래된 글)·다음글(더 최신 글)을 상세 화면 하단에 표시.
+  // 검색·베스트글 등 어디서 들어왔든 서버가 항상 같은 게시판 기준으로 계산해서 내려주므로
+  // 여기서는 받은 값을 그대로 그리기만 하면 됨.
+  function renderPostNav(prevPost, nextPost){
+    const el = document.getElementById('post-nav');
+    if(!el) return;
+    if(!prevPost && !nextPost){
+      el.innerHTML = '';
+      return;
+    }
+    const nextRow = nextPost
+      ? `<div class="post-nav-item" onclick="openPost(${nextPost.id})"><span class="dir">다음 글</span><span class="title">${escapeHtml(nextPost.title)}</span></div>`
+      : `<div class="post-nav-item"><span class="dir">다음 글</span><span class="post-nav-empty">가장 최신 글이에요</span></div>`;
+    const prevRow = prevPost
+      ? `<div class="post-nav-item" onclick="openPost(${prevPost.id})"><span class="dir">이전 글</span><span class="title">${escapeHtml(prevPost.title)}</span></div>`
+      : `<div class="post-nav-item"><span class="dir">이전 글</span><span class="post-nav-empty">가장 오래된 글이에요</span></div>`;
+    el.innerHTML = nextRow + prevRow;
   }
 
   function startPostEdit(){
