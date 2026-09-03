@@ -4,9 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>쉼표 — 잠깐 멈춰가는 하루</title>
+<script>
+  (function(){
+    try{
+      const saved = localStorage.getItem('theme');
+      const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if(theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    }catch(e){ /* 무시 */ }
+  })();
+</script>
 <style>
   :root{
     --bg: #f6f1e6;
+    --bg-stripe: #ecdfc2;
     --panel: #fffdf8;
     --panel-raised: #fbf6ea;
     --line: #e6dcc6;
@@ -20,16 +30,39 @@
     --warn: #b5432a;
     --warn-bg: #f6ded6;
     --ok: #5c7a4e;
+    --shadow: rgba(120,100,60,0.14);
+    color-scheme: light;
+  }
+  html[data-theme="dark"]{
+    --bg: #201d19;
+    --bg-stripe: #262220;
+    --panel: #2a2622;
+    --panel-raised: #322d27;
+    --line: #443d34;
+    --text: #ece5d8;
+    --sub: #8f8577;
+    --accent: #3a332a;
+    --accent-soft: #3a332a;
+    --point: #e08a63;
+    --point2: #93a87a;
+    --point-text: #201d19;
+    --warn: #e08a63;
+    --warn-bg: #3a2b25;
+    --ok: #93a87a;
+    --shadow: rgba(0,0,0,0.35);
+    color-scheme: dark;
   }
   *{box-sizing:border-box;}
+  html{ background:var(--bg); }
   body{
     margin:0;
     background:
-      repeating-linear-gradient(var(--bg) 0px, var(--bg) 27px, #ecdfc2 28px),
+      repeating-linear-gradient(var(--bg) 0px, var(--bg) 27px, var(--bg-stripe) 28px),
       var(--bg);
     color:var(--text);
     font-family: "Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
     line-height:1.6;
+    transition: background-color .2s ease, color .2s ease;
   }
   a{ cursor:pointer; }
   .site{
@@ -39,7 +72,7 @@
     border:1px solid var(--line);
     border-radius:8px;
     overflow:hidden;
-    box-shadow:1px 3px 16px rgba(120,100,60,0.14);
+    box-shadow:1px 3px 16px var(--shadow);
     position:relative;
   }
   .site::before{
@@ -49,6 +82,20 @@
   }
   .screen{ display:none; position:relative; z-index:1; }
   .screen.active{ display:block; }
+
+  .theme-toggle{
+    position:fixed; right:18px; bottom:18px; z-index:999;
+    width:44px; height:44px; border-radius:50%;
+    background:var(--panel); border:1px solid var(--line);
+    box-shadow:1px 3px 12px var(--shadow);
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px; cursor:pointer; user-select:none;
+    transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
+  }
+  .theme-toggle:hover{ transform:scale(1.06); }
+  @media (max-width:600px){
+    .theme-toggle{ right:12px; bottom:12px; width:40px; height:40px; font-size:17px; }
+  }
 
   /* header */
   .topbar{
@@ -281,14 +328,14 @@
   }
   .card:hover{
     transform:translateY(-2px) rotate(-0.4deg);
-    box-shadow:2px 8px 18px rgba(120,100,60,0.18);
+    box-shadow:2px 8px 18px var(--shadow);
   }
   .card h3{ margin:0 0 6px; font-size:15px; font-family:"Noto Serif KR","Nanum Myeongjo",serif; }
   .card p{ margin:0 0 10px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:12px; color:var(--sub); line-height:1.65; }
   .card .tag{
     display:inline-block; font-family:"Noto Sans KR",sans-serif; font-size:10px;
-    color:#8a5a30; background:#f0d9a8; padding:2px 9px 3px; margin-bottom:8px;
-    font-weight:600; transform:rotate(-1deg); box-shadow:0 1px 2px rgba(0,0,0,0.08);
+    color:var(--point-text); background:var(--point2); padding:2px 9px 3px; margin-bottom:8px;
+    font-weight:600; transform:rotate(-1deg); box-shadow:0 1px 2px var(--shadow);
   }
   .section-title{
     position:relative;
@@ -779,6 +826,8 @@
 </head>
 <body>
 
+<div class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="화면 모드 전환" role="button" aria-label="화면 모드 전환"></div>
+
 <!-- 화면 ① 홈 -->
 <div class="site screen active" id="screen-home">
   <div class="topbar">
@@ -1188,6 +1237,23 @@
 </div>
 
 <script>
+  function applyThemeIcon(){
+    const on = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.getElementById('theme-toggle').textContent = on ? '☀️' : '🌙';
+  }
+  function toggleTheme(){
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if(isDark){
+      document.documentElement.removeAttribute('data-theme');
+      try{ localStorage.setItem('theme', 'light'); }catch(e){ /* 무시 */ }
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      try{ localStorage.setItem('theme', 'dark'); }catch(e){ /* 무시 */ }
+    }
+    applyThemeIcon();
+  }
+  applyThemeIcon();
+
   let currentPostId = null; // 지금 상세 화면에 열려 있는 글 id
   let currentUser = null;   // 로그인된 사용자 {id, email, nickname}
   let pendingScreen = null; // 로그인 후 이동할 화면
