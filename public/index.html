@@ -478,6 +478,15 @@
   .comment-sort span{ cursor:pointer; }
   .comment-sort span:hover{ color:var(--point); }
   .comment-sort span.on{ color:var(--point); font-weight:700; }
+  .best-comment-section{
+    background:var(--accent-soft); border-radius:8px; padding:4px 12px 2px; margin-bottom:14px;
+  }
+  .best-comment-label{
+    font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--point); font-weight:700;
+    padding:8px 0 2px;
+  }
+  .best-comment-section .comment{ border-bottom:1px solid var(--line); }
+  .best-comment-section .comment:last-child{ border-bottom:none; }
   .comment{
     display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);
     font-family:"Noto Sans KR",sans-serif; font-size:12.5px;
@@ -980,6 +989,7 @@
       <div class="comment-title">댓글 <span id="comment-count"></span></div>
       <div class="comment-sort" id="comment-sort"></div>
     </div>
+    <div id="best-comment-section" class="best-comment-section" style="display:none;"></div>
     <div id="comment-list"></div>
     <div class="comment-input">
       <input type="text" id="comment-input-field" placeholder="따뜻한 댓글을 남겨보세요" onkeydown="if(event.key==='Enter')addComment()">
@@ -1736,14 +1746,17 @@
   let currentComments = []; // 지금 보고 있는 글의 댓글 원본(서버가 준 등록순). 정렬 옵션을 바꿀 때 재요청 없이 여기서 다시 정렬함
   let commentSortOrder = 'oldest'; // 'oldest'(등록순) | 'popular'(공감순)
 
-  function renderOneComment(c, isReply){
+  // isPreview: 베스트 댓글 섹션처럼 같은 댓글을 한 번 더 강조해서 보여주는 자리인지.
+  // 실제 상호작용(답글·수정·삭제·신고)은 항상 아래 원본 목록에서만 하도록, 미리보기에서는
+  // 액션 버튼을 숨겨서 같은 댓글에 답글창이 두 군데 뜨는 혼란을 방지함.
+  function renderOneComment(c, isReply, isPreview){
     if(c.deleted){
       return `
       <div class="comment${isReply ? ' is-reply' : ''}">
         <div><span class="c-body" style="color:var(--sub);font-style:italic;">${escapeHtml(c.body)}</span></div>
       </div>`;
     }
-    if(editingCommentId === c.id){
+    if(editingCommentId === c.id && !isPreview){
       return `
       <div class="comment${isReply ? ' is-reply' : ''}">
         <div class="comment-edit-form">
@@ -1753,16 +1766,17 @@
         </div>
       </div>`;
     }
-    const isMine = currentUser && currentUser.id === c.writerId;
+    const isMine = !isPreview && currentUser && currentUser.id === c.writerId;
     const ownerActions = isMine
       ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
     const commentAvatar = c.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(c.writerProfileImage)}">` : '';
-    const replyAction = !isReply ? `<span onclick="startReply(${c.id})">답글</span>` : '';
+    const actionsHtml = isPreview ? '' : `<span class="c-actions">${!isReply ? `<span onclick="startReply(${c.id})">답글</span>` : ''}<span onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></span>`;
     let html = `
     <div class="comment${isReply ? ' is-reply' : ''}">
-      <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}<span class="c-actions">${replyAction}<span onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></span>${ownerActions}</div>
+      <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}${actionsHtml}${ownerActions}</div>
       <div class="c-heart">♥ ${c.hearts}</div>
     </div>`;
+    if(isPreview) return html;
     if(replyingToId === c.id){
       html += `
       <div class="reply-form">
@@ -1777,6 +1791,12 @@
   // 정렬은 새로 요청하지 않고 이미 받아온 currentComments를 다시 정렬만 해서 다시 그림.
   // 답글은 정렬 대상이 아니라, 항상 자기 부모 댓글 아래 등록순(작성 순서)으로 붙음 —
   // 대화 흐름이 있는 답글까지 정렬해버리면 문맥이 끊겨서 최상위 댓글에만 적용함.
+  // 최상위 댓글 중 공감 3개 이상인 것 상위 2개까지를 "많은 분들이 공감한 말"로 상단에
+  // 한 번 더 보여줌. 원래 위치(등록순/공감순 목록)에서도 그대로 보이는 중복 표시라서
+  // 어디로도 사라지지 않고, 그냥 눈에 잘 띄게 강조만 하는 셈.
+  const BEST_COMMENT_MIN_HEARTS = 3;
+  const BEST_COMMENT_MAX_COUNT = 2;
+
   function renderComments(comments){
     currentComments = comments;
     document.getElementById('comment-count').textContent = comments.length;
@@ -1788,6 +1808,21 @@
     comments.filter(c => c.parentId).forEach(c => {
       (repliesByParent[c.parentId] = repliesByParent[c.parentId] || []).push(c);
     });
+
+    const bestComments = topLevelRaw
+      .filter(c => !c.deleted && c.hearts >= BEST_COMMENT_MIN_HEARTS)
+      .sort((a, b) => (b.hearts - a.hearts) || (a.id - b.id))
+      .slice(0, BEST_COMMENT_MAX_COUNT);
+    const bestEl = document.getElementById('best-comment-section');
+    if(bestComments.length){
+      bestEl.style.display = '';
+      bestEl.innerHTML = `<div class="best-comment-label">🌿 많은 분들이 공감한 말</div>`
+        + bestComments.map(c => renderOneComment(c, false, true)).join('');
+    } else {
+      bestEl.style.display = 'none';
+      bestEl.innerHTML = '';
+    }
+
     document.getElementById('comment-sort').innerHTML = `
       <span class="${commentSortOrder === 'oldest' ? 'on' : ''}" onclick="setCommentSort('oldest')">등록순</span>
       <span class="${commentSortOrder === 'popular' ? 'on' : ''}" onclick="setCommentSort('popular')">공감순</span>`;
