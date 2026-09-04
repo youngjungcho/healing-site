@@ -547,6 +547,8 @@
   .comment .c-actions{ font-size:11px; color:var(--sub); }
   .comment .c-actions span{ cursor:pointer; margin-left:8px; }
   .comment .c-actions span:hover{ color:var(--point); }
+  .comment .c-actions .c-report{ color:var(--warn); opacity:0.75; }
+  .comment .c-actions .c-report:hover{ color:var(--warn); opacity:1; }
   .comment-edit-form{ display:flex; gap:6px; flex:1; }
   .comment-edit-form input{
     flex:1; border:1px solid var(--line); border-radius:14px; padding:6px 12px;
@@ -1926,7 +1928,7 @@
     const ownerActions = isMine
       ? `<span class="c-actions"><span onclick="startCommentEdit(${c.id})">수정</span><span onclick="deleteComment(${c.id})">삭제</span></span>` : '';
     const commentAvatar = c.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(c.writerProfileImage)}">` : '';
-    const actionsHtml = isPreview ? '' : `<span class="c-actions">${!isReply ? `<span onclick="startReply(${c.id})">답글</span>` : ''}<span onclick="openReportModal('comment', currentPostId, ${c.id})">신고</span></span>`;
+    const actionsHtml = isPreview ? '' : `<span class="c-actions">${!isReply ? `<span onclick="startReply(${c.id})">답글</span>` : ''}<span class="c-report" onclick="openReportModal('comment', currentPostId, ${c.id})">🚨 신고</span></span>`;
     let html = `
     <div class="comment${isReply ? ' is-reply' : ''}">
       <div><span class="c-writer">${commentAvatar}${escapeHtml(c.writerNickname)}</span><span class="c-body">${escapeHtml(c.body)}</span>${c.hidden ? '<span class="hidden-badge">검토중</span>' : ''}${actionsHtml}${ownerActions}</div>
