@@ -590,13 +590,9 @@
 
   /* post detail */
   .post-detail{ padding:28px 32px; max-width:720px; margin:0 auto; }
-  .post-detail .p-board{
-    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--point);
-    letter-spacing:0.5px; margin-bottom:6px;
-  }
   .post-detail h2{ font-size:21px; margin:0 0 10px; }
   .post-meta{
-    display:flex; gap:14px; font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub);
+    display:flex; align-items:center; gap:10px; font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub);
     padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:20px;
   }
   .post-body{ font-size:15px; line-height:1.9; color:var(--text); margin-bottom:24px; white-space:pre-line; }
@@ -1133,7 +1129,6 @@
     <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-board')">목록으로</span></div>
   </div>
   <div class="post-detail">
-    <div class="p-board" id="detail-board-label">오늘 하루 끄적끄적</div>
     <h2 id="detail-title"></h2>
     <div class="post-meta" id="detail-meta"></div>
     <div class="gentle-notice" id="detail-hidden-notice" style="display:none;">🔍 신고가 접수되어 검토 중인 글이에요. 운영자 확인 후 다시 보여요. (지금은 작성자 본인에게만 보이는 상태예요)</div>
@@ -1894,10 +1889,11 @@
       currentPostId = id;
       currentPostWriterId = p.writerId;
       currentBoard = p.board || currentBoard;
-      document.getElementById('detail-board-label').textContent = boardTitle(currentBoard);
       document.getElementById('detail-title').textContent = p.title;
       const writerAvatar = p.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(p.writerProfileImage)}">` : '';
-      document.getElementById('detail-meta').innerHTML = `<span>${writerAvatar}${escapeHtml(p.writerNickname)}</span><span>${formatDate(p.createdAt)}</span><span>조회 ${p.views}</span>`;
+      document.getElementById('detail-meta').innerHTML =
+        boardToneBadge(currentBoard)
+        + `<span>${writerAvatar}${escapeHtml(p.writerNickname)}</span><span>${formatDate(p.createdAt)}</span><span>조회 ${p.views}</span>`;
       document.getElementById('detail-hidden-notice').style.display = p.hidden ? 'block' : 'none';
       document.getElementById('detail-body').textContent = p.body;
       document.getElementById('detail-images').innerHTML = (p.images || [])
