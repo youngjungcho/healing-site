@@ -409,9 +409,11 @@
     list-style:none; margin:0; padding:0 28px 26px; font-family:"Noto Sans KR",sans-serif;
   }
   .recent-post-list li{
-    display:flex; align-items:baseline; gap:8px; padding:9px 2px;
-    border-bottom:1px solid var(--line); cursor:pointer; font-size:13px;
+    display:flex; align-items:baseline; gap:8px; padding:14px 4px;
+    border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent);
+    cursor:pointer; font-size:13px;
   }
+  .recent-post-list li:last-child{ border-bottom:none; }
   .recent-post-list li:hover{ background:var(--accent-soft); }
   .recent-post-list .board-badge-inline{ flex-shrink:0; }
   .recent-post-list .title{
@@ -817,7 +819,7 @@
     .best-post-empty{ padding:0 16px 20px; }
     .best-post-nav{ display:none !important; }
     .recent-post-list{ padding:0 16px 20px; }
-    .recent-post-list li{ font-size:12.5px; gap:6px; }
+    .recent-post-list li{ font-size:12.5px; gap:6px; padding:12px 2px; }
     .recent-post-empty{ padding:0 16px 20px; }
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
