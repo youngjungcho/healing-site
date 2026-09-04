@@ -933,8 +933,11 @@ app.get('/api/posts', (req, res) => {
 app.get('/api/best-posts', (req, res) => {
   const me = getCurrentUser(req);
   const limit = Math.min(Number(req.query.limit) || 6, 20);
+  const category = (req.query.category || '').trim();
   const boards = loadBoards();
-  const visibleBoardSlugs = new Set(boards.filter(b => !b.hidden).map(b => b.slug));
+  const visibleBoardSlugs = new Set(
+    boards.filter(b => !b.hidden && (!category || b.category === category)).map(b => b.slug)
+  );
   const boardTitleOf = slug => (boards.find(b => b.slug === slug) || {}).title || slug;
 
   const posts = loadPosts();

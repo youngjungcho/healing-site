@@ -376,6 +376,17 @@
   }
 
   /* 홈 화면 "지금 인기 있는 글" */
+  .best-post-tabs{
+    display:flex; gap:6px; padding:0 28px 14px; flex-wrap:wrap;
+    font-family:"Noto Sans KR",sans-serif;
+  }
+  .best-post-tabs .tab-chip{
+    font-size:12px; font-weight:600; color:var(--sub); background:var(--panel-raised);
+    border:1px solid var(--line); border-radius:14px; padding:5px 13px; cursor:pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .best-post-tabs .tab-chip:hover{ border-color:var(--point); color:var(--text); }
+  .best-post-tabs .tab-chip.on{ background:var(--point); border-color:var(--point); color:var(--point-text); }
   .best-post-scroller{ position:relative; padding:0 28px 26px; }
   .best-post-row{
     display:flex; gap:12px; overflow-x:auto;
@@ -396,6 +407,7 @@
   @media (hover: hover){
     .best-post-scroller:hover .best-post-nav{ display:flex; }
   }
+  .best-post-scroller.is-empty .best-post-nav{ display:none !important; }
   .best-post-card{
     position:relative; flex:0 0 200px;
     border:1px solid var(--line); border-radius:3px 12px 12px 3px; padding:14px 14px 14px 16px;
@@ -422,7 +434,7 @@
     font-family:"Noto Sans KR",sans-serif; font-size:11px; color:var(--point); font-weight:600;
   }
   .best-post-empty{
-    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); padding:0 28px 26px;
+    font-family:"Noto Sans KR",sans-serif; font-size:12.5px; color:var(--sub); padding:8px 0;
   }
 
   /* 홈 화면 "방금 올라온 글" — 여러 게시판 글을 한 줄씩 촘촘하게 나열 */
@@ -843,10 +855,11 @@
     .home-cover{ margin:14px 16px 4px; padding:16px 18px; flex-direction:column; align-items:stretch; }
     .home-cover-stamps{ align-items:center; margin-top:4px; }
     .home-cover-write{ width:100%; text-align:center; }
+    .best-post-tabs{ padding:0 16px 12px; }
     .best-post-scroller{ padding:0 16px 20px; }
     .best-post-row{ gap:10px; }
     .best-post-card{ flex-basis:170px; }
-    .best-post-empty{ padding:0 16px 20px; }
+    .best-post-empty{ padding:8px 0; }
     .best-post-nav{ display:none !important; }
     .recent-post-list{ padding:0 16px 20px; }
     .recent-post-list li{ font-size:12.5px; gap:6px; padding:12px 2px; }
@@ -920,6 +933,7 @@
   </div>
 
   <div class="section-title">지금 인기 있는 글</div>
+  <div id="best-post-tabs" class="best-post-tabs"></div>
   <div class="best-post-scroller">
     <button class="best-post-nav prev" onclick="scrollBestPosts(-1)" aria-label="이전 글">‹</button>
     <div id="home-best-posts" class="best-post-row"><!-- 공감 많은 글이 여기 자동으로 그려져요 --></div>
@@ -2843,26 +2857,49 @@
     setWeeklyQuoteText('"오늘 하루도 애썼어요. 그거면 충분해요."');
   });
 
-  // 홈 화면 "지금 인기 있는 글": 전체 게시판 통틀어 공감 상위 글을 가로로 나열.
-  // 마우스로 카드 목록을 붙잡고 옆으로 끌면(grab-to-scroll) 스크롤되고, 좌우 화살표
-  // 버튼으로도 한 화면 폭만큼씩 넘길 수 있음 (모바일은 화살표 대신 터치 스와이프로 넘김).
-  fetch('/api/best-posts?limit=8').then(res => res.json()).then(data => {
+  // 홈 화면 "지금 인기 있는 글": 카테고리 탭(전체/감정·마음/감각·속도 늦추기/연결·온기)으로
+  // 좁혀서 공감 상위 글을 가로로 나열. 마우스로 카드 목록을 붙잡고 옆으로 끌면(grab-to-scroll)
+  // 스크롤되고, 좌우 화살표 버튼으로도 한 화면 폭만큼씩 넘길 수 있음(모바일은 터치 스와이프).
+  let bestPostCategory = '';
+  function renderBestPostTabs(){
+    const el = document.getElementById('best-post-tabs');
+    if(!el) return;
+    const cats = ['', ...CATEGORY_ORDER];
+    el.innerHTML = cats.map(c => `
+      <span class="tab-chip ${bestPostCategory === c ? 'on' : ''}" onclick="setBestPostCategory('${escapeAttr(c)}')">${c ? escapeHtml(c) : '전체'}</span>
+    `).join('');
+  }
+  function setBestPostCategory(category){
+    if(bestPostCategory === category) return;
+    bestPostCategory = category;
+    renderBestPostTabs();
+    loadBestPosts();
+  }
+  function loadBestPosts(){
     const el = document.getElementById('home-best-posts');
     if(!el) return;
-    if(!data.ok || !data.posts.length){
-      const scroller = el.closest('.best-post-scroller');
-      if(scroller) scroller.outerHTML = '<div class="best-post-empty">아직 공감을 받은 글이 없어요. 첫 공감의 주인공이 되어보세요.</div>';
-      return;
-    }
-    el.innerHTML = data.posts.map((p, i) => `
-      <div class="best-post-card" onclick="openPost(${p.id})">
-        <div class="best-post-rank">${i + 1}</div>
-        <div class="board">${escapeHtml(p.boardTitle)}</div>
-        <div class="title">${escapeHtml(p.title)}</div>
-        <div class="heart">♥ ${p.hearts}</div>
-      </div>`).join('');
-    setupBestPostDrag(el);
-  }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
+    const qs = new URLSearchParams({ limit: 8 });
+    if(bestPostCategory) qs.set('category', bestPostCategory);
+    const scroller = el.closest('.best-post-scroller');
+    fetch('/api/best-posts?' + qs.toString()).then(res => res.json()).then(data => {
+      if(!data.ok || !data.posts.length){
+        el.innerHTML = '<div class="best-post-empty">아직 공감을 받은 글이 없어요. 첫 공감의 주인공이 되어보세요.</div>';
+        if(scroller) scroller.classList.add('is-empty');
+        return;
+      }
+      if(scroller) scroller.classList.remove('is-empty');
+      el.innerHTML = data.posts.map((p, i) => `
+        <div class="best-post-card" onclick="openPost(${p.id})">
+          <div class="best-post-rank">${i + 1}</div>
+          <div class="board">${escapeHtml(p.boardTitle)}</div>
+          <div class="title">${escapeHtml(p.title)}</div>
+          <div class="heart">♥ ${p.hearts}</div>
+        </div>`).join('');
+      setupBestPostDrag(el);
+    }).catch(() => { /* 실패해도 섹션이 비어있는 채로 남을 뿐, 나머지 화면엔 영향 없음 */ });
+  }
+  renderBestPostTabs();
+  loadBestPosts();
 
   // 홈 화면 "방금 올라온 글": 전체 게시판을 통틀어 가장 최근 글 10개를 한 줄씩 나열.
   fetch('/api/recent-posts?limit=10').then(res => res.json()).then(data => {
