@@ -1045,6 +1045,62 @@ app.get('/api/posts/:id', (req, res) => {
   });
 });
 
+// 게시글 상세를 사람이 읽는 주소(/post/:id)로도 열 수 있게 하는 라우트.
+// 실제 화면은 그대로 SPA(index.html)가 그리지만, 검색엔진·카톡 링크 미리보기 같은
+// 크롤러는 자바스크립트를 실행하지 않고 이 응답의 <title>·description·OG 태그만 읽으므로,
+// 여기서 해당 글 정보로 미리 채워 내려줌 (본문 내용 자체는 클라이언트가 다시 불러와 그림).
+app.get('/post/:id', (req, res, next) => {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === Number(req.params.id));
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (!post || post.hidden) {
+    return res.sendFile(indexPath);
+  }
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) return next(err);
+    const boards = loadBoards();
+    const boardTitle = (boards.find(b => b.slug === (post.board || 'diary')) || {}).title || '쉼표';
+    const title = escapeHtmlServer(`${post.title} — 쉼표`);
+    const description = escapeHtmlServer(
+      (post.body || '').replace(/\s+/g, ' ').trim().slice(0, 100) || `${boardTitle}에 올라온 글이에요.`
+    );
+    const url = `${APP_BASE_URL}/post/${post.id}`;
+    const out = html
+      .replace(/<title id="page-title">[^<]*<\/title>/, `<title id="page-title">${title}</title>`)
+      .replace(/(<meta id="meta-description"[^>]*content=")[^"]*(")/, `$1${description}$2`)
+      .replace(/(<meta id="meta-og-title"[^>]*content=")[^"]*(")/, `$1${title}$2`)
+      .replace(/(<meta id="meta-og-description"[^>]*content=")[^"]*(")/, `$1${description}$2`)
+      .replace(/(<meta id="meta-og-url"[^>]*content=")[^"]*(")/, `$1${escapeHtmlServer(url)}$2`)
+      .replace(/(<link id="canonical-link"[^>]*href=")[^"]*(")/, `$1${escapeHtmlServer(url)}$2`);
+    res.send(out);
+  });
+});
+
+// 검색엔진에게 무엇을 색인해도 되는지 알려주는 파일. sitemap 위치도 함께 안내함.
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    ['User-agent: *', 'Allow: /', `Sitemap: ${APP_BASE_URL}/sitemap.xml`, ''].join('\n')
+  );
+});
+
+// 검색엔진이 순회할 URL 목록. 홈과 공개 게시판, 신고로 숨겨지지 않은 전체 게시글을 담음.
+// 글이 매일 새로 생기므로 파일로 미리 만들어두지 않고 요청 시점에 바로 계산해서 내려줌.
+app.get('/sitemap.xml', (req, res) => {
+  const boards = loadBoards();
+  const visibleBoardSlugs = new Set(boards.filter(b => !b.hidden).map(b => b.slug));
+  const posts = loadPosts().filter(p => !p.hidden && visibleBoardSlugs.has(p.board || 'diary'));
+  const urls = [
+    { loc: `${APP_BASE_URL}/`, lastmod: new Date().toISOString() },
+    ...posts.map(p => ({ loc: `${APP_BASE_URL}/post/${p.id}`, lastmod: new Date(p.createdAt).toISOString() })),
+  ];
+  const body = urls
+    .map(u => `  <url>\n    <loc>${escapeHtmlServer(u.loc)}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n  </url>`)
+    .join('\n');
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`
+  );
+});
+
 // 글쓰기용 이미지 업로드 (최대 5장). 실제 글 저장과는 별도 — 먼저 업로드해서 URL을 받고,
 // 그 URL들을 글쓰기 요청(POST /api/posts)의 images 필드에 담아 보내는 방식
 app.post('/api/upload/post-images', requireCanWrite, imageUpload.array('images', 5), async (req, res) => {

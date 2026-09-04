@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>쉼표 — 잠깐 멈춰가는 하루</title>
+<title id="page-title">쉼표 — 잠깐 멈춰가는 하루</title>
+<meta id="meta-description" name="description" content="욕설·비방 없이 서로에게 다정한 말을 건네는 익명 힐링 커뮤니티, 쉼표. 오늘 하루를 담담히 적어보고, 서로에게 위로를 건네보세요.">
+<meta id="meta-og-title" property="og:title" content="쉼표 — 잠깐 멈춰가는 하루">
+<meta id="meta-og-description" property="og:description" content="욕설·비방 없이 서로에게 다정한 말을 건네는 익명 힐링 커뮤니티, 쉼표.">
+<meta property="og:type" content="website">
+<meta id="meta-og-url" property="og:url" content="https://swimpyonote.com/">
+<meta name="twitter:card" content="summary">
+<link id="canonical-link" rel="canonical" href="https://swimpyonote.com/">
 <script>
   (function(){
     try{
@@ -1460,6 +1467,7 @@
   function renderScreen(id){
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    if(id !== 'screen-detail') resetPageMeta();
     if(id === 'screen-board') renderBoardList();
     if(id === 'screen-write'){
       populateWriteBoardSelect();
@@ -1474,22 +1482,36 @@
 
   // 실제 화면 전환은 항상 이 함수로. 브라우저 뒤로가기를 누르면 사이트를 벗어나는 대신
   // 이전 화면으로 돌아오도록 히스토리에 기록을 남겨요.
-  function showScreen(id){
+  // postId를 넘기면 글 상세 화면 주소를 검색엔진·카톡 링크 미리보기가 읽을 수 있는
+  // /post/:id 형태로 남김 (실제 화면을 그리는 건 여전히 이 SPA — 서버는 크롤러에게만
+  // 미리 채운 메타 태그를 내려주고, 사람이 열면 이 스크립트가 평소처럼 이어받음).
+  function showScreen(id, postId){
     renderScreen(id);
-    if(!history.state || history.state.screen !== id){
+    const state = postId ? { screen: id, postId } : { screen: id };
+    const stateChanged = !history.state
+      || history.state.screen !== state.screen
+      || history.state.postId !== state.postId;
+    if(stateChanged){
       // 홈 화면은 주소 끝에 #screen-home이 붙지 않도록 해시를 비워둠. 다른 화면은
       // 그대로 #id를 남겨서 메일 링크(#screen-admin 등)로 바로 들어오는 게 계속 동작함.
       // 이 페이지를 파일 미리보기 같은 샌드박스(예: srcdoc iframe) 안에서 열면
       // history API가 막혀서 여기서 에러가 날 수 있어요. 그런 경우에도 화면 전환 자체는
       // 계속되도록(뒤로가기만 못 쓰는 정도로) 조용히 넘어가요.
-      const hash = id === 'screen-home' ? location.pathname + location.search : '#' + id;
-      try{ history.pushState({ screen: id }, '', hash); }catch(e){ /* 무시 */ }
+      const onPostPath = /^\/post\/\d+$/.test(location.pathname);
+      const hash = postId ? '/post/' + postId
+        : id === 'screen-home' ? (onPostPath ? '/' + location.search : location.pathname + location.search)
+        : '#' + id;
+      try{ history.pushState(state, '', hash); }catch(e){ /* 무시 */ }
     }
   }
 
   window.addEventListener('popstate', (e) => {
     const screen = (e.state && e.state.screen) || 'screen-home';
-    renderScreen(screen);
+    if(screen === 'screen-detail' && e.state && e.state.postId){
+      openPost(e.state.postId, { push: false });
+    } else {
+      renderScreen(screen);
+    }
   });
 
   function goToHomeSearch(){
@@ -1798,7 +1820,8 @@
     }catch(e){ /* 무시 */ }
   }
 
-  async function openPost(id){
+  async function openPost(id, options){
+    const push = !options || options.push !== false;
     try{
       const res = await fetch('/api/posts/' + id);
       const data = await res.json();
@@ -1825,10 +1848,37 @@
       cancelPostEdit();
       renderComments(p.comments);
       renderPostNav(data.prevPost, data.nextPost);
-      showScreen('screen-detail');
+      updatePageMeta(p.title, p.body, '/post/' + id);
+      if(push) showScreen('screen-detail', id);
+      else renderScreen('screen-detail');
     }catch(e){
       alert('글을 불러오지 못했어요.');
     }
+  }
+
+  // 글 상세를 열 때 <title>·메타 description·OG 태그를 그 글 내용으로 바꿔줌.
+  // 검색엔진은 서버가 /post/:id 요청 시 미리 채워 내려주는 값을 읽지만, 이미 페이지를
+  // 연 사람이 링크를 복사해 공유하는 경우(카톡 등)에도 최신 내용이 반영되도록 여기서도 맞춰줌.
+  function updatePageMeta(title, body, path){
+    const fullTitle = title + ' — 쉼표';
+    const description = (body || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+    const url = location.origin + path;
+    document.getElementById('page-title').textContent = fullTitle;
+    document.getElementById('meta-description').setAttribute('content', description);
+    document.getElementById('meta-og-title').setAttribute('content', fullTitle);
+    document.getElementById('meta-og-description').setAttribute('content', description);
+    document.getElementById('meta-og-url').setAttribute('content', url);
+    document.getElementById('canonical-link').setAttribute('href', url);
+  }
+  function resetPageMeta(){
+    const title = '쉼표 — 잠깐 멈춰가는 하루';
+    const description = '욕설·비방 없이 서로에게 다정한 말을 건네는 익명 힐링 커뮤니티, 쉼표. 오늘 하루를 담담히 적어보고, 서로에게 위로를 건네보세요.';
+    document.getElementById('page-title').textContent = title;
+    document.getElementById('meta-description').setAttribute('content', description);
+    document.getElementById('meta-og-title').setAttribute('content', title);
+    document.getElementById('meta-og-description').setAttribute('content', description.slice(0, 80));
+    document.getElementById('meta-og-url').setAttribute('content', location.origin + '/');
+    document.getElementById('canonical-link').setAttribute('href', location.origin + '/');
   }
 
   // 같은 게시판의 이전글(더 오래된 글)·다음글(더 최신 글)을 상세 화면 하단에 표시.
@@ -2826,13 +2876,21 @@
   // 아니면 홈 화면으로 시작함. history.replaceState가 (파일 미리보기 같은 샌드박스
   // 환경에서) 에러를 던지더라도 게시판 목록 로딩(loadBoards)까지는 반드시 이어지도록
   // try/catch로 감싸요 — 그래야 화면 자체는 정상적으로 보여요.
-  const initialHash = location.hash.replace('#', '');
-  const initialScreen = (initialHash && document.getElementById(initialHash) && document.getElementById(initialHash).classList.contains('screen'))
-    ? initialHash : 'screen-home';
-  // 홈 화면으로 시작할 때는 주소 끝에 #screen-home을 남기지 않음.
-  const initialUrlHash = initialScreen === 'screen-home' ? location.pathname + location.search : '#' + initialScreen;
-  try{ history.replaceState({ screen: initialScreen }, '', initialUrlHash); }catch(e){ /* 무시 */ }
-  renderScreen(initialScreen);
+  const postPathMatch = location.pathname.match(/^\/post\/(\d+)$/);
+  if(postPathMatch){
+    const postId = Number(postPathMatch[1]);
+    try{ history.replaceState({ screen: 'screen-detail', postId }, '', location.pathname); }catch(e){ /* 무시 */ }
+    renderScreen('screen-home'); // 뒤로가기로 홈에 곧장 갈 수 있게 화면 스택 맨 아래를 홈으로 깔아둠
+    openPost(postId, { push: false });
+  } else {
+    const initialHash = location.hash.replace('#', '');
+    const initialScreen = (initialHash && document.getElementById(initialHash) && document.getElementById(initialHash).classList.contains('screen'))
+      ? initialHash : 'screen-home';
+    // 홈 화면으로 시작할 때는 주소 끝에 #screen-home을 남기지 않음.
+    const initialUrlHash = initialScreen === 'screen-home' ? location.pathname + location.search : '#' + initialScreen;
+    try{ history.replaceState({ screen: initialScreen }, '', initialUrlHash); }catch(e){ /* 무시 */ }
+    renderScreen(initialScreen);
+  }
   loadBoards().then(() => { renderBoardNav(); renderBoardList(); });
   refreshAuth();
   handleAuthErrorParam();
