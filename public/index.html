@@ -294,6 +294,66 @@
   .date{ color:var(--sub); width:80px; }
   .heart{ width:60px; color:var(--sub); text-align:center; }
 
+  /* 게시판 뷰 전환 버튼(리스트 ↔ 카드). 데스크톱에서만 보이고, 모바일은 항상 카드형이라
+     토글 자체가 필요 없어 숨김. 클릭하면 .main에 card-view 클래스가 붙었다 빠졌다 함. */
+  .view-toggle{
+    display:inline-flex; gap:2px; margin-right:10px; padding:2px;
+    background:var(--accent-soft); border-radius:14px;
+  }
+  .view-toggle button{
+    font-family:"Noto Sans KR",sans-serif; font-size:11.5px; color:var(--sub);
+    background:transparent; border:none; border-radius:12px; padding:5px 12px; cursor:pointer;
+  }
+  .view-toggle button.on{ background:var(--panel); color:var(--point); font-weight:700; box-shadow:0 1px 3px var(--shadow); }
+  @media (max-width:600px){ .view-toggle{ display:none; } }
+
+  /* 게시판 목록을 표 대신 세로 카드 리스트로 보여주는 공통 스타일.
+     좁은 화면(모바일)에서는 항상 이 모양이고, 데스크톱에서는 뷰 토글로 .main에
+     card-view가 붙었을 때만 이 모양이 됨. 마크업(table/tr/td)은 그대로 두고
+     display만 바꿔서 카드처럼 흐르게 함. tr을 2행 grid로 만들어 1행엔 제목,
+     2행엔 작성자·날짜·공감을 나란히 배치. */
+  @media (max-width:600px){
+    table{ display:block; border-collapse:separate; }
+    thead{ display:none; }
+    tbody{ display:flex; flex-direction:column; gap:10px; }
+    tbody tr{
+      display:grid; grid-template-columns:auto auto 1fr;
+      grid-template-areas:"title title title" "writer date heart";
+      row-gap:6px; column-gap:8px; position:relative;
+      background:var(--panel-raised); border:1px solid var(--line);
+      border-radius:3px 12px 12px 3px; padding:13px 14px 13px 16px;
+    }
+    tbody tr::before{
+      content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
+      background:var(--point2); border-radius:2px;
+    }
+    tbody td{ padding:0; border-bottom:none; }
+    .title-cell{ grid-area:title; font-size:14.5px; font-weight:700; width:auto; }
+    .writer{ grid-area:writer; width:auto; font-size:11px; font-weight:600; color:var(--text); justify-self:start; white-space:nowrap; }
+    .date{ grid-area:date; width:auto; font-size:11px; color:var(--sub); justify-self:start; white-space:nowrap; }
+    .heart{ grid-area:heart; width:auto; font-size:11px; color:var(--sub); font-weight:600; text-align:right; justify-self:end; }
+  }
+  .main.card-view table{ display:block; border-collapse:separate; }
+  .main.card-view thead{ display:none; }
+  .main.card-view tbody{ display:flex; flex-direction:column; gap:10px; }
+  .main.card-view tbody tr{
+    display:grid; grid-template-columns:auto auto 1fr;
+    grid-template-areas:"title title title" "writer date heart";
+    row-gap:6px; column-gap:8px; position:relative;
+    background:var(--panel-raised); border:1px solid var(--line);
+    border-radius:3px 12px 12px 3px; padding:13px 14px 13px 16px;
+  }
+  .main.card-view tbody tr::before{
+    content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
+    background:var(--point2); border-radius:2px;
+  }
+  .main.card-view tbody td{ padding:0; border-bottom:none; }
+  .main.card-view .num{ display:none; }
+  .main.card-view .title-cell{ grid-area:title; font-size:14.5px; font-weight:700; width:auto; }
+  .main.card-view .writer{ grid-area:writer; width:auto; font-size:11px; font-weight:600; color:var(--text); justify-self:start; white-space:nowrap; }
+  .main.card-view .date{ grid-area:date; width:auto; font-size:11px; color:var(--sub); justify-self:start; white-space:nowrap; }
+  .main.card-view .heart{ grid-area:heart; width:auto; font-size:11px; color:var(--sub); font-weight:600; text-align:right; justify-self:end; }
+
   .pagination{
     text-align:center; padding:18px 0 4px;
     font-family:"Noto Sans KR",sans-serif; font-size:12px; color:var(--sub);
@@ -834,31 +894,8 @@
     .main{ padding:16px; min-width:0; }
     .board-title h2{ font-size:17px; }
 
-    /* 좁은 화면에서는 표 대신 세로 카드 리스트로 보여줘요.
-       마크업(table/tr/td)은 그대로 두고 display만 바꿔서 카드처럼 흐르게 함.
-       tr을 2행 grid로 만들어 1행엔 제목, 2행엔 작성자·날짜·공감을 나란히 배치 */
-    table{ display:block; border-collapse:separate; }
-    thead{ display:none; }
-    tbody{ display:flex; flex-direction:column; gap:10px; }
-    tbody tr{
-      display:grid;
-      grid-template-columns:auto auto 1fr;
-      grid-template-areas:"title title title" "writer date heart";
-      row-gap:6px; column-gap:8px;
-      position:relative;
-      background:var(--panel-raised); border:1px solid var(--line);
-      border-radius:3px 12px 12px 3px; padding:13px 14px 13px 16px;
-    }
-    tbody tr::before{
-      content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px;
-      background:var(--point2); border-radius:2px;
-    }
-    tbody td{ padding:0; border-bottom:none; }
+    /* 게시판 목록 번호 열은 카드형에서 안 씀(리스트/카드 뷰 공용 스타일은 위쪽 .view-toggle 근처 참고) */
     .num{ display:none; }
-    .title-cell{ grid-area:title; font-size:14.5px; font-weight:700; width:auto; }
-    .writer{ grid-area:writer; width:auto; font-size:11px; font-weight:600; color:var(--text); justify-self:start; white-space:nowrap; }
-    .date{ grid-area:date; width:auto; font-size:11px; color:var(--sub); justify-self:start; white-space:nowrap; }
-    .heart{ grid-area:heart; width:auto; font-size:11px; color:var(--sub); font-weight:600; text-align:right; justify-self:end; }
 
     .home-grid{ grid-template-columns:1fr; padding:6px 16px 16px; gap:12px; }
     .home-grid .card.big{ grid-row:auto; }
@@ -975,10 +1012,14 @@
   <div class="body-layout">
     <div class="sidebar" id="board-sidebar"><!-- 사이드바도 게시판 목록으로 자동 생성돼요 --></div>
 
-    <div class="main">
+    <div class="main" id="board-main">
       <div class="board-title">
         <h2 id="board-title-text">오늘 하루 끄적끄적</h2>
         <span class="count" id="board-count">전체 글 0</span>
+        <span class="view-toggle" id="board-view-toggle">
+          <button type="button" onclick="setBoardView('list')" id="view-toggle-list">목록</button>
+          <button type="button" onclick="setBoardView('card')" id="view-toggle-card">카드</button>
+        </span>
         <button class="write-btn" onclick="requireLoginThen('screen-write')">글쓰기</button>
       </div>
       <div class="table-scroll">
@@ -1334,6 +1375,24 @@
     applyThemeIcon();
   }
   applyThemeIcon();
+
+  // 게시판 목록 리스트/카드 뷰. 데스크톱 전용(모바일은 항상 카드형이라 토글 자체가 안 보임).
+  // 선택한 뷰는 localStorage에 저장해서 다른 게시판으로 옮겨가거나 재방문해도 유지됨.
+  function applyBoardView(){
+    let view = 'list';
+    try{ view = localStorage.getItem('boardView') || 'list'; }catch(e){ /* 무시 */ }
+    const main = document.getElementById('board-main');
+    if(main) main.classList.toggle('card-view', view === 'card');
+    const listBtn = document.getElementById('view-toggle-list');
+    const cardBtn = document.getElementById('view-toggle-card');
+    if(listBtn) listBtn.classList.toggle('on', view !== 'card');
+    if(cardBtn) cardBtn.classList.toggle('on', view === 'card');
+  }
+  function setBoardView(view){
+    try{ localStorage.setItem('boardView', view); }catch(e){ /* 무시 */ }
+    applyBoardView();
+  }
+  applyBoardView();
 
   let currentPostId = null; // 지금 상세 화면에 열려 있는 글 id
   let currentUser = null;   // 로그인된 사용자 {id, email, nickname}
