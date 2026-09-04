@@ -97,9 +97,30 @@
   .theme-toggle .icon{ font-size:18px; line-height:1; }
   .theme-toggle .label{ white-space:nowrap; }
   @media (max-width:600px){
-    .theme-toggle{ right:12px; bottom:12px; width:40px; height:40px; padding:0; border-radius:50%; }
+    .theme-toggle{ right:12px; bottom:72px; width:40px; height:40px; padding:0; border-radius:50%; }
     .theme-toggle .icon{ font-size:17px; }
     .theme-toggle .label{ display:none; }
+  }
+
+  /* 모바일 하단 탭바: 홈 · 검색 · 글쓰기 · 마이페이지를 항상 손 닿는 위치에 둠 */
+  .bottom-tabbar{ display:none; }
+  @media (max-width:600px){
+    body{ padding-bottom:58px; }
+    .bottom-tabbar{
+      display:flex; position:fixed; left:0; right:0; bottom:0; z-index:998;
+      background:var(--panel); border-top:1px solid var(--line);
+      box-shadow:0 -2px 12px var(--shadow);
+    }
+    .bottom-tabbar .tab{
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:2px; padding:8px 0 10px; cursor:pointer;
+      font-family:"Noto Sans KR",sans-serif; font-size:10.5px; color:var(--sub);
+    }
+    .bottom-tabbar .tab .tab-icon{ font-size:19px; line-height:1; }
+    .bottom-tabbar .tab.write .tab-icon{
+      width:34px; height:34px; border-radius:50%; background:var(--point); color:var(--point-text);
+      display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:1px;
+    }
   }
 
   /* header */
@@ -409,10 +430,19 @@
     list-style:none; margin:0; padding:0 28px 26px; font-family:"Noto Sans KR",sans-serif;
   }
   .recent-post-list li{
-    display:flex; align-items:baseline; gap:8px; padding:14px 4px;
+    position:relative;
+    display:flex; align-items:baseline; gap:8px; padding:14px 4px 14px 12px;
     border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent);
     cursor:pointer; font-size:13px;
   }
+  .recent-post-list li::before{
+    content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px;
+    border-radius:2px; background:var(--sub); opacity:0.5;
+  }
+  .recent-post-list li.tone-feeling::before{ background:var(--point); }
+  .recent-post-list li.tone-senses::before{ background:var(--point2); }
+  .recent-post-list li.tone-connect::before{ background:#7a8bb0; }
+  html[data-theme="dark"] .recent-post-list li.tone-connect::before{ background:#a7b6dc; }
   .recent-post-list li:last-child{ border-bottom:none; }
   .recent-post-list li:hover{ background:var(--accent-soft); }
   .recent-post-list .board-badge-inline{ flex-shrink:0; }
@@ -824,7 +854,7 @@
     .section-title{ padding:18px 16px 8px; font-size:14px; }
     .section-title::before{ font-size:13px; }
 
-    .write-wrap{ padding:18px 16px 24px; }
+    .write-wrap{ padding:18px 16px 72px; }
     .post-detail{ padding:18px 16px; }
 
     .login-card{ width:100%; max-width:320px; }
@@ -844,6 +874,13 @@
 
 <div class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="화면 모드 전환" role="button" aria-label="화면 모드 전환">
   <span class="icon" id="theme-toggle-icon"></span><span class="label" id="theme-toggle-label"></span>
+</div>
+
+<div class="bottom-tabbar">
+  <div class="tab" onclick="showScreen('screen-home')"><span class="tab-icon">🏠</span>홈</div>
+  <div class="tab" onclick="goToHomeSearch()"><span class="tab-icon">🔍</span>검색</div>
+  <div class="tab write" onclick="requireLoginThen('screen-write')"><span class="tab-icon">✎</span>글쓰기</div>
+  <div class="tab" onclick="requireLoginThen('screen-mypage')"><span class="tab-icon">👤</span>마이페이지</div>
 </div>
 
 <!-- 화면 ① 홈 -->
@@ -1298,10 +1335,14 @@
     '감각 · 속도 늦추기': 'tone-senses',
     '연결 · 온기': 'tone-connect',
   };
+  function boardToneClass(slug){
+    const b = BOARDS.find(x => x.slug === slug);
+    return CATEGORY_TONE_CLASS[b && b.category] || 'tone-feeling';
+  }
   function boardToneBadge(slug){
     const b = BOARDS.find(x => x.slug === slug);
     if(!b || !b.tag) return '';
-    const cls = CATEGORY_TONE_CLASS[b.category] || 'tone-feeling';
+    const cls = boardToneClass(slug);
     return `<span class="tone-badge ${cls}">${escapeHtml(b.tag)}</span>`;
   }
   async function loadBoards(){
@@ -1435,6 +1476,11 @@
     renderScreen(screen);
   });
 
+  function goToHomeSearch(){
+    showScreen('screen-home');
+    const input = document.getElementById('home-search-input');
+    if(input) input.focus();
+  }
   function requireLoginThen(screenId){
     if(currentUser){
       showScreen(screenId);
@@ -2827,7 +2873,7 @@
       return;
     }
     el.innerHTML = data.posts.map(p => `
-      <li onclick="openPost(${p.id})" title="${escapeHtml(p.boardTitle)}">
+      <li class="${boardToneClass(p.board)}" onclick="openPost(${p.id})" title="${escapeHtml(p.boardTitle)}">
         ${boardToneBadge(p.board)}
         <span class="title">${escapeHtml(p.title)}</span>${p.commentCount ? `<span class="cmt">[${p.commentCount}]</span>` : ''}
         <span class="meta">조회 ${p.views} · ♥ ${p.hearts} · ${formatDate(p.createdAt)}</span>
