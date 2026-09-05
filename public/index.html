@@ -890,6 +890,8 @@
     .search{ order:3; width:100%; }
     .search input{ width:100%; }
     .nav-links{ font-size:12.5px; gap:10px; flex-wrap:wrap; }
+    /* 마이페이지·글쓰기는 하단 탭바에도 있어 모바일 상단에서는 중복이라 숨김 */
+    .nav-tabbar-dup{ display:none; }
 
     .catrow{ padding:10px 16px; gap:14px; flex-wrap:wrap; }
     .cat-dropdown{ min-width:160px; }
@@ -962,8 +964,8 @@
     <div class="search"><input type="text" id="home-search-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
-      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
-      <span onclick="requireLoginThen('screen-write')">글쓰기</span>
+      <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
+      <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-write')">글쓰기</span>
     </div>
   </div>
   <div class="notice-bar">🌿 이곳은 욕설·비방이 금지된 공간입니다. 서로에게 다정한 말을 건네주세요.</div>
@@ -1009,7 +1011,7 @@
     <div class="search"><input type="text" id="board-search-input" placeholder="이 게시판에서 검색" onkeydown="if(event.key==='Enter')searchInBoard()"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
-      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
+      <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
     </div>
   </div>
   <div class="catrow" id="board-catrow"><!-- 카테고리 탭도 게시판 목록으로 자동 생성돼요 --></div>
@@ -1070,7 +1072,7 @@
     <div class="search"><input type="text" id="search-result-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
       <span class="auth-slot" data-auth></span>
-      <span onclick="requireLoginThen('screen-mypage')">마이페이지</span>
+      <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
     </div>
   </div>
   <div class="main" style="padding:20px 26px;">
