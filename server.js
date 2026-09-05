@@ -1781,6 +1781,29 @@ app.delete('/api/admin/boards/:slug', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// 임시 마이그레이션 엔드포인트: 게시판 구조 정리(15개 → 9개)를 위해 특정 게시판의
+// 게시글들을 다른 게시판으로 옮김. 일회성 작업용이라 완료 후 이 라우트는 제거함.
+app.post('/api/admin/migrate-board-posts', requireAdmin, (req, res) => {
+  const { from, to } = req.body || {};
+  if (!from || !to) {
+    return res.status(400).json({ ok: false, message: 'from, to 게시판 slug가 모두 필요해요.' });
+  }
+  const boards = loadBoards();
+  if (!boards.some(b => b.slug === to)) {
+    return res.status(400).json({ ok: false, message: `대상 게시판(${to})을 찾을 수 없어요.` });
+  }
+  const posts = loadPosts();
+  let moved = 0;
+  posts.forEach(p => {
+    if ((p.board || 'diary') === from) {
+      p.board = to;
+      moved += 1;
+    }
+  });
+  savePosts(posts);
+  res.json({ ok: true, moved });
+});
+
 // ---- 운영자 회원 관리 ----
 
 // 전체 회원 목록 (이메일·닉네임으로 검색 가능). 비밀번호 해시 등은 publicUser로 걸러서 내려줌
