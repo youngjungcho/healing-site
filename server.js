@@ -1781,39 +1781,27 @@ app.delete('/api/admin/boards/:slug', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// 임시 마이그레이션 엔드포인트: 개별 게시글 id를 지정한 게시판으로 옮김.
-// 게시판 단위 이전(migrate-board-posts) 중 실수로 잘못 옮겨진 몇 개만 되돌릴 때 씀.
-app.post('/api/admin/migrate-post', requireAdmin, (req, res) => {
-  const { id, to } = req.body || {};
-  const boards = loadBoards();
-  if (!boards.some(b => b.slug === to)) {
-    return res.status(400).json({ ok: false, message: `대상 게시판(${to})을 찾을 수 없어요.` });
-  }
-  const posts = loadPosts();
-  const post = posts.find(p => p.id === Number(id));
-  if (!post) {
-    return res.status(404).json({ ok: false, message: '글을 찾을 수 없어요.' });
-  }
-  post.board = to;
-  savePosts(posts);
-  res.json({ ok: true });
-});
-
-// 임시 마이그레이션 엔드포인트: 게시판 구조 정리(15개 → 9개)를 위해 특정 게시판의
-// 게시글들을 다른 게시판으로 옮김. 일회성 작업용이라 완료 후 이 라우트는 제거함.
-app.post('/api/admin/migrate-board-posts', requireAdmin, (req, res) => {
+// 임시 마이그레이션 엔드포인트: 게시판 slug를 통째로 바꿈(게시판 데이터 + 소속 게시글 모두).
+// 자동 생성된 한글 slug를 영문으로 정리하는 일회성 작업용. 완료 후 제거함.
+app.post('/api/admin/rename-board-slug', requireAdmin, (req, res) => {
   const { from, to } = req.body || {};
   if (!from || !to) {
-    return res.status(400).json({ ok: false, message: 'from, to 게시판 slug가 모두 필요해요.' });
+    return res.status(400).json({ ok: false, message: 'from, to가 모두 필요해요.' });
   }
   const boards = loadBoards();
-  if (!boards.some(b => b.slug === to)) {
-    return res.status(400).json({ ok: false, message: `대상 게시판(${to})을 찾을 수 없어요.` });
+  const board = boards.find(b => b.slug === from);
+  if (!board) {
+    return res.status(404).json({ ok: false, message: `게시판(${from})을 찾을 수 없어요.` });
   }
+  if (boards.some(b => b.slug === to)) {
+    return res.status(400).json({ ok: false, message: `이미 존재하는 slug예요(${to}).` });
+  }
+  board.slug = to;
+  saveBoards(boards);
   const posts = loadPosts();
   let moved = 0;
   posts.forEach(p => {
-    if ((p.board || 'diary') === from) {
+    if (p.board === from) {
       p.board = to;
       moved += 1;
     }
