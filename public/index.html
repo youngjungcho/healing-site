@@ -698,8 +698,17 @@
   }
   .post-nav-empty{ font-size:11px; color:var(--sub); }
 
-  /* login */
-  .login-wrap{ display:flex; justify-content:center; align-items:center; padding:60px 0 70px; }
+  /* login: 카드가 짧아서 .site가 화면 절반도 못 채우면 그 아래로 body 배경이 남아
+     붕 떠 보이므로, 이 화면들만 뷰포트 높이를 채우게 해서 카드가 화면 중앙에 오게 함.
+     .screen.active의 display:block을 덮어써야 하니 id 붙은 이 선택자로 specificity를 높임.
+     (active가 아닐 때는 .screen{ display:none }이 그대로 이겨서 안 보임 — 여기선 min-height만 줌) */
+  #screen-login.screen, #screen-signup.screen, #screen-forgot-password.screen{ min-height:100vh; }
+  #screen-login.screen.active, #screen-signup.screen.active, #screen-forgot-password.screen.active{
+    display:flex; flex-direction:column;
+  }
+  .login-wrap{
+    flex:1; display:flex; justify-content:center; align-items:center; padding:60px 0 70px;
+  }
   .login-card{ width:300px; text-align:center; }
   .login-card .logo{ font-size:26px; margin-bottom:4px; }
   .login-card .tagline{ margin-bottom:28px; }
