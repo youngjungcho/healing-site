@@ -1781,35 +1781,6 @@ app.delete('/api/admin/boards/:slug', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// 임시 마이그레이션 엔드포인트: 게시판 slug를 통째로 바꿈(게시판 데이터 + 소속 게시글 모두).
-// 자동 생성된 한글 slug를 영문으로 정리하는 일회성 작업용. 완료 후 제거함.
-app.post('/api/admin/rename-board-slug', requireAdmin, (req, res) => {
-  const { from, to } = req.body || {};
-  if (!from || !to) {
-    return res.status(400).json({ ok: false, message: 'from, to가 모두 필요해요.' });
-  }
-  const boards = loadBoards();
-  const board = boards.find(b => b.slug === from);
-  if (!board) {
-    return res.status(404).json({ ok: false, message: `게시판(${from})을 찾을 수 없어요.` });
-  }
-  if (boards.some(b => b.slug === to)) {
-    return res.status(400).json({ ok: false, message: `이미 존재하는 slug예요(${to}).` });
-  }
-  board.slug = to;
-  saveBoards(boards);
-  const posts = loadPosts();
-  let moved = 0;
-  posts.forEach(p => {
-    if (p.board === from) {
-      p.board = to;
-      moved += 1;
-    }
-  });
-  savePosts(posts);
-  res.json({ ok: true, moved });
-});
-
 // ---- 운영자 회원 관리 ----
 
 // 전체 회원 목록 (이메일·닉네임으로 검색 가능). 비밀번호 해시 등은 publicUser로 걸러서 내려줌
