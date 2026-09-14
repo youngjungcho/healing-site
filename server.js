@@ -1210,15 +1210,21 @@ app.patch('/api/posts/:id', requireCanWrite, (req, res) => {
   if (post.writerId !== req.currentUser.id) {
     return res.status(403).json({ ok: false, message: '본인이 쓴 글만 수정할 수 있어요.' });
   }
-  const { title, body } = req.body || {};
+  const { title, body, anonymous } = req.body || {};
   const errorMessage = validatePostContent(title, body);
   if (errorMessage) {
     return res.status(400).json({ ok: false, message: errorMessage });
   }
   post.title = String(title).trim();
   post.body = String(body).trim();
+  // 익명 여부는 실시간 계산이 아니라 writerNickname에 그대로 저장되는 방식이라,
+  // 수정 화면에서 켜고 끌 때마다 현재 사용자의 최신 닉네임(또는 "익명")으로 다시 써줌.
+  if (anonymous !== undefined) {
+    post.writerNickname = anonymous ? '익명' : req.currentUser.nickname;
+  }
   savePosts(posts);
-  res.json({ ok: true, post });
+  const [postWithProfile] = attachWriterProfileImages([post]);
+  res.json({ ok: true, post: postWithProfile });
 });
 
 // 본인 글 삭제 (완전 삭제). 작성자 본인만 가능, 제재·미인증 상태면 불가

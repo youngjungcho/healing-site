@@ -1158,6 +1158,7 @@
     <div class="post-edit-form" id="detail-edit-form" style="display:none;">
       <input type="text" id="detail-edit-title" maxlength="200">
       <textarea id="detail-edit-body" maxlength="1000"></textarea>
+      <div class="anon-row"><input type="checkbox" id="detail-edit-anon"> 익명으로 작성하기</div>
       <div class="form-actions">
         <button class="btn-ghost" onclick="cancelPostEdit()">취소</button>
         <button class="write-btn" onclick="savePostEdit()">저장</button>
@@ -1902,6 +1903,7 @@
   }
 
   let currentPostWriterId = null; // 지금 상세 화면에 열려 있는 글의 작성자 id (본인 글 여부 판단용)
+  let currentPostIsAnonymous = false; // 지금 상세 화면에 열려 있는 글이 익명으로 쓰였는지 (수정 폼 체크박스 초기값용)
 
   // 댓글 수정/삭제 후에는 조회수를 또 올리지 않도록, openPost 전체를 다시 부르지 않고
   // 댓글 목록만 가볍게 다시 불러옴
@@ -1925,6 +1927,7 @@
       const p = data.post;
       currentPostId = id;
       currentPostWriterId = p.writerId;
+      currentPostIsAnonymous = p.writerNickname === '익명';
       currentBoard = p.board || currentBoard;
       document.getElementById('detail-title').textContent = p.title;
       const writerAvatar = p.writerProfileImage ? `<img class="writer-avatar" src="${escapeAttr(p.writerProfileImage)}">` : '';
@@ -1997,6 +2000,7 @@
   function startPostEdit(){
     document.getElementById('detail-edit-title').value = document.getElementById('detail-title').textContent;
     document.getElementById('detail-edit-body').value = document.getElementById('detail-body').textContent;
+    document.getElementById('detail-edit-anon').checked = currentPostIsAnonymous;
     document.getElementById('detail-title').style.display = 'none';
     document.getElementById('detail-body').style.display = 'none';
     document.getElementById('detail-edit-form').style.display = 'block';
@@ -2009,17 +2013,24 @@
   async function savePostEdit(){
     const title = document.getElementById('detail-edit-title').value.trim();
     const body = document.getElementById('detail-edit-body').value.trim();
+    const anonymous = document.getElementById('detail-edit-anon').checked;
     if(!title || !body){ alert('제목과 내용을 모두 입력해주세요.'); return; }
     try{
       const res = await fetch('/api/posts/' + currentPostId, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({ title, body, anonymous }),
       });
       const data = await res.json();
       if(data.ok){
         document.getElementById('detail-title').textContent = data.post.title;
         document.getElementById('detail-body').textContent = data.post.body;
+        currentPostIsAnonymous = data.post.writerNickname === '익명';
+        const writerAvatar = data.post.writerProfileImage
+          ? `<img class="writer-avatar" src="${escapeAttr(data.post.writerProfileImage)}">` : '';
+        document.getElementById('detail-meta').innerHTML =
+          boardToneBadge(currentBoard)
+          + `<span>${writerAvatar}${escapeHtml(data.post.writerNickname)}</span><span>${formatDate(data.post.createdAt)}</span><span>조회 ${data.post.views}</span>`;
         cancelPostEdit();
       } else {
         alert(data.message || '수정하지 못했어요.');
