@@ -607,7 +607,7 @@
   }
   .post-body{ font-size:15px; line-height:1.9; color:var(--text); margin-bottom:24px; white-space:pre-line; }
   .post-edit-form{ margin-bottom:24px; }
-  .post-edit-form input{
+  .post-edit-form input[type=text]{
     width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 12px;
     font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:16px; margin-bottom:10px; outline:none;
   }
@@ -1158,7 +1158,7 @@
     <div class="post-edit-form" id="detail-edit-form" style="display:none;">
       <input type="text" id="detail-edit-title" maxlength="200">
       <textarea id="detail-edit-body" maxlength="1000"></textarea>
-      <div class="anon-row"><input type="checkbox" id="detail-edit-anon"> 익명으로 작성하기</div>
+      <div class="anon-row"><input type="checkbox" id="detail-edit-anon" onchange="updateAnonEditLabel()"> <span id="detail-edit-anon-label">익명으로 변경하기</span></div>
       <div class="form-actions">
         <button class="btn-ghost" onclick="cancelPostEdit()">취소</button>
         <button class="write-btn" onclick="savePostEdit()">저장</button>
@@ -2001,9 +2001,16 @@
     document.getElementById('detail-edit-title').value = document.getElementById('detail-title').textContent;
     document.getElementById('detail-edit-body').value = document.getElementById('detail-body').textContent;
     document.getElementById('detail-edit-anon').checked = currentPostIsAnonymous;
+    updateAnonEditLabel();
     document.getElementById('detail-title').style.display = 'none';
     document.getElementById('detail-body').style.display = 'none';
     document.getElementById('detail-edit-form').style.display = 'block';
+  }
+  // 체크 여부에 따라 라벨을 바꿔서, 이미 익명인 글에서 체크 해제할 때
+  // "익명으로 변경하기"라는 문구가 어색해지는 걸 막음(그럴 땐 "실명으로 변경하기"로 보임).
+  function updateAnonEditLabel(){
+    const checked = document.getElementById('detail-edit-anon').checked;
+    document.getElementById('detail-edit-anon-label').textContent = checked ? '실명으로 변경하기' : '익명으로 변경하기';
   }
   function cancelPostEdit(){
     document.getElementById('detail-title').style.display = '';
