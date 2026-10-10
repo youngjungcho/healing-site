@@ -1373,6 +1373,14 @@
       <button class="btn-ghost" onclick="loadAdminPosts()">검색</button>
     </div>
     <div id="admin-post-list">불러오는 중...</div>
+
+    <h2 style="margin-top:40px;">운영자 · 게임 순위표 관리</h2>
+    <div class="gentle-notice">게임 전체 순위표에 올라온 기록(게임별 최대 100개)을 보고, 장난·도배 기록을 지울 수 있어요. IP는 같은 사람인지 알아보는 용도로 뒷자리를 가려서 보여줘요. 삭제하면 되돌릴 수 없어요.</div>
+    <div class="admin-search-row">
+      <select id="admin-score-game" onchange="loadAdminScores()"></select>
+      <button class="btn-ghost" onclick="loadAdminScores()">새로고침</button>
+    </div>
+    <div id="admin-score-list">불러오는 중...</div>
   </div>
 </div>
 
@@ -1574,7 +1582,7 @@
       document.getElementById('write-image-preview').innerHTML = '';
       document.getElementById('image-upload-status').textContent = '';
     }
-    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); loadAdminUsers(); loadAdminPosts(); }
+    if(id === 'screen-admin'){ loadAdminReports(); loadAdminBoards(); loadBannedWords(); loadAdminUsers(); loadAdminPosts(); loadAdminScores(); }
     if(id === 'screen-mypage') initMypage();
     window.scrollTo(0,0);
     trackScreenView(id);
@@ -2825,6 +2833,54 @@
         </div>`).join('');
     }catch(e){
       el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  // 운영자 · 게임 순위표 관리
+  async function loadAdminScores(){
+    const el = document.getElementById('admin-score-list'), sel = document.getElementById('admin-score-game');
+    el.innerHTML = '불러오는 중...';
+    try{
+      if(!sel.options.length){
+        const games = await (await fetch('/games/games.json', { cache: 'no-cache' })).json();
+        sel.innerHTML = games.map(g => `<option value="${escapeHtml(g.slug)}">${escapeHtml(g.title)}</option>`).join('');
+      }
+      const slug = sel.value;
+      if(!slug){ el.innerHTML = '게임이 없어요.'; return; }
+      const data = await (await fetch('/api/admin/games/' + encodeURIComponent(slug) + '/scores')).json();
+      if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
+      if(!data.scores.length){
+        el.innerHTML = '<p style="font-family:\'Noto Sans KR\',sans-serif;color:var(--sub);font-size:12.5px;">아직 올라온 기록이 없어요.</p>';
+        return;
+      }
+      el.innerHTML = data.scores.map((r, i) => `
+        <div class="admin-item">
+          <div class="admin-item-head">
+            <span class="admin-type">${i + 1}위</span>
+          </div>
+          <div class="admin-item-body"><strong>${escapeHtml(r.name)}</strong> · ${Number(r.score).toLocaleString('ko-KR')}점</div>
+          <div class="admin-item-meta">${r.from && r.from !== r.stage ? r.from + '→' : ''}${r.stage}단계 · ${escapeHtml(r.char || '')} · ${formatDate(r.date)} · IP ${escapeHtml(r.ip || '-')}</div>
+          <div class="admin-item-actions">
+            <button class="btn-ghost" onclick="adminDeleteScore('${escapeHtml(slug)}','${escapeHtml(r.id)}')">삭제</button>
+          </div>
+        </div>`).join('');
+    }catch(e){
+      el.innerHTML = '불러오지 못했어요.';
+    }
+  }
+
+  async function adminDeleteScore(slug, id){
+    if(!confirm('이 기록을 삭제할까요? 삭제하면 되돌릴 수 없어요.')) return;
+    try{
+      const res = await fetch('/api/admin/games/' + encodeURIComponent(slug) + '/scores/' + encodeURIComponent(id), { method: 'DELETE' });
+      const data = await res.json();
+      if(data.ok){
+        loadAdminScores();
+      } else {
+        alert(data.message || '삭제하지 못했어요.');
+      }
+    }catch(e){
+      alert('서버와 통신 중 문제가 발생했어요.');
     }
   }
 

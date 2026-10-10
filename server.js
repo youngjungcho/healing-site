@@ -2061,6 +2061,19 @@ app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
   res.json({ ok: true, rank, id: rec.id, show: SCORE_SHOW });
 });
 
+// 운영자: 보관된 기록 전체 보기 (IP는 뒷자리를 가려서 — 도배 여부만 알아볼 수 있게)
+function maskIp(ip) {
+  const v = String(ip || '').replace(/^::ffff:/, '');
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(v)) return v.split('.').slice(0, 2).join('.') + '.*.*';
+  if (v.includes(':')) return v.split(':').slice(0, 2).join(':') + ':*';
+  return v ? '?' : '';
+}
+app.get('/api/admin/games/:slug/scores', requireAdmin, (req, res) => {
+  const { slug } = req.params;
+  const list = (loadScores()[slug] || []).map(r => ({ ...publicScore(r), from: r.from, time: r.time, ip: maskIp(r.ip) }));
+  res.json({ ok: true, scores: list });
+});
+
 // 운영자: 이상한 기록 지우기
 app.delete('/api/admin/games/:slug/scores/:id', requireAdmin, (req, res) => {
   const { slug, id } = req.params;
