@@ -60,6 +60,24 @@
     return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
   }
 
+  // 지난번 댓글에 쓴 닉네임, 없으면 이 게임 순위표에 쓴 닉네임(<게임>-...-nick 키)을 가져옴
+  function rememberedName() {
+    try {
+      var own = localStorage.getItem(NAME_KEY);
+      if (own) return own;
+      var pick = '';
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!/(^|-)nick(name)?$/i.test(k)) continue;
+        var v = (localStorage.getItem(k) || '').trim();
+        if (v.length < 2 || v.length > 10) continue;
+        if (k.indexOf(slug) === 0) return v;   // 이 게임의 순위표 닉네임이 가장 우선
+        if (!pick) pick = v;
+      }
+      return pick;
+    } catch (e) { return ''; }
+  }
+
   function build() {
     var style = el('style');
     style.textContent = css;
@@ -110,7 +128,7 @@
 
     // 닉네임: 로그인했으면 계정 닉네임으로 고정, 아니면 지난번에 쓴 이름을 채워둠
     var loggedIn = false;
-    try { nameIn.value = localStorage.getItem(NAME_KEY) || ''; } catch (e) {}
+    nameIn.value = rememberedName();
     fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       if (d && d.ok && d.user && d.user.nickname) {
         loggedIn = true;
