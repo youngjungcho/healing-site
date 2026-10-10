@@ -52,7 +52,8 @@ const forgotPasswordLimiter = rateLimit({
   message: rateLimitJson('비밀번호 찾기 요청이 너무 많아요. 잠시 후 다시 시도해주세요.'),
 });
 
-const DATA_DIR = path.join(__dirname, 'data');
+// 테스트할 때 실제 데이터를 건드리지 않도록 DATA_DIR_OVERRIDE로 다른 폴더를 쓸 수 있음 (평소엔 ./data)
+const DATA_DIR = process.env.DATA_DIR_OVERRIDE || path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
 const BOARDS_FILE = path.join(DATA_DIR, 'boards.json');
@@ -1995,6 +1996,82 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // multer(이미지 업로드)에서 난 에러를 JSON으로 응답. 다른 라우트의 에러는 각자 처리하므로
 // 여기까지 오지 않음 — 반드시 라우트 등록 전부가 끝난 뒤, 마지막에 있어야 동작함
+// ---- 게임 전체 순위표 (닉네임만, 로그인 없음) ----
+// data/scores.json에 게임별 상위 SCORE_KEEP개만 보관. 게임 목록은 public/games/games.json 기준.
+const SCORES_FILE = path.join(DATA_DIR, 'scores.json');
+const SCORE_KEEP = 100;
+const SCORE_SHOW = 20;
+const scoreLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !IS_PRODUCTION,
+  message: rateLimitJson('점수 올리기가 너무 많아요. 잠시 후 다시 시도해주세요.'),
+});
+function loadScores() {
+  try { return JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8')); } catch (e) { return {}; }
+}
+function saveScores(all) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(SCORES_FILE, JSON.stringify(all, null, 2), 'utf8');
+}
+function isKnownGame(slug) {
+  try {
+    const games = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'games', 'games.json'), 'utf8'));
+    return games.some(g => g.slug === slug);
+  } catch (e) { return false; }
+}
+const publicScore = r => ({ id: r.id, name: r.name, score: r.score, stage: r.stage, char: r.char, date: r.date });
+
+app.get('/api/games/:slug/scores', (req, res) => {
+  const { slug } = req.params;
+  if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
+  const list = (loadScores()[slug] || []).slice(0, SCORE_SHOW).map(publicScore);
+  res.json({ ok: true, scores: list });
+});
+
+app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
+  const { slug } = req.params;
+  if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
+  const body = req.body || {};
+  const name = String(body.name || '').trim().replace(/\s+/g, ' ');
+  const score = Number(body.score), from = Number(body.from), to = Number(body.to), time = Number(body.time);
+  const char = String(body.char || '').slice(0, 20);
+  if (name.length < 2 || name.length > 10) return res.status(400).json({ ok: false, message: '닉네임은 2~10자로 적어주세요.' });
+  if (findBannedWord(name)) return res.status(400).json({ ok: false, message: '사용할 수 없는 단어가 들어 있어요.' });
+  if (![score, from, to, time].every(Number.isFinite) || !Number.isInteger(score) || score <= 0
+      || !Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > 999) {
+    return res.status(400).json({ ok: false, message: '기록 형식이 올바르지 않아요.' });
+  }
+  // 말이 안 되게 높은 기록 거르기: 지나간 단계 수에 비해 점수·시간이 터무니없으면 거절
+  const stages = to - from + 1;
+  if (score > 250000 * stages || time < 3 * (to - from)) {
+    return res.status(400).json({ ok: false, message: '기록을 확인할 수 없어요.' });
+  }
+  const all = loadScores();
+  const list = all[slug] || [];
+  const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, score, stage: to, from, char, time: Math.round(time),
+    date: new Date().toISOString(), ip: req.ip };
+  list.push(rec);
+  list.sort((a, b) => b.score - a.score || a.date.localeCompare(b.date));
+  all[slug] = list.slice(0, SCORE_KEEP);
+  saveScores(all);
+  const rank = all[slug].indexOf(rec) + 1;   // 보관 범위 밖이면 0
+  res.json({ ok: true, rank, id: rec.id, show: SCORE_SHOW });
+});
+
+// 운영자: 이상한 기록 지우기
+app.delete('/api/admin/games/:slug/scores/:id', requireAdmin, (req, res) => {
+  const { slug, id } = req.params;
+  const all = loadScores();
+  const before = (all[slug] || []).length;
+  all[slug] = (all[slug] || []).filter(r => r.id !== id);
+  if (all[slug].length === before) return res.status(404).json({ ok: false, message: '해당 기록이 없어요.' });
+  saveScores(all);
+  res.json({ ok: true });
+});
+
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     const message = err.code === 'LIMIT_FILE_SIZE'

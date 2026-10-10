@@ -64,6 +64,12 @@ button{font:inherit}
 .char:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .shopTabs{display:flex;gap:6px}
 .mlist{display:flex;flex-direction:column;gap:8px;width:min(100%,460px)}
+.gsub{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;border:1.5px dashed var(--accent);border-radius:14px;max-width:360px}
+.gsub b{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;color:var(--ink)}
+.gsub .row{display:flex;gap:6px}
+.gsub input{font:inherit;font-size:15px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);background:var(--tray);color:var(--ink);width:150px}
+.gsub small{color:var(--soft);font-size:12px}
+.rk.me{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .rk{display:grid;grid-template-columns:34px 1fr auto;gap:2px 10px;align-items:center;width:100%;background:var(--tray);border:1.5px solid var(--line);border-radius:12px;padding:6px 12px;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
 .rk .md{grid-row:1/3;font-family:"Jua",sans-serif;font-size:19px;text-align:center}
 .rk b{font-family:"Jua",sans-serif;font-weight:400;font-size:17px}
@@ -182,6 +188,11 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <div>코인<b id="rCoin">+0</b><span class="new" id="rWallet"></span></div>
         <div>캐릭터<b id="rChar">-</b></div>
       </div>
+      <div class="gsub" id="gsub" hidden>
+        <b id="gsubTitle"></b>
+        <div class="row"><input id="gsubName" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="nickname"><button class="buy" id="gsubBtn">올리기</button></div>
+        <small id="gsubMsg"></small>
+      </div>
       <div class="btns">
         <button class="go" id="resRetry">다시 달리기</button>
         <button class="go2" id="resMenu">메인 메뉴</button>
@@ -192,6 +203,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="shopTabs" role="tablist">
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
+        <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
       </div>
       <div class="mlist" id="rankList"></div>
       <div class="btns"><button class="go" id="rankOk">닫기</button></div>
@@ -1258,6 +1270,7 @@ function showResult(){
   $('rChar').textContent=CH().name;
   $('rCoin').textContent='+'+runCoins; bankCoins(); $('rWallet').textContent='보유 🪙 '+wallet.toLocaleString('ko-KR');
   $('resOv').hidden=false; $('resRetry').focus();
+  offerGlobal();
 }
 function reset(){
   bankCoins();
@@ -1340,6 +1353,7 @@ addEventListener('keydown', e => {
   if(state!=='play'){
     if(state==='dying') return;
     if(!$('shopOv').hidden || !$('missionOv').hidden || !$('rankOv').hidden) return;
+    if(document.activeElement && document.activeElement.tagName==='INPUT') return;
     if(!$('resOv').hidden){ if(k==='Space' && !(document.activeElement instanceof HTMLButtonElement)){ e.preventDefault(); $('resRetry').click(); } return; }
     if(!$('charOv').hidden){   // 캐릭터 화면: ←/→ 고르기, Space 완료
       if(!$('pets').hidden) return;
@@ -1838,9 +1852,62 @@ $('goChar').addEventListener('click', openChars);
 $('charOk').addEventListener('click', closeChars);
 addEventListener('keydown', e => { if(e.code==='Escape' && !$('charOv').hidden) closeChars(); if(e.code==='Escape' && !$('shopOv').hidden) closeShop(); if(e.code==='Escape' && !$('missionOv').hidden) closeMissions(); if(e.code==='Escape' && !$('rankOv').hidden) closeRank(); });
 let rankTab='best';
+/* ---------------- 전체 순위 (쉼표 서버) ---------------- */
+// 쉼표 사이트(/games/ 아래)에서 열렸을 때만 서버 순위표를 씀
+const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
+const SCORE_API = '/api/games/wakppu/scores';
+let myScoreIds=[]; try{ myScoreIds=JSON.parse(localStorage.getItem('wakppu-side-myscores')||'[]'); }catch(e){}
+async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+let gsubRun=null;
+async function offerGlobal(){
+  const box=$('gsub'); box.hidden=true;
+  if(!ONLINE || score<=0) return;
+  const run={score, from:startLevel, to:level, time:+elapsed.toFixed(1), char:charId}; gsubRun=run;
+  let list; try{ list=await fetchGlobal(); }catch(e){ return; }
+  if(gsubRun!==run || state!=='over') return;
+  const pos = list.filter(r=>r.score>=run.score).length + 1;
+  if(pos>20) return;
+  $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
+  try{ $('gsubName').value=localStorage.getItem('wakppu-side-nick')||''; }catch(e){}
+  $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
+  box.hidden=false;
+}
+$('gsubBtn').addEventListener('click', async ()=>{
+  const name=$('gsubName').value.trim(), run=gsubRun;
+  if(!run) return;
+  if(name.length<2){ $('gsubMsg').textContent='닉네임은 2~10자로 적어주세요.'; return; }
+  $('gsubBtn').disabled=true; $('gsubMsg').textContent='올리는 중…';
+  try{
+    const r=await fetch(SCORE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,...run})});
+    const d=await r.json();
+    if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
+    try{ localStorage.setItem('wakppu-side-nick',name); myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); localStorage.setItem('wakppu-side-myscores',JSON.stringify(myScoreIds)); }catch(e){}
+    $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    $('gsubName').disabled=true; gsubRun=null; play('win');
+  }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
+});
+$('gsubName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gsubBtn').click(); });
+async function renderGlobal(box){
+  if(!ONLINE){ box.innerHTML='<small style="color:var(--soft);text-align:center">전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.</small>'; return; }
+  box.innerHTML='<small style="color:var(--soft);text-align:center">불러오는 중…</small>';
+  let list; try{ list=await fetchGlobal(); }catch(e){ box.innerHTML='<small style="color:var(--soft);text-align:center">순위를 불러오지 못했어요.</small>'; return; }
+  if(rankTab!=='global') return;
+  box.innerHTML='';
+  if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!</small>'; return; }
+  const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  list.forEach((r,i)=>{
+    const ch=CHARS.find(c=>c.id===r.char), d=new Date(r.date);
+    const b=document.createElement('div'); b.className='rk'+(myScoreIds.includes(r.id)?' me':'');
+    b.innerHTML=`<span class="md">${['🥇','🥈','🥉'][i]||(i+1)}</span><b>${esc(r.name)}</b><small>${r.score.toLocaleString('ko-KR')}점</small>`+
+      `<small>${r.stage}단계${ch?' · '+ch.name:''}</small><small>${d.getMonth()+1}/${d.getDate()}</small>`;
+    box.append(b);
+  });
+}
 function renderRank(){
-  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent'));
-  const list = runs[rankTab], box=$('rankList'); box.innerHTML='';
+  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent')); $('tabGlobal').setAttribute('aria-selected',String(rankTab==='global'));
+  const box=$('rankList');
+  if(rankTab==='global'){ renderGlobal(box); return; }
+  const list = runs[rankTab]; box.innerHTML='';
   if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 기록이 없어요. 한 판 달려 보세요!</small>'; return; }
   list.forEach((r,i)=>{
     const ch=CHARS.find(c=>c.id===r.char), pe=PETS.find(p=>p.id===r.pet);
@@ -1859,6 +1926,7 @@ $('goRank').addEventListener('click', openRank);
 $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
 let mTimer=0;
 function renderMissions(){
   const d=ensureDaily(), box=$('missionList'); box.innerHTML='';
