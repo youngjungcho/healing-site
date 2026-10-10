@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>왁뿌 점프맵 – 횡스크롤</title>
+<meta name="description" content="왁스 코팅된 간식 발판을 바삭바삭 부수며 달리는 횡스크롤 점프 게임. 젤리를 모으고, 드래곤을 타고, 20단계 너머까지!">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="쉼표 게임">
+<meta property="og:title" content="왁뿌 점프맵 — 쉼표 게임">
+<meta property="og:description" content="간식 발판을 부수며 달리는 점프 게임. 설치 없이 바로 플레이!">
+<meta property="og:image" content="https://swimpyonote.com/games/wakppu/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://swimpyonote.com/games/wakppu/">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -195,8 +205,10 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       </div>
       <div class="btns">
         <button class="go" id="resRetry">다시 달리기</button>
+        <button class="go2" id="resShare">📤 공유하기</button>
         <button class="go2" id="resMenu">메인 메뉴</button>
       </div>
+      <small id="shareMsg" style="color:var(--soft)" hidden></small>
     </div>
     <div class="overlay" id="rankOv" hidden>
       <h2>기록판</h2>
@@ -1260,6 +1272,7 @@ function recordRun(){
   const i=runs.best.indexOf(rec); return i<0 ? 0 : i+1;
 }
 function showResult(){
+  lastGlobalRank=0; shareMsg('');
   const rank = recordRun();
   $('rRank').hidden = !rank; $('rRank').textContent = ' 기록판 '+rank+'위!';
   state='over';
@@ -1858,7 +1871,26 @@ const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/gam
 const SCORE_API = '/api/games/wakppu/scores';
 let myScoreIds=[]; try{ myScoreIds=JSON.parse(localStorage.getItem('wakppu-side-myscores')||'[]'); }catch(e){}
 async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
-let gsubRun=null;
+let gsubRun=null, lastGlobalRank=0;
+/* ---------------- 결과 공유 ---------------- */
+const SHARE_URL='https://swimpyonote.com/games/wakppu/';
+function shareText(){
+  let t='🍬 왁뿌 점프맵에서 '+score.toLocaleString('ko-KR')+'점! '+level+'단계까지 갔어요';
+  if(runCombo>=10) t+=' (최고 콤보 '+runCombo+')';
+  if(lastGlobalRank) t+='\n🏆 전체 순위 '+lastGlobalRank+'위!';
+  return t+'\n나를 이겨 볼 사람?';
+}
+function shareMsg(m){ const el=$('shareMsg'); el.textContent=m; el.hidden=!m; }
+$('resShare').addEventListener('click', async ()=>{
+  const text=shareText();
+  if(navigator.share){
+    try{ await navigator.share({title:'왁뿌 점프맵', text, url:SHARE_URL}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }   // 사용자가 공유 창을 닫음
+  }
+  const full=text+'\n'+SHARE_URL;
+  try{ await navigator.clipboard.writeText(full); shareMsg('복사했어요! 붙여넣어 보내 보세요.'); }
+  catch(e){ window.prompt('아래 문구를 복사해서 보내 주세요.', full); }
+});
 async function offerGlobal(){
   const box=$('gsub'); box.hidden=true;
   if(!ONLINE || score<=0) return;
@@ -1882,6 +1914,7 @@ $('gsubBtn').addEventListener('click', async ()=>{
     const d=await r.json();
     if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
     try{ localStorage.setItem('wakppu-side-nick',name); myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); localStorage.setItem('wakppu-side-myscores',JSON.stringify(myScoreIds)); }catch(e){}
+    if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
     $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
     $('gsubName').disabled=true; gsubRun=null; play('win');
   }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
