@@ -2034,6 +2034,17 @@ function isKnownGame(slug) {
     return games.some(g => g.slug === slug);
   } catch (e) { return false; }
 }
+// 말이 안 되게 높은 기록 거르기. 게임마다 기준이 달라서 slug별로 두고, 없으면 왁뿌 기준을 씀.
+const SCORE_CHECKS = {
+  // 왁뿌 점프맵: from~to는 지나간 단계. 단계 수에 비해 점수·시간이 터무니없으면 거절
+  wakppu: ({ score, from, to, time }) => score <= 250000 * (to - from + 1) && time >= 3 * (to - from),
+  // 부릉부릉 고속도로: to는 달린 거리(100m 단위). 부스터 최고 속도로도 1초에 1.2(=120m)를 못 넘고,
+  // 점수도 1초에 2,000점을 넘기 어려움
+  bureung: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 1.2 && score <= 2000 * time + 2000,
+};
+function scoreLooksValid(slug, r) {
+  return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);
+}
 const publicScore = r => ({ id: r.id, name: r.name, score: r.score, stage: r.stage, char: r.char, date: r.date });
 
 app.get('/api/games/:slug/scores', (req, res) => {
@@ -2056,9 +2067,7 @@ app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
       || !Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > 999) {
     return res.status(400).json({ ok: false, message: '기록 형식이 올바르지 않아요.' });
   }
-  // 말이 안 되게 높은 기록 거르기: 지나간 단계 수에 비해 점수·시간이 터무니없으면 거절
-  const stages = to - from + 1;
-  if (score > 250000 * stages || time < 3 * (to - from)) {
+  if (!scoreLooksValid(slug, { score, from, to, time })) {
     return res.status(400).json({ ok: false, message: '기록을 확인할 수 없어요.' });
   }
   const all = loadScores();
