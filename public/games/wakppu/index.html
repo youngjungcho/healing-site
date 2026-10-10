@@ -1918,7 +1918,7 @@ async function offerGlobal(){
   const pos = list.filter(r=>r.score>=run.score).length + 1;
   if(pos>20) return;
   $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
-  try{ $('gsubName').value=localStorage.getItem('wakppu-side-nick')||''; }catch(e){}
+  try{ $('gsubName').value=localStorage.getItem('wakppu-side-nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}   // 비어 있으면 쉼표 공용 닉네임(댓글)으로
   $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
   box.hidden=false;
 }
