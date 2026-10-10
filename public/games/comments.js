@@ -1,6 +1,9 @@
 /* 쉼표 게임 공용 댓글창
  * /games/<slug>/ 페이지에 서버가 자동으로 붙여줍니다. 직접 쓰려면 <script src="/games/comments.js" defer></script>
  * 한 줄이면 되고, <div id="game-comments"></div>가 있으면 그 자리에, 없으면 페이지 맨 아래에 들어갑니다.
+ * 닉네임 키 규칙(localStorage, 같은 도메인이라 게임·댓글이 공유):
+ *   swimpyo-nick        쉼표 공용 닉네임. 댓글을 남기면 여기에 저장되고, 게임이 순위표 닉네임 칸을 채울 때 읽어도 됨
+ *   <slug>-side-nick    게임이 순위표에 올릴 때 저장하는 키 (예: wakppu-side-nick). 댓글 닉네임 칸이 비어 있으면 이걸 읽어 채움
  * 색은 페이지의 --bg / --ink / --soft / --tray / --line / --accent 변수를 따라가고, 없으면 기본값을 씁니다. */
 (function () {
   if (window.__gameCommentsLoaded) return;
@@ -10,7 +13,8 @@
   if (!m) return;
   var slug = decodeURIComponent(m[1]);
   var API = '/api/games/' + encodeURIComponent(slug) + '/comments';
-  var NAME_KEY = 'swimpyo-game-comment-name';
+  var NAME_KEY = 'swimpyo-nick';
+  var GAME_NICK_KEY = slug + '-side-nick';
 
   var css = [
     '.gc-wrap{max-width:1100px;margin:0 auto;padding:6px 14px 40px;box-sizing:border-box;font-family:inherit;color:var(--ink,#2A2140)}',
@@ -60,22 +64,16 @@
     return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
   }
 
-  // 지난번 댓글에 쓴 닉네임, 없으면 이 게임 순위표에 쓴 닉네임(<게임>-...-nick 키)을 가져옴
+  // 닉네임 칸 기본값: 공용 닉네임(swimpyo-nick) → 이 게임 순위표 닉네임(<slug>-side-nick)
   function rememberedName() {
-    try {
-      var own = localStorage.getItem(NAME_KEY);
-      if (own) return own;
-      var pick = '';
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (!/(^|-)nick(name)?$/i.test(k)) continue;
-        var v = (localStorage.getItem(k) || '').trim();
-        if (v.length < 2 || v.length > 10) continue;
-        if (k.indexOf(slug) === 0) return v;   // 이 게임의 순위표 닉네임이 가장 우선
-        if (!pick) pick = v;
-      }
-      return pick;
-    } catch (e) { return ''; }
+    var keys = [NAME_KEY, GAME_NICK_KEY];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var v = (localStorage.getItem(keys[i]) || '').trim();
+        if (v.length >= 2 && v.length <= 10) return v;
+      } catch (e) {}
+    }
+    return '';
   }
 
   function build() {
