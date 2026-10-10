@@ -386,6 +386,20 @@
   }
   .stamp:hover{ border-color:var(--point); }
 
+  /* 홈 화면 "쉼표 게임" 배너 */
+  .games-banner{
+    margin:14px 28px 4px; padding:14px 18px; display:flex; align-items:center; gap:14px; text-decoration:none;
+    color:var(--text); background:var(--panel-raised); border:1px dashed var(--point); border-radius:12px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .games-banner:hover{ transform:translateY(-1px); box-shadow:1px 4px 12px var(--shadow); }
+  .games-banner-icon{ font-size:30px; line-height:1; }
+  .games-banner-text{ flex:1; display:flex; flex-direction:column; }
+  .games-banner-text b{ font-size:15px; }
+  .games-banner-text small{ font-size:12.5px; color:var(--sub); }
+  .games-banner-go{ flex-shrink:0; padding:7px 14px; border-radius:999px; background:var(--point); color:var(--point-text); font-size:13px; font-weight:700; }
+  @media (max-width:600px){ .games-banner{ margin:10px 16px 4px; padding:12px 14px; } .games-banner-go{ display:none; } }
+
   /* 홈 화면 상단 "오늘의 표지" */
   .home-cover{
     margin:18px 28px 4px; padding:20px 22px; background:var(--panel); border:1px solid var(--line);
@@ -957,6 +971,7 @@
 <div class="bottom-tabbar">
   <div class="tab" onclick="showScreen('screen-home')"><span class="tab-icon">🏠</span>홈</div>
   <div class="tab" onclick="goToHomeSearch()"><span class="tab-icon">🔍</span>검색</div>
+  <div class="tab" onclick="location.href='/games/'"><span class="tab-icon">🎮</span>게임</div>
   <div class="tab write" onclick="requireLoginThen('screen-write')"><span class="tab-icon">✎</span>글쓰기</div>
   <div class="tab" onclick="requireLoginThen('screen-mypage')"><span class="tab-icon">👤</span>마이페이지</div>
 </div>
@@ -973,7 +988,7 @@
     </div>
     <div class="search"><input type="text" id="home-search-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
-      <span class="auth-slot" data-auth></span>
+      <span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span>
       <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
       <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-write')">글쓰기</span>
     </div>
@@ -996,6 +1011,12 @@
     </div>
     <button class="home-cover-write" onclick="requireLoginThen('screen-write')">오늘 글쓰기</button>
   </div>
+
+  <a class="games-banner" href="/games/">
+    <span class="games-banner-icon">🎮</span>
+    <span class="games-banner-text"><b>쉼표 게임</b><small>잠깐 쉬어가며 즐기는 미니 게임 — 새 게임 「왁뿌 점프맵」</small></span>
+    <span class="games-banner-go">플레이 ▶</span>
+  </a>
 
   <div class="section-title">지금 인기 있는 글</div>
   <div id="best-post-tabs" class="best-post-tabs"></div>
@@ -1020,7 +1041,7 @@
     </div>
     <div class="search"><input type="text" id="board-search-input" placeholder="이 게시판에서 검색" onkeydown="if(event.key==='Enter')searchInBoard()"></div>
     <div class="nav-links">
-      <span class="auth-slot" data-auth></span>
+      <span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span>
       <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
     </div>
   </div>
@@ -1081,7 +1102,7 @@
     </div>
     <div class="search"><input type="text" id="search-result-input" placeholder="검색어를 입력하세요" onkeydown="if(event.key==='Enter')searchAllBoards()"></div>
     <div class="nav-links">
-      <span class="auth-slot" data-auth></span>
+      <span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span>
       <span class="nav-tabbar-dup" onclick="requireLoginThen('screen-mypage')">마이페이지</span>
     </div>
   </div>
@@ -1108,7 +1129,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-board')">취소</span></div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span><span onclick="showScreen('screen-board')">취소</span></div>
   </div>
   <div class="write-wrap">
     <h2>글쓰기</h2>
@@ -1147,7 +1168,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-board')">목록으로</span></div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span><span onclick="showScreen('screen-board')">목록으로</span></div>
   </div>
   <div class="post-detail">
     <h2 id="detail-title"></h2>
@@ -1241,7 +1262,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-home')">홈으로</span></div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span><span onclick="showScreen('screen-home')">홈으로</span></div>
   </div>
   <div class="write-wrap">
     <h2>마이페이지</h2>
@@ -1272,7 +1293,7 @@
       <div class="logo" onclick="showScreen('screen-home')">쉼<span>,</span>표</div>
       <div class="tagline">잠깐 멈춰가는 하루</div>
     </div>
-    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="showScreen('screen-home')">홈으로</span></div>
+    <div class="nav-links"><span class="auth-slot" data-auth></span><span onclick="location.href='/games/'">🎮 게임</span><span onclick="showScreen('screen-home')">홈으로</span></div>
   </div>
   <div class="write-wrap">
     <h2>운영자 · 신고 관리</h2>

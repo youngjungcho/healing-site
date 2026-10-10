@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XVVHZGMMPQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-XVVHZGMMPQ');
+</script>
+<title>쉼표 게임 — 잠깐 쉬어가는 미니 게임</title>
+<meta name="description" content="쉼표에서 만든 브라우저 미니 게임 모음. 설치 없이 바로 플레이하세요.">
+<meta property="og:title" content="쉼표 게임 — 잠깐 쉬어가는 미니 게임">
+<meta property="og:description" content="쉼표에서 만든 브라우저 미니 게임 모음. 설치 없이 바로 플레이하세요.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://swimpyonote.com/games/">
+<link rel="canonical" href="https://swimpyonote.com/games/">
+<script>
+  // 쉼표 본 사이트와 같은 테마 설정을 따름
+  (function(){
+    try{
+      const saved = localStorage.getItem('theme');
+      const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if(theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    }catch(e){ /* 무시 */ }
+  })();
+</script>
+<style>
+  :root{
+    --bg:#f6f1e6; --bg-stripe:#ecdfc2; --panel:#fffdf8; --panel-raised:#fbf6ea; --line:#e6dcc6;
+    --text:#3c3627; --sub:#a89b7c; --point:#c96f4a; --point2:#7d8f63; --point-text:#fffdf8;
+    --shadow:rgba(120,100,60,0.14); color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --bg:#201d19; --bg-stripe:#262220; --panel:#2a2622; --panel-raised:#322d27; --line:#443d34;
+    --text:#ece5d8; --sub:#8f8577; --point:#e08a63; --point2:#93a87a; --point-text:#201d19;
+    --shadow:rgba(0,0,0,0.35); color-scheme:dark;
+  }
+  *{ box-sizing:border-box; }
+  html{ background:var(--bg); }
+  body{
+    margin:0; color:var(--text); line-height:1.6;
+    background:repeating-linear-gradient(var(--bg) 0px, var(--bg) 27px, var(--bg-stripe) 28px), var(--bg);
+    font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+  }
+  .site{
+    max-width:1040px; margin:18px auto 48px; background:var(--panel); border:1px solid var(--line);
+    border-radius:8px; box-shadow:1px 3px 16px var(--shadow); overflow:hidden;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:18px 28px; border-bottom:1px solid var(--line);
+  }
+  .logo{ font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:28px; font-weight:800; color:var(--text); text-decoration:none; }
+  .logo span{ color:var(--point); }
+  .tagline{ font-size:12px; color:var(--sub); }
+  .nav-links{ display:flex; gap:14px; font-size:14px; }
+  .nav-links a{ color:var(--sub); text-decoration:none; }
+  .nav-links a:hover{ color:var(--point); }
+  .hero{ padding:26px 28px 6px; }
+  .hero h1{ margin:0 0 4px; font-family:"Nanum Myeongjo","Noto Serif KR",serif; font-size:24px; }
+  .hero p{ margin:0; color:var(--sub); font-size:14px; }
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; padding:20px 28px 32px;
+  }
+  .card{
+    display:flex; flex-direction:column; gap:8px; padding:18px; text-decoration:none; color:var(--text);
+    background:var(--panel-raised); border:1px solid var(--line); border-radius:4px 16px 16px 4px;
+    box-shadow:1px 3px 10px rgba(120,100,60,0.10); position:relative; transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .card::before{ content:""; position:absolute; left:-1px; top:14px; bottom:14px; width:3px; background:var(--point); border-radius:2px; }
+  .card:hover{ transform:translateY(-2px); box-shadow:2px 6px 16px var(--shadow); }
+  .card:focus-visible{ outline:3px solid var(--point); outline-offset:3px; }
+  .card .icon{ font-size:38px; line-height:1; }
+  .card h2{ margin:0; font-size:18px; }
+  .card p{ margin:0; font-size:13px; color:var(--sub); flex:1; }
+  .tags{ display:flex; gap:6px; flex-wrap:wrap; }
+  .tags span{ font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bg); border:1px solid var(--line); color:var(--sub); }
+  .play{ align-self:flex-start; margin-top:4px; padding:7px 16px; border-radius:999px; background:var(--point); color:var(--point-text); font-size:13px; font-weight:700; }
+  .empty{ padding:28px; color:var(--sub); }
+  @media (max-width:600px){
+    .site{ margin:0; border-radius:0; border-left:0; border-right:0; }
+    .topbar{ padding:14px 16px; }
+    .logo{ font-size:24px; }
+    .hero{ padding:20px 16px 4px; }
+    .grid{ padding:16px; grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="site">
+  <div class="topbar">
+    <div>
+      <a class="logo" href="/">쉼<span>,</span>표</a>
+      <div class="tagline">잠깐 멈춰가는 하루</div>
+    </div>
+    <nav class="nav-links"><a href="/">← 쉼표 홈</a></nav>
+  </div>
+  <div class="hero">
+    <h1>🎮 쉼표 게임</h1>
+    <p>잠깐 쉬어가며 즐기는 미니 게임. 설치 없이 바로 플레이할 수 있어요.</p>
+  </div>
+  <div class="grid" id="games"></div>
+</div>
+<script>
+  // games.json에 한 줄 추가하면 여기 카드가 자동으로 생겨요
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  fetch('/games/games.json', {cache:'no-cache'}).then(r => r.json()).then(list => {
+    const box = document.getElementById('games');
+    if(!list.length){ box.innerHTML = '<div class="empty">곧 게임이 올라와요.</div>'; return; }
+    list.slice().sort((a,b) => (b.added||'').localeCompare(a.added||'')).forEach(g => {
+      const a = document.createElement('a');
+      a.className = 'card'; a.href = '/games/' + encodeURIComponent(g.slug) + '/';
+      a.innerHTML = `<span class="icon">${esc(g.icon||'🎮')}</span><h2>${esc(g.title)}</h2><p>${esc(g.desc)}</p>`
+        + `<div class="tags">${(g.tags||[]).map(t => '<span>'+esc(t)+'</span>').join('')}</div><span class="play">플레이 ▶</span>`;
+      box.append(a);
+    });
+  }).catch(() => {
+    document.getElementById('games').innerHTML = '<div class="empty">게임 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>';
+  });
+</script>
+</body>
+</html>
