@@ -95,7 +95,7 @@ button{font:inherit}
 #charInfo{min-height:3em;color:var(--ink)}
 .char b{display:block;font-family:"Jua",sans-serif;font-size:14px;font-weight:400}
 .char small{display:block;font-size:11px;color:var(--soft);line-height:1.3}
-.touch{display:none}
+.touch{display:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}   /* 길게 눌러도 글자 선택·메뉴가 안 뜨게 */
 .touch.on{display:flex;align-items:center;gap:12px;padding:12px 4px 2px}
 .pausebtn{display:none;position:absolute;top:10px;right:10px;z-index:5;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.8);font-size:18px;cursor:pointer}
 .pad{position:static;width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(255,255,255,.35);color:#2A2140;font-family:"Jua",sans-serif;font-size:26px;touch-action:none}
@@ -1366,6 +1366,8 @@ function bindPad(id,key){
   const up=()=>{ touchState[key]=false; };
   el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); el.addEventListener('lostpointercapture',up);
 }
+// 길게 누를 때 뜨는 선택·메뉴 막기
+for(const ev of ['contextmenu','selectstart']) $('touch').addEventListener(ev, e=>e.preventDefault());
 bindPad('btnL','L'); bindPad('btnR','R'); bindPad('btnJ','J');
 cv.addEventListener('pointerdown', () => { initAudio(); cv.focus(); });
 const held = arr => arr.some(k=>keys.has(k));
