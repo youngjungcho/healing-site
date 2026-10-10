@@ -466,6 +466,18 @@ function findBannedWord(text) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 app.use(express.json());
+// 게임 페이지(/games/<slug>/)에는 공용 댓글창(/games/comments.js)을 서버가 자동으로 붙여줌.
+// 게임 파일을 다시 복사해 와도 댓글창이 사라지지 않게 하려는 것. games.json에 있는 게임만 대상.
+app.get(/^\/games\/([a-z0-9_-]+)\/(?:index\.html)?$/i, (req, res, next) => {
+  const slug = req.params[0];
+  if (!isKnownGame(slug)) return next();
+  let html;
+  try { html = fs.readFileSync(path.join(__dirname, 'public', 'games', slug, 'index.html'), 'utf8'); } catch (e) { return next(); }
+  if (!html.includes('/games/comments.js') && html.includes('</body>')) {
+    html = html.replace('</body>', '<script src="/games/comments.js" defer></script>\n</body>');
+  }
+  res.set('Cache-Control', 'no-cache').type('html').send(html);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 // express-session 기본 저장소(MemoryStore)는 "프로덕션에 적합하지 않다"는 경고가 뜨고
 // 실제로 서버 재시작 시 모든 로그인이 풀리며 트래픽이 늘면 메모리 누수 위험도 있음.
@@ -2082,6 +2094,88 @@ app.delete('/api/admin/games/:slug/scores/:id', requireAdmin, (req, res) => {
   all[slug] = (all[slug] || []).filter(r => r.id !== id);
   if (all[slug].length === before) return res.status(404).json({ ok: false, message: '해당 기록이 없어요.' });
   saveScores(all);
+  res.json({ ok: true });
+});
+
+// ---- 게임 댓글 (로그인 없이 닉네임만, 로그인했으면 계정 닉네임으로 표시) ----
+// data/game-comments.json에 게임별 최신순으로 최대 GAME_COMMENT_KEEP개 보관.
+const GAME_COMMENTS_FILE = path.join(DATA_DIR, 'game-comments.json');
+const GAME_COMMENT_KEEP = 500;
+const GAME_COMMENT_SHOW = 50;
+const gameCommentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !IS_PRODUCTION,
+  message: rateLimitJson('댓글을 너무 많이 남겼어요. 잠시 후 다시 시도해주세요.'),
+});
+function loadGameComments() {
+  try { return JSON.parse(fs.readFileSync(GAME_COMMENTS_FILE, 'utf8')); } catch (e) { return {}; }
+}
+function saveGameComments(all) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(GAME_COMMENTS_FILE, JSON.stringify(all, null, 2), 'utf8');
+}
+const publicGameComment = c => ({ id: c.id, name: c.name, body: c.body, member: !!c.writerId, date: c.date });
+
+app.get('/api/games/:slug/comments', (req, res) => {
+  const { slug } = req.params;
+  if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
+  const list = loadGameComments()[slug] || [];
+  res.json({ ok: true, total: list.length, comments: list.slice(0, GAME_COMMENT_SHOW).map(publicGameComment) });
+});
+
+app.post('/api/games/:slug/comments', gameCommentLimiter, (req, res) => {
+  const { slug } = req.params;
+  if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
+  const body = String((req.body || {}).body || '').trim();
+  if (!body) return res.status(400).json({ ok: false, message: '댓글 내용을 입력해주세요.' });
+  if (body.length > 300) return res.status(400).json({ ok: false, message: '댓글은 300자까지 적을 수 있어요.' });
+
+  let name = String((req.body || {}).name || '').trim().replace(/\s+/g, ' ');
+  let writerId = null;
+  if (req.session.userId) {
+    const user = loadUsers().find(u => u.id === req.session.userId);
+    if (user) {
+      const msg = sanctionMessage(user);
+      if (msg) return res.status(403).json({ ok: false, message: msg });
+      name = user.nickname;
+      writerId = user.id;
+    }
+  }
+  if (name.length < 2 || name.length > 10) return res.status(400).json({ ok: false, message: '닉네임은 2~10자로 적어주세요.' });
+  if (findBannedWord(name) || findBannedWord(body)) {
+    return res.status(400).json({ ok: false, message: '사용할 수 없는 표현이 들어 있어요. 다정한 말로 다시 적어주세요.' });
+  }
+
+  const all = loadGameComments();
+  const list = all[slug] || [];
+  const now = Date.now();
+  if (list.some(c => c.ip === req.ip && c.body === body && now - new Date(c.date).getTime() < 60 * 1000)) {
+    return res.status(429).json({ ok: false, message: '같은 내용을 방금 남겼어요.' });
+  }
+  const rec = { id: now.toString(36) + Math.random().toString(36).slice(2, 6), name, body, writerId,
+    date: new Date(now).toISOString(), ip: req.ip };
+  list.unshift(rec);
+  all[slug] = list.slice(0, GAME_COMMENT_KEEP);
+  saveGameComments(all);
+  res.json({ ok: true, comment: publicGameComment(rec), total: all[slug].length });
+});
+
+// 운영자: 게임 댓글 보기 / 지우기 (IP는 뒷자리를 가려서)
+app.get('/api/admin/games/:slug/comments', requireAdmin, (req, res) => {
+  const list = (loadGameComments()[req.params.slug] || []).map(c => ({ ...publicGameComment(c), ip: maskIp(c.ip) }));
+  res.json({ ok: true, comments: list });
+});
+
+app.delete('/api/admin/games/:slug/comments/:id', requireAdmin, (req, res) => {
+  const { slug, id } = req.params;
+  const all = loadGameComments();
+  const before = (all[slug] || []).length;
+  all[slug] = (all[slug] || []).filter(c => c.id !== id);
+  if (all[slug].length === before) return res.status(404).json({ ok: false, message: '해당 댓글이 없어요.' });
+  saveGameComments(all);
   res.json({ ok: true });
 });
 
