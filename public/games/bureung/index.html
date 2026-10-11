@@ -175,7 +175,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 
     <div class="overlay" id="menuOv">
       <h2>🚗 부릉부릉 고속도로</h2>
-      <p>차 사이를 <b>아슬아슬</b>하게 지나가면 부스터가 차요.<br>부스터를 켜면 앞차를 튕겨내며 질주! 연료통 ⛽ 도 잊지 마세요.</p>
+      <p>차 사이를 <b>아슬아슬</b>하게 지나가면 부스터가 차요.<br>부스터를 켜면 앞차를 튕겨내며 질주! 부딪히면 연료가 줄어드니<br>연료통 ⛽ 을 챙겨서 최대한 멀리 가 보세요.</p>
       <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 핸들</span><span><kbd>Space</kbd> 부스터</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
       <div class="curcar" id="curCar"></div>
       <div class="line" id="boostLine" hidden></div>
@@ -497,11 +497,11 @@ function resize(){
 addEventListener('resize', resize);
 
 /* ---------------- 게임 상태 ---------------- */
-let state='menu';   // menu | play | out(연료 바닥) | crash | over
+let state='menu';   // menu | play | out(연료 바닥) | over
 let paused=false;
 let P=null, cars=[], items=[], deco=[], fx=[], floats=[];
 let dist, speed, scoreF, coinsRun, nearCnt, smashCnt, combo, maxCombo, comboT, gauge, boostT, graceT, fuel, tank, elapsed;
-let spawnAcc, nextCoinAt, nextFuelAt, nextBoxAt, decoAccL, decoAccR, themeIdx, crashT, shakeT;
+let spawnAcc, nextCoinAt, nextFuelAt, nextBoxAt, decoAccL, decoAccR, themeIdx, hitT, hits, shakeT;
 let magnetT, giantT, shields, cloudUsed, scoreMul, usedBoosts, petT, pet, kmStart, nextUnlock;
 let bestScore = store.get('best', 0);
 let runs = {best: store.get('runsBest', null) || store.get('runs', []), recent: store.get('runsRecent', [])};
@@ -524,7 +524,7 @@ function reset(){
   cars=[]; items=[]; deco=[]; fx=[]; floats=[];
   dist=0; speed=180; scoreF=0; coinsRun=0; nearCnt=0; smashCnt=0; combo=0; maxCombo=0; comboT=0;
   gauge=0; boostT=0; graceT=0; tank=100*(carId==='taxi'?1.25:carId==='van'?1.1:1); fuel=tank; elapsed=0;
-  spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; crashT=0; shakeT=0;
+  spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; hitT=0; hits=0; shakeT=0;
   magnetT=0; giantT=0; shields=carId==='dump'?1:0; cloudUsed=false; scoreMul=1; usedBoosts=[]; petT=0;
   pet={x:P.x-30, y:P.y-20}; kmStart=bestKm;
   nextUnlock=CARS.filter(c=>!unlocked(c)).sort((a,b)=>a.at-b.at)[0]||null;
@@ -656,13 +656,12 @@ function update(dt){
   if(running()) elapsed+=dt;
   const playing = state==='play';
   // 속도
-  if(state==='crash'){ speed=Math.max(0, speed-900*dt); crashT-=dt; P.rot+=dt*9*Math.max(.2,crashT); if(crashT<=0) finish('crash'); }
-  else if(state==='out'){ speed=Math.max(0, speed-170*dt); if(speed<=1) finish('fuel'); }
+  if(state==='out'){ speed=Math.max(0, speed-170*dt); if(speed<=1) finish('fuel'); }
   else { const t=baseSpeed()*(boostT>0?1.6:1); speed += (t-speed)*Math.min(1, dt*(boostT>0?3:1.2)); }
   const dy=speed*dt;
   const m0=meters();
   dist+=dy;
-  if(state!=='crash') addScore(dy/10);
+  addScore(dy/10);
 
   // 연료
   if(playing && boostT<=0){
@@ -740,16 +739,17 @@ function update(dt){
     const gx=Math.abs(c.x-P.x)-(c.w+pw)/2, gy=Math.abs(c.y-P.y)-(c.h+ph)/2;
     if(gx<-3 && gy<-3){
       if(tough()) smash(c);
+      else if(hitT>0){}   // 방금 부딪혀서 잠깐 무적: 그냥 지나감
       else if(shields>0 || (petId==='cloud' && !cloudUsed)){
         if(shields>0) shields--; else { cloudUsed=true; petSay('☁️'); }
         graceT=1; smash(c); play('shield'); toast('보호막!', 800);
       }
-      else { crash(c); return; }
+      else hit(c);
     }else if(gy<0){
       c.minGap=Math.min(c.minGap, gx);
     }else if(!c.passed && c.y-c.h/2 > P.y+ph/2){
       c.passed=true;
-      if(c.minGap<13 && playing && !tough()) nearMiss(c);   // 무적일 땐 아슬아슬로 안 침
+      if(c.minGap<13 && playing && !tough() && hitT<=0) nearMiss(c);   // 무적일 땐 아슬아슬로 안 침
     }
   }
   cars=cars.filter(c=> c.fly ? c.alpha>0 : (c.y<LH+140 && c.y>-420));
@@ -778,7 +778,7 @@ function update(dt){
   if(comboT>0){ comboT-=dt; if(comboT<=0){ if(combo>=5 && playing) toast('연속 끊김', 700); combo=0; } }
   if(boostT>0){ boostT-=dt; if(boostT<=0){ boostT=0; graceT=1; } }
   else if(graceT>0) graceT=Math.max(0, graceT-dt);
-  magnetT=Math.max(0, magnetT-dt); giantT=Math.max(0, giantT-dt);
+  hitT=Math.max(0, hitT-dt); magnetT=Math.max(0, magnetT-dt); giantT=Math.max(0, giantT-dt);
   if(shakeT>0) shakeT-=dt;
   engineSet(speed, running());
 }
@@ -818,10 +818,15 @@ function smash(c, col='#FFB13B'){
   smashCnt++; mProg('smash',1); const pts=addScore(150); play('smash'); shakeT=.18; burst(c.x,c.y,col,14,220);
   float(c.x, c.y, '+'+pts, col, 18);
 }
-function crash(c){
-  state='crash'; crashT=1.1; shakeT=.45; play('crash');
-  burst(P.x, P.y-P.h/2, '#FFFFFF', 18, 240); burst(P.x, P.y-P.h/2, '#FFB13B', 14, 200);
-  c.spd=speed*.4;
+// 부딪히면 끝나지 않고 연료가 20% 줄고, 1.5초 동안 무적(깜빡임). 연료가 바닥나면 거기서 끝
+const HIT_FUEL=.2, HIT_INV=1.5;
+function hit(c){
+  hits++; hitT=HIT_INV; combo=0; comboT=0; shakeT=.4; play('crash');
+  fuel=Math.max(0, fuel-tank*HIT_FUEL);
+  burst((c.x+P.x)/2, (c.y+P.y)/2, '#FFFFFF', 14, 220); burst((c.x+P.x)/2, (c.y+P.y)/2, '#FFB13B', 10, 180);
+  float(P.x, P.y-P.h/2-14, '쾅! 연료 −20%', '#FF8A80', 18);
+  c.x += (c.x<P.x?-1:1)*8; c.spd=Math.max(c.spd, speed*.9);   // 부딪힌 차는 옆으로 살짝 밀리고 같이 달리다 멀어짐
+  if(fuel<=0 && state==='play'){ state='out'; toast('⛽ 연료가 바닥났어요…', 1800); }
 }
 function updatePet(dt){
   if(petId==='none' || !P) return;
@@ -968,7 +973,7 @@ function draw(){
   // 내 차
   if(P){
     ctx.save(); ctx.translate(P.x,P.y); ctx.rotate(P.rot); ctx.scale(P.sc,P.sc);
-    if(graceT>0 && Math.floor(now*12)%2===0) ctx.globalAlpha=.45;
+    if((graceT>0||hitT>0) && Math.floor(now*12)%2===0) ctx.globalAlpha=.45;
     if(boostT>0){
       ctx.fillStyle='rgba(255,170,60,.28)'; ctx.beginPath(); ctx.ellipse(0,0,P.w*.95,P.h*.75,0,0,Math.PI*2); ctx.fill();
       const fl=8+Math.random()*10, grd=ctx.createLinearGradient(0,P.h/2,0,P.h/2+fl+8); grd.addColorStop(0,'#FFF3A0'); grd.addColorStop(.4,'#FF9A3C'); grd.addColorStop(1,'rgba(255,80,80,0)');
@@ -1034,7 +1039,7 @@ function hud(){
 let last=0;
 function frame(t){
   const dt=Math.min(.05, (t-last)/1000||0); last=t;
-  if(!paused && (running()||state==='crash')){
+  if(!paused && running()){
     update(dt);
     if(++hudN%3===0 || state!=='play') hud();
   }
@@ -1099,11 +1104,11 @@ function finish(reason){
     runs.recent.unshift(lastRun); runs.recent=runs.recent.slice(0,10);
     store.set('runsBest', runs.best); store.set('runsRecent', runs.recent);
   }
-  track('game_over', {reason, score, km:lastRun.km, time_sec:Math.round(elapsed), car:carId, pet:petId, near_miss:nearCnt});
+  track('game_over', {reason, score, km:lastRun.km, time_sec:Math.round(elapsed), car:carId, pet:petId, near_miss:nearCnt, hits});
 
   setTimeout(()=>{
     setPlayingUi(false);
-    $('overTitle').textContent = reason==='crash' ? '쾅! 💥' : reason==='fuel' ? '연료가 바닥났어요 ⛽' : '여기까지!';
+    $('overTitle').textContent = reason==='fuel' ? '연료가 바닥났어요 ⛽' : '여기까지!';
     $('rScore').textContent=score.toLocaleString('ko-KR');
     $('rDist').textContent=km.toFixed(2)+'km';
     $('rCoins').textContent='+'+coinsRun;
