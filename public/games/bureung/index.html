@@ -369,15 +369,15 @@ const saveWallet = () => store.set('coins', wallet);
 // at: 한 판에 이 거리(km)를 처음 달리면 해금. 능력은 아래 함수들(CAR_*)에서 차 id로 확인
 const CARS = [
   {id:'mini',   name:'동글이',         at:0,   color:'#7CCB7E', w:28, h:48, desc:'능력 없음',          long:'처음 받은 귀여운 경차예요. 특별한 능력은 없어요.'},
-  {id:'taxi',   name:'노랑 택시',      at:.5,  color:'#FFD23F', w:28, h:48, desc:'연료통 +25%',        long:'연료통이 25% 커서 연료가 늦게 바닥나요.'},
-  {id:'van',    name:'캠핑밴',         at:1,   color:'#7EC8E3', w:30, h:54, desc:'연료 소모 −20%',     long:'연료를 20% 덜 써요. 덩치가 커서 핸들은 조금 무거워요.'},
-  {id:'tow',    name:'견인차',         at:1.5, color:'#F4A261', w:30, h:56, desc:'항상 약한 코인 자석', long:'가까이 있는 코인이 항상 끌려와요. 자석 아이템을 먹으면 더 넓어져요.'},
-  {id:'sport',  name:'빨강 스포츠카',  at:2,   color:'#F2545B', w:27, h:50, desc:'핸들 +30%',          long:'핸들이 30% 날렵해서 차 사이를 쏙쏙 빠져나가요.'},
-  {id:'ice',    name:'아이스크림 트럭',at:3,   color:'#FFB6D9', w:30, h:52, desc:'코인 +50%',          long:'코인·금코인으로 받는 코인이 모두 50% 늘어나요.'},
-  {id:'fire',   name:'소방차',         at:4,   color:'#E63946', w:30, h:58, desc:'부스터 충전 1.5배',  long:'아슬아슬로 부스터 게이지가 1.5배 빨리 차요.'},
-  {id:'dump',   name:'덤프트럭',       at:5,   color:'#F2C14E', w:32, h:58, desc:'판마다 보호막 1번',  long:'판마다 한 번 충돌을 보호막으로 막아요. 막은 뒤 1초 동안 무적이에요.'},
-  {id:'bus',    name:'통통 버스',      at:6.5, color:'#6CC3A0', w:32, h:66, desc:'출발 때 거대화 4초',  long:'출발하면 4초 동안 거대화해요. 거대화 아이템은 2배 오래 가요.'},
-  {id:'rocket', name:'무지개 로켓카',  at:8,   color:'#B79CFF', w:28, h:50, desc:'부스터 +1.5초, 아슬아슬 점수 +30%', long:'부스터가 1.5초 더 오래 가고, 아슬아슬 점수를 30% 더 받아요.'},
+  {id:'taxi',   name:'노랑 택시',      at:0.3,  color:'#FFD23F', w:28, h:48, desc:'연료통 +25%',        long:'연료통이 25% 커서 연료가 늦게 바닥나요.'},
+  {id:'van',    name:'캠핑밴',         at:0.6,   color:'#7EC8E3', w:30, h:54, desc:'연료 소모 −20%',     long:'연료를 20% 덜 써요. 덩치가 커서 핸들은 조금 무거워요.'},
+  {id:'tow',    name:'견인차',         at:1, color:'#F4A261', w:30, h:56, desc:'항상 약한 코인 자석', long:'가까이 있는 코인이 항상 끌려와요. 자석 아이템을 먹으면 더 넓어져요.'},
+  {id:'sport',  name:'빨강 스포츠카',  at:1.4,   color:'#F2545B', w:27, h:50, desc:'핸들 +30%',          long:'핸들이 30% 날렵해서 차 사이를 쏙쏙 빠져나가요.'},
+  {id:'ice',    name:'아이스크림 트럭',at:1.8,   color:'#FFB6D9', w:30, h:52, desc:'코인 +50%',          long:'코인·금코인으로 받는 코인이 모두 50% 늘어나요.'},
+  {id:'fire',   name:'소방차',         at:2.4,   color:'#E63946', w:30, h:58, desc:'부스터 충전 1.5배',  long:'아슬아슬로 부스터 게이지가 1.5배 빨리 차요.'},
+  {id:'dump',   name:'덤프트럭',       at:3,   color:'#F2C14E', w:32, h:58, desc:'판마다 보호막 1번',  long:'판마다 한 번 충돌을 보호막으로 막아요. 막은 뒤 1초 동안 무적이에요.'},
+  {id:'bus',    name:'통통 버스',      at:4, color:'#6CC3A0', w:32, h:66, desc:'출발 때 거대화 4초',  long:'출발하면 4초 동안 거대화해요. 거대화 아이템은 2배 오래 가요.'},
+  {id:'rocket', name:'무지개 로켓카',  at:5,   color:'#B79CFF', w:28, h:50, desc:'부스터 +1.5초, 아슬아슬 점수 +30%', long:'부스터가 1.5초 더 오래 가고, 아슬아슬 점수를 30% 더 받아요.'},
 ];
 let bestKm = store.get('bestKm', null);
 if(bestKm===null) bestKm = Math.max(0, ...store.get('runs', []).map(r=>r.km||0));   // 예전 버전 기록에서 최장 거리를 이어받음
@@ -524,7 +524,7 @@ function reset(){
   cars=[]; items=[]; deco=[]; fx=[]; floats=[];
   dist=0; speed=180; scoreF=0; coinsRun=0; nearCnt=0; smashCnt=0; combo=0; maxCombo=0; comboT=0;
   gauge=0; boostT=0; graceT=0; tank=100*(carId==='taxi'?1.25:carId==='van'?1.1:1); fuel=tank; elapsed=0;
-  spawnAcc=0; nextCoinAt=60; nextFuelAt=550; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; crashT=0; shakeT=0;
+  spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; crashT=0; shakeT=0;
   magnetT=0; giantT=0; shields=carId==='dump'?1:0; cloudUsed=false; scoreMul=1; usedBoosts=[]; petT=0;
   pet={x:P.x-30, y:P.y-20}; kmStart=bestKm;
   nextUnlock=CARS.filter(c=>!unlocked(c)).sort((a,b)=>a.at-b.at)[0]||null;
@@ -704,7 +704,7 @@ function update(dt){
     const gap = 310 - 150*Math.min(1, meters()/6000);
     while(spawnAcc>=gap){ spawnAcc-=gap; spawnRow(); }
     if(meters()>=nextCoinAt){ spawnCoins(); nextCoinAt=meters()+rand(130,220); }
-    if(meters()>=nextFuelAt){ spawnOne('fuel'); nextFuelAt=meters()+rand(560,760); }
+    if(meters()>=nextFuelAt){ spawnOne('fuel'); nextFuelAt=meters()+rand(420,580); }
     if(meters()>=nextBoxAt){ spawnOne('box'); nextBoxAt=meters()+rand(450,700); }
   }
   decoAccL+=dy; decoAccR+=dy;
