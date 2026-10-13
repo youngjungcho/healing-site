@@ -260,6 +260,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
+        <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
         <button class="tab" role="tab" id="tabReg" aria-selected="false">단골</button>
       </div>
@@ -1693,7 +1694,7 @@ function finish(reason){
     $('rWallet').textContent='보유 🪙 '+wallet.toLocaleString('ko-KR');
     $('newBest').hidden=!isBest;
     const ul=$('rUnlock'); ul.hidden=!newly.length; ul.textContent='🔓 새 차 해금: '+newly.map(c=>c.name).join(', ')+' — 차고에서 골라 보세요';
-    shareMsg(''); lastGlobalRank=0;
+    shareMsg(''); lastGlobalRank=0; lastWeekRank=0;
     showOnly('overOv'); $('againBtn').focus();
     offerGlobal(reason);
   }, reason==='quit' ? 0 : 500);
@@ -1843,9 +1844,10 @@ const SCORE_API='/api/games/baedal/scores';
 let myScoreIds=store.get('myscores', []);
 let rankTab='best';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+// period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
+async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
 function renderRank(){
-  ['best','recent','global','reg'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  ['best','recent','week','global','reg'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
   const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
   if(rankTab==='reg'){
     const list=HOMES.filter(h=>regs[h.name]).sort((a,b)=>regs[b.name]-regs[a.name]);
@@ -1857,7 +1859,7 @@ function renderRank(){
     if(!list.length) box.insertAdjacentHTML('beforeend', '<small style="color:var(--soft);text-align:center">아직 배달한 집이 없어요.</small>');
     return;
   }
-  if(rankTab!=='global'){
+  if(rankTab!=='global' && rankTab!=='week'){
     const list=runs[rankTab];
     if(!list.length) return msg('아직 기록이 없어요. 한 판 배달해 보세요!');
     box.innerHTML='';
@@ -1870,15 +1872,16 @@ function renderRank(){
   }
   if(!ONLINE) return msg('전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.');
   msg('불러오는 중…');
-  fetchGlobal().then(list=>{
-    if(rankTab!=='global') return;
-    if(!list.length) return msg('아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
+  const tab=rankTab;
+  fetchGlobal(tab==='week'?'week':'').then(list=>{
+    if(rankTab!==tab) return;
+    if(!list.length) return msg(tab==='week' ? '이번 주에는 아직 기록이 없어요. 이번 주 1위가 되어 보세요!' : '아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
     box.innerHTML='';
     list.forEach((r,i)=>{
       const c=CARS.find(x=>x.id===r.char), d=new Date(r.date);
       box.insertAdjacentHTML('beforeend', `<div class="rk${myScoreIds.includes(r.id)?' me':''}"><span class="md">${['🥇','🥈','🥉'][i]||(i+1)}</span><b>${esc(r.name)}</b><small>${r.score.toLocaleString('ko-KR')}점</small><small>${r.stage}건${c?' · '+esc(c.name):''}</small><small>${d.getMonth()+1}/${d.getDate()}</small></div>`);
     });
-  }).catch(()=>{ if(rankTab==='global') msg('순위를 불러오지 못했어요.'); });
+  }).catch(()=>{ if(rankTab===tab) msg('순위를 불러오지 못했어요.'); });
 }
 function openRank(){ showOnly('rankOv'); rankTab='best'; renderRank(); $('rankOk').focus(); }
 function closeRank(){ backToMenu(); }
@@ -1886,22 +1889,23 @@ $('rankBtn').addEventListener('click', openRank);
 $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
 $('tabReg').addEventListener('click', ()=>{ rankTab='reg'; renderRank(); });
 
 /* ---------------- 전체 순위 올리기 ---------------- */
 // 서버에는 배달 건수를 stage(to)로 보냄. 1건 이상 배달한 판만 올릴 수 있음
-let gsubRun=null, lastGlobalRank=0;
+let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
 async function offerGlobal(reason){
   const box=$('gsub'); box.hidden=true;
   if(!ONLINE || reason==='quit' || !lastRun || lastRun.score<=0 || lastRun.cnt<1) return;
   const run={score:lastRun.score, from:1, to:Math.min(999, lastRun.cnt), time:lastRun.time, char:lastRun.car};
   gsubRun=run;
-  let list; try{ list=await fetchGlobal(); }catch(e){ return; }
+  let list, week; try{ [list, week]=await Promise.all([fetchGlobal(), fetchGlobal('week')]); }catch(e){ return; }
   if(gsubRun!==run || state!=='over') return;
-  const pos=list.filter(r=>r.score>=run.score).length+1;
-  if(pos>20) return;
-  $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
+  const pos=list.filter(r=>r.score>=run.score).length+1, wpos=week.filter(r=>r.score>=run.score).length+1;
+  if(pos>20 && wpos>20) return;   // 전체나 이번 주 둘 중 하나라도 20위 안이면 올릴 수 있게
+  $('gsubTitle').textContent = pos<=20 ? '🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
   try{ $('gsubName').value=localStorage.getItem(KEY+'nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}
   $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
   box.hidden=false;
@@ -1918,8 +1922,10 @@ $('gsubBtn').addEventListener('click', async ()=>{
     try{ localStorage.setItem(KEY+'nick', name); }catch(e){}   // 공용 댓글창이 이 키(<slug>-side-nick)를 읽음
     myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); store.set('myscores', myScoreIds);
     if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
-    track('leaderboard_submit', {rank:d.rank||0, score:run.score});
-    $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
+    track('leaderboard_submit', {rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
+    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
+      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
     $('gsubName').disabled=true; gsubRun=null; play('win');
   }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
 });
@@ -1932,7 +1938,7 @@ $('shareBtn').addEventListener('click', async ()=>{
   if(!lastRun) return;
   let text='📦 빵빵 동네배달에서 '+lastRun.cnt+'건 배달, '+lastRun.score.toLocaleString('ko-KR')+'점!';
   if(lastRun.streak>=3) text+=' (★★★ '+lastRun.streak+'연속)';
-  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!';
+  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) text+='\n🏆 이번 주 '+lastWeekRank+'위!';
   text+='\n나보다 빨리 배달할 수 있어?';
   if(navigator.share){
     try{ await navigator.share({title:'빵빵 동네배달', text, url:SHARE_URL}); track('share', {method:'web_share'}); return; }
