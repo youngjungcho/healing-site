@@ -105,7 +105,7 @@ button{font:inherit}
 .gcar b{font-family:"Jua",sans-serif;font-weight:400;font-size:14px}
 .gcar small{color:var(--soft);font-size:11px;line-height:1.3}
 #carInfo{min-height:3em;color:var(--ink);font-size:14px}
-.tabs{display:flex;gap:6px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .tab{font-family:"Jua",sans-serif;font-size:15px;border:1.5px solid var(--line);background:var(--tray);color:var(--ink);border-radius:999px;padding:6px 16px;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .shopList{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(100%,520px)}
@@ -261,6 +261,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
+        <button class="tab" role="tab" id="tabReg" aria-selected="false">단골</button>
       </div>
       <div class="mlist" id="rankList"></div>
       <button class="go" id="rankOk">닫기</button>
@@ -452,6 +453,10 @@ const MISSIONS = [
   {id:'km',      name:'동네 달리기',        goal:3,  unit:'km', reward:40},
   {id:'cat',     name:'고양이에게 양보하기', goal:3, unit:'번', reward:40},
   {id:'play',    name:'끝까지 배달하기',    goal:3,  unit:'판', reward:30},
+  {id:'hot',     name:'따끈할 때 ★★★ 배달', goal:3,  unit:'번', reward:50},
+  {id:'fragile', name:'조심조심 짐 멀쩡히 배달', goal:3, unit:'번', reward:50},
+  {id:'multi',   name:'묶음 배달 끝내기',   goal:2,  unit:'번', reward:50},
+  {id:'regular', name:'새 단골 만들기',     goal:1,  unit:'집', reward:60},
 ];
 const M_BONUS=100;
 const dayKey = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -499,12 +504,29 @@ const mixC = (a,b,t) => { const A=hex2(a), B=hex2(b); return 'rgb('+A.map((v,i)=
 const NB=6, CELL=280, RW=80, BS=200, SW=12, LS=(BS-2*SW)/2, WORLD=NB*CELL+RW, LANE=18;
 const rc = i => i*CELL + RW/2;   // i번째 도로 가운데 좌표
 const SHOP_TYPES=[
-  {icon:'🍞', name:'빵집', item:'빵', color:'#F6D7A7'}, {icon:'🍕', name:'피자집', item:'피자', color:'#F7B7A3'},
-  {icon:'💐', name:'꽃집', item:'꽃다발', color:'#F9C9DC'}, {icon:'🍗', name:'치킨집', item:'치킨', color:'#F8D47A'},
-  {icon:'📚', name:'책방', item:'책', color:'#BFD7EA'}, {icon:'🍰', name:'케이크집', item:'케이크', color:'#F4C2C2'},
-  {icon:'🍎', name:'과일가게', item:'과일', color:'#C6E5B1'}, {icon:'☕', name:'카페', item:'커피', color:'#D9C2A7'},
+  {icon:'🍞', name:'빵집', item:'빵', color:'#F6D7A7'}, {icon:'🍕', name:'피자집', item:'피자', color:'#F7B7A3', kind:'hot'},
+  {icon:'💐', name:'꽃집', item:'꽃다발', color:'#F9C9DC', kind:'fragile'}, {icon:'🍗', name:'치킨집', item:'치킨', color:'#F8D47A', kind:'hot'},
+  {icon:'📚', name:'책방', item:'책', color:'#BFD7EA'}, {icon:'🍰', name:'케이크집', item:'케이크', color:'#F4C2C2', kind:'fragile'},
+  {icon:'🍎', name:'과일가게', item:'과일', color:'#C6E5B1'}, {icon:'☕', name:'카페', item:'커피', color:'#D9C2A7', kind:'hot'},
 ];
-const HOME_NAMES=['곰돌이네','토끼네','다람쥐네','할머니댁','펭귄네','고양이네','여우네','부엉이네','오리네','강아지네','판다네','햄스터네','고슴도치네','사슴네','양이네','너구리네','코알라네','수달네','참새네','거북이네','기린네','하마네'];
+// 주문 종류: 따끈한 건 ★ 기준이 빡빡한 대신 보상이 크고, 조심조심은 부딪히면 짐 피해 2배 (짐이 70% 넘게 남으면 보상 큼)
+const KINDS = {
+  normal:  {tag:'',              k3:.72, k2:1.1,  mul:1,   tip:1},
+  hot:     {tag:'🔥 식기 전에!',  k3:.6,  k2:.95,  mul:1.4, tip:1.5},
+  fragile: {tag:'🥚 조심조심!',   k3:.72, k2:1.1,  mul:1.4, tip:1.5, hurt:2},
+};
+const HOMES=[
+  {name:'곰돌이네',icon:'🐻'},{name:'토끼네',icon:'🐰'},{name:'다람쥐네',icon:'🐿️'},{name:'할머니댁',icon:'👵'},{name:'펭귄네',icon:'🐧'},
+  {name:'고양이네',icon:'🐱'},{name:'여우네',icon:'🦊'},{name:'부엉이네',icon:'🦉'},{name:'오리네',icon:'🦆'},{name:'강아지네',icon:'🐶'},
+  {name:'판다네',icon:'🐼'},{name:'햄스터네',icon:'🐹'},{name:'고슴도치네',icon:'🦔'},{name:'사슴네',icon:'🦌'},{name:'양이네',icon:'🐑'},
+  {name:'너구리네',icon:'🦝'},{name:'코알라네',icon:'🐨'},{name:'수달네',icon:'🦦'},{name:'참새네',icon:'🐦'},{name:'거북이네',icon:'🐢'},
+  {name:'기린네',icon:'🦒'},{name:'하마네',icon:'🦛'},
+];
+/* ---------------- 단골 (판이 바뀌어도 집 이름별로 배달 횟수를 쌓음) ---------------- */
+let regs = store.get('regs', {});
+const REG_AT=[3,8];   // 3번이면 단골, 8번이면 찐단골
+const regLevel = name => (regs[name]||0)>=REG_AT[1] ? 2 : (regs[name]||0)>=REG_AT[0] ? 1 : 0;
+const REG_NAME=['', '💕 단골', '💖 찐단골'];
 const ROOFS=['#E07A5F','#5B8DB8','#8E7DBE','#E9A23B','#6CA67A','#D96C8A','#7A8CA8'];
 let blocks=[], lots=[], shops=[], homes=[], borderTrees=[];
 
@@ -539,9 +561,11 @@ function genWorld(){
     if(usedB.has(L.b)) continue;
     usedB.add(L.b); L.kind='shop'; L.shop=types[shops.length]; shops.push(L);
   }
-  const names=shuffle(HOME_NAMES.slice());
+  const names=shuffle(HOMES.slice());
   let no=1;
-  for(const L of lots) if(L.kind==='house'){ L.no=no; L.name=names[(no-1)%names.length]; no++; homes.push(L); }
+  for(const L of lots) if(L.kind==='house'){ const h=names[(no-1)%names.length]; L.no=no; L.name=h.name; L.icon=h.icon; no++; homes.push(L); }
+  // 손님이 나와 서는 현관 앞
+  for(const L of lots){ const [fx,fy]={L:[-1,0],R:[1,0],T:[0,-1],B:[0,1]}[L.side]; L.dx=L.x+LS/2+fx*40; L.dy=L.y+LS/2+fy*40; }
   // 동네 바깥 나무
   for(let k=0;k<160;k++){
     const t=Math.random()*4, s=rand(-200, WORLD+200), o=rand(20,200);
@@ -560,7 +584,7 @@ function spotAway(lo, hi, margin=30){
   for(let t=0;t<40;t++){
     const s=roadSpot(margin), d=P ? Math.hypot(s.x-P.x, s.y-P.y) : 999;
     if(d<lo || d>hi) continue;
-    if(order && (zdist(s, order.shop)<50 || zdist(s, order.home)<50)) continue;
+    if(order && [order.shop, ...order.stops].some(z=>zdist(s, z)<50)) continue;
     return s;
   }
   return roadSpot(margin);
@@ -604,7 +628,7 @@ function reset(){
   genWorld();
   const c=CAR();
   P={x:rc(3)+140, y:rc(3)+LANE, a:0, spd:0, c};
-  npcs=[]; items=[]; cones=[]; cats=[]; fx=[]; floats=[];
+  npcs=[]; items=[]; cones=[]; cats=[]; fx=[]; floats=[]; greeters=[];
   scoreF=0; coinsRun=0; cnt=0; star3Cnt=0; perfectCnt=0; streak=0; maxStreak=0; cond=100; elapsed=0; odo=0; odoMark=0; hits=0; accelSec=0;
   timeLeft=60+(carId==='van'?8:0);
   magnetT=0; turboT=0; shields=carId==='fire'?1:0; cloudUsed=false; invT=0; scoreMul=1; usedBoosts=[]; petT=0;
@@ -632,7 +656,8 @@ function applyBoosts(){
 }
 
 /* ---------------- 주문 ---------------- */
-// 주문 하나 = 가게에서 싣고(pickup) → 집에 내림(deliver). par는 대략 걸릴 시간(초)
+// 주문 하나 = 가게에서 싣고(pickup) → 집에 내림(deliver). 묶음 배달이면 두 집에 차례로.
+// pars[i]는 i번째 집까지 대략 걸릴 시간(초). 이걸로 ★ 기준을 정함
 function newOrder(){
   let cand=shops.filter(s=>s!==lastShop && mdist(P,s)>=250 && mdist(P,s)<=950);
   if(!cand.length) cand=shops.filter(s=>s!==lastShop);
@@ -640,14 +665,24 @@ function newOrder(){
   const md=(a,b)=>Math.abs(a.zx-b.zx)+Math.abs(a.zy-b.zy);
   let hc=homes.filter(h=>h.b!==shop.b && md(shop,h)>=350 && md(shop,h)<=far);
   if(!hc.length) hc=homes.filter(h=>h.b!==shop.b);
-  const home=pick(hc);
-  const par=(mdist(P,shop)+md(shop,home))/220 + 2.5;
-  const easy=(carId==='rocket'?.1:0)+(petId==='unicorn'?.12:0);
-  order={shop, home, phase:'pickup', t:0, par, t3:par*(.72+easy), t2:par*1.1, load:0};
+  const home=pick(hc), stops=[home];
+  if(cnt>=3 && Math.random()<.22){
+    const h2c=homes.filter(h=>h.b!==home.b && h.b!==shop.b && h.name!==home.name && md(home,h)>=250 && md(home,h)<=650);
+    if(h2c.length) stops.push(pick(h2c));
+  }
+  let L=mdist(P,shop)+md(shop,home);
+  const pars=[L/220 + 2.5];
+  if(stops[1]){ L+=md(home, stops[1]); pars.push(L/220 + 3.5); }
+  order={shop, stops, si:0, kind:shop.shop.kind||'normal', phase:'pickup', t:0, par:pars[pars.length-1], pars, load:0};
   lastShop=shop;
-  return par;
+  return order.par;
 }
-const target = () => order.phase==='pickup' ? order.shop : order.home;
+const target = () => order.phase==='pickup' ? order.shop : order.stops[order.si];
+// i번째 집의 ★★★·★★ 기준 시간
+function thr(i=order.si){
+  const K=KINDS[order.kind], easy=(carId==='rocket'?.1:0)+(petId==='unicorn'?.12:0);
+  return {t3:order.pars[i]*(K.k3+easy), t2:order.pars[i]*K.k2};
+}
 
 /* ---------------- 생성 ---------------- */
 const TRAFFIC_COLORS=['#E8EEF2','#F28B82','#AECBFA','#FDD663','#A8DAB5','#D7AEFB','#FFFFFF','#9AA0A6','#F6AEA9','#78D9EC'];
@@ -941,6 +976,8 @@ function update(dt){
   fx=fx.filter(p=>p.t<p.life);
   for(const f of floats){ f.t+=dt; f.y-=40*dt; }
   floats=floats.filter(f=>f.t<.9);
+  for(const g of greeters) g.t+=dt;
+  greeters=greeters.filter(g=>g.t<2.6);
 
   // 타이머
   magnetT=Math.max(0, magnetT-dt); invT=Math.max(0, invT-dt); honkT=Math.max(0, honkT-dt);
@@ -991,7 +1028,7 @@ function hurt(amount, text){
     play('shield'); toast('보호막!', 800); return;
   }
   if(order.phase!=='deliver'){ if(text) float(P.x, P.y-30, text, '#FF8A80', 16); return; }
-  const dmg=Math.round(amount*hurtMul());
+  const dmg=Math.round(amount*hurtMul()*(KINDS[order.kind].hurt||1));
   cond=Math.max(0, cond-dmg);
   float(P.x, P.y-30, (text?text+' ':'')+'📦 −'+dmg+'%', '#FF8A80', 16);
 }
@@ -1024,24 +1061,37 @@ function arrive(){
   if(order.phase==='pickup'){
     order.phase='deliver'; order.load=0; cond=100; slowHint=false;
     play('pick'); burst(P.x,P.y,'#FFD54A',10,120);
-    toast(order.shop.shop.icon+' '+order.shop.shop.item+' 싣기 완료!', 1000);
+    toast(order.shop.shop.icon+' '+order.shop.shop.item+' 싣기 완료!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag:''), 1100);
     return;
   }
-  // 배달 완료
+  // 배달 완료 (묶음이면 이 집만)
   cnt++;
-  const stars = order.t<=order.t3 ? 3 : order.t<=order.t2 ? 2 : 1;
+  const home=order.stops[order.si], {t3,t2}=thr(), K=KINDS[order.kind];
+  const stars = order.t<=t3 ? 3 : order.t<=t2 ? 2 : 1;
   streak = stars===3 ? streak+1 : 0; maxStreak=Math.max(maxStreak, streak);
   if(stars===3){ star3Cnt++; mProg('star3',1); }
   if(cond>=100){ perfectCnt++; mProg('perfect',1); }
+  if(order.kind==='hot' && stars===3) mProg('hot',1);
+  if(order.kind==='fragile' && cond>=100) mProg('fragile',1);
   mProg('deliver', cnt); mProg('streak', streak);
-  const pts=addScore((100+60*stars)*(.4+.6*cond/100)*(1+.1*Math.min(streak,5))*(carId==='pizza'?1.2:1));
-  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)); if(petId==='dog') tip+=2;
+  // 종류 보너스: 따끈한 건 ★★ 이상, 조심조심은 짐 70% 이상일 때
+  const kindOk = order.kind==='hot' ? stars>=2 : order.kind==='fragile' ? cond>=70 : false;
+  const lv=regLevel(home.name);
+  const pts=addScore((100+60*stars)*(.4+.6*cond/100)*(1+.1*Math.min(streak,5))*(carId==='pizza'?1.2:1)*(kindOk?K.mul:1)*(1+.05*lv));
+  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)) + 2*lv; if(petId==='dog') tip+=2;
   addCoins(tip);
   play('deliver'); burst(P.x,P.y,'#FFE27A',16,170); burst(P.x,P.y,'#FFB7D5',10,140);
   float(P.x, P.y-44, '★'.repeat(stars)+'☆'.repeat(3-stars), '#FFE45C', 22);
   float(P.x, P.y-24, '+'+pts+'  🪙+'+tip, '#fff', 14);
-  const home=order.home;
-  toast(home.name+' 배달 완료!'+(streak>=2?' '+streak+'연속 ★★★':''), 1100);
+  greet(home, stars, kindOk);
+  if(streak>=2) setTimeout(()=>{ if(state==='play') toast(streak+'연속 ★★★!', 900); }, 1300);
+  // 묶음 배달: 다음 집으로
+  if(order.si < order.stops.length-1){
+    order.si++; order.load=0; slowHint=false;
+    setTimeout(()=>{ if(state==='play') toast('다음 집: '+order.stops[order.si].icon+' '+order.stops[order.si].name, 1100); }, 1500);
+    return;
+  }
+  if(order.stops.length>1) mProg('multi',1);
   // 해금 알림
   if(nextUnlock && cnt>=nextUnlock.at){
     toast('🔓 '+nextUnlock.name+' 해금!', 1600); play('win'); track('car_unlock', {car:nextUnlock.id});
@@ -1057,6 +1107,26 @@ function arrive(){
   const bonus=Math.round(par*factor + (carId==='post'?2:0) + .4*ups.time);
   timeLeft+=bonus; plusTime(bonus);
   cond=100;
+}
+// 손님이 현관에 나와 말풍선으로 인사함. 같은 이름의 집은 배달할수록 단골이 됨
+let greeters=[];
+function greet(home, stars, kindOk){
+  const before=regLevel(home.name);
+  regs[home.name]=(regs[home.name]||0)+1; store.set('regs', regs);
+  const lv=regLevel(home.name);
+  let lines;
+  if(lv>before) lines=[lv===2 ? '우리 집 최고 배달부!' : '또 와 줬네요! 이제 단골이에요'];
+  else if(order.kind==='hot' && kindOk) lines=['아직 따끈따끈해요!','와, 김이 모락모락!'];
+  else if(order.kind==='fragile' && cond>=100) lines=['하나도 안 흔들렸어요!','완벽해요, 고마워요!'];
+  else if(cond<50) lines=['조금 흔들렸지만 괜찮아요~','다음엔 살살 와 주세요!'];
+  else if(stars===3) lines=['벌써 왔어요?!','우와, 진짜 빠르다!','최고예요!'];
+  else if(stars===2) lines=['고마워요~','잘 받았어요!','맛있게 먹을게요!'];
+  else lines=['기다렸어요~ 고마워요','천천히 와도 괜찮아요'];
+  if(lv && lv===before && Math.random()<.4) lines=['역시 단골 배달부!','또 만나서 반가워요'];
+  const text=pick(lines);
+  greeters.push({x:home.dx, y:home.dy, icon:home.icon, text, t:0});
+  toast(home.icon+' “'+text+'”', 1300);
+  if(lv>before){ setTimeout(()=>{ if(state==='play') toast('🏠 '+home.name+' '+REG_NAME[lv]+'!', 1500); }, 1400); play('win'); mProg('regular',1); }
 }
 function updatePet(dt){
   if(petId==='none' || !P) return;
@@ -1145,7 +1215,7 @@ function drawLot(L, tc, now){
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(fx_[1], fx_[0])-Math.PI/2);
     for(let i=0;i<6;i++){ ctx.fillStyle=i%2?'#FFFFFF':'#E8604C'; ctx.fillRect(-bw/2+i*bw/6, bh/2-4, bw/6, 10); }
     ctx.restore();
-    ctx.font='28px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(L.shop.icon, cx, cy-2);
+    ctx.font='28px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText(L.shop.icon, cx, cy-2);
   }else{
     // 지붕: 앞뒤로 나뉜 두 색
     ctx.fillStyle=L.roof; ctx.fillRect(cx-bw/2, cy-bh/2, bw, bh);
@@ -1165,7 +1235,7 @@ function drawPark(b){
   ctx.save(); ctx.translate(cx, cy); if(b.seed>.5) ctx.scale(-1, 1); ctx.translate(-cx, -cy);   // 공원마다 좌우를 바꿔 덜 똑같아 보이게
   ctx.fillStyle='#7FC6E8'; ctx.beginPath(); ctx.ellipse(cx+10, cy+6, 48, 32, .3, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(cx-6, cy-4, 14, 5, .3, 0, Math.PI*2); ctx.fill();
-  ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🦆', cx+20, cy+12);
+  ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText('🦆', cx+20, cy+12);
   const tr=[[-62,-62],[60,-66],[-70,40],[64,58],[-20,-74],[0,74],[-74,-6]];
   for(const [x,y] of tr) drawTree(cx+x, cy+y, 15, '#4FA36B');
   ctx.fillStyle='#A0785A'; ctx.fillRect(cx-40, cy+44, 26, 6);
@@ -1225,8 +1295,8 @@ function draw(){
     ctx.setLineDash([7,5]); ctx.lineWidth=3; ctx.strokeStyle=`rgba(${col},.95)`; ctx.beginPath(); ctx.arc(tg.zx, tg.zy, 30, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     if(order.load>0){ ctx.lineWidth=5; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(tg.zx, tg.zy, 24, -Math.PI/2, -Math.PI/2+Math.PI*2*Math.min(1,order.load)); ctx.stroke(); }
     ctx.font='22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(pk?'📍':'🏠', tg.zx, tg.zy-40+Math.sin(now*4)*4);
-    const label = pk ? tg.shop.name : tg.name;
+    ctx.fillStyle='#000'; ctx.fillText(pk?'📍':'🏠', tg.zx, tg.zy-40+Math.sin(now*4)*4);
+    const label = pk ? tg.shop.name : tg.icon+' '+tg.name+(regLevel(tg.name)?' '+REG_NAME[regLevel(tg.name)].split(' ')[0]:'');
     ctx.font='13px Jua, sans-serif'; ctx.lineWidth=4; ctx.strokeStyle='rgba(51,48,42,.75)'; ctx.strokeText(label, tg.zx, tg.zy-58); ctx.fillStyle='#fff'; ctx.fillText(label, tg.zx, tg.zy-58);
   }
   // 아이템
@@ -1262,6 +1332,7 @@ function draw(){
   }
   // 고양이
   ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#000';
   for(const c of cats){ if(inView(c.x,c.y,30)) ctx.fillText('🐈', c.x, c.y+(c.scared?-Math.sin(c.scared*Math.PI)*14:Math.abs(Math.sin(now*10))*-2)); }
   // 다른 차
   for(const n of npcs){
@@ -1285,12 +1356,12 @@ function draw(){
     ctx.fillStyle='rgba(0,0,0,.2)'; rr(-c.w/2+2,-c.h/2+3,c.w,c.h,8); ctx.fill();
     drawCarShape(ctx, c.id, c.color, c.w, c.h, {brake:running() && wantDir()===null && P.spd>20});
     // 싣고 있는 짐
-    if(order && order.phase==='deliver' && running()){ ctx.rotate(-(P.a+Math.PI/2)); ctx.font='13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(order.shop.shop.icon, 0, 0); }
+    if(order && order.phase==='deliver' && running()){ ctx.rotate(-(P.a+Math.PI/2)); ctx.font='13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText(order.shop.shop.icon, 0, 0); }
     ctx.restore();
     const ring=(r,col)=>{ ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(P.x,P.y,r,0,Math.PI*2); ctx.stroke(); };
     if(shields>0) ring(c.h/2+6, `rgba(255,210,63,${.6+.2*Math.sin(now*5)})`);
     if(magnetT>0) ring(c.h/2+14+Math.sin(now*6)*3, `rgba(92,200,255,${.35+.15*Math.sin(now*8)})`);
-    if(petId!=='none' && state!=='menu'){ ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(PET().icon, pet.x, pet.y); }
+    if(petId!=='none' && state!=='menu'){ ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText(PET().icon, pet.x, pet.y); }
   }
   // 파편
   for(const p of fx){ ctx.globalAlpha=1-p.t/p.life; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); }
@@ -1338,6 +1409,17 @@ function draw(){
       ctx.restore();
     }
   }
+  for(const g of greeters){
+    const a=Math.min(1, g.t*5, (2.6-g.t)*3), pop=Math.min(1, g.t*4), hop=Math.abs(Math.sin(g.t*6))*4*(g.t<1.2?1:0);
+    ctx.globalAlpha=Math.max(0,a);
+    ctx.font=`${Math.round(24*pop)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#000'; ctx.fillText(g.icon, g.x, g.y-hop);   // 칠 색이 반투명이면 그림 문자도 흐려짐
+    ctx.font='12px Jua, sans-serif'; const w=ctx.measureText(g.text).width+16, bx=g.x-w/2, by=g.y-48;
+    rr(bx, by, w, 22, 11); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle='rgba(51,48,42,.25)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(g.x-5, by+21); ctx.lineTo(g.x+5, by+21); ctx.lineTo(g.x, by+28); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.fillStyle='#33302A'; ctx.fillText(g.text, g.x, by+11.5);
+  }
+  ctx.globalAlpha=1;
   for(const f of floats){
     ctx.globalAlpha=Math.min(1,(1-f.t/.9)*1.6);
     ctx.font=`${f.size}px Jua, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -1367,6 +1449,7 @@ function drawMinimap(){
   for(const s of shops) mctx.fillRect(s.zx*k-2, s.zy*k-2, 4, 4);
   if(petId==='owl') for(const it of items){ if(it.kind==='coin') continue; mctx.fillStyle=it.kind==='clock'?'#3FB06B':'#8E7DFF'; mctx.beginPath(); mctx.arc(it.x*k, it.y*k, 3, 0, Math.PI*2); mctx.fill(); }
   if(order){
+    if(order.phase==='deliver') for(let i=order.si+1;i<order.stops.length;i++){ const z=order.stops[i]; mctx.fillStyle='rgba(31,163,74,.55)'; mctx.beginPath(); mctx.arc(z.zx*k, z.zy*k, 4, 0, Math.PI*2); mctx.fill(); }
     const t=target();
     mctx.fillStyle=order.phase==='pickup'?'#FF7A1A':'#1FA34A'; mctx.beginPath(); mctx.arc(t.zx*k, t.zy*k, 6+Math.sin(now*6)*1.5, 0, Math.PI*2); mctx.fill(); mctx.strokeStyle='#fff'; mctx.lineWidth=2; mctx.stroke();
   }
@@ -1388,10 +1471,12 @@ function hud(){
   $('hTimeBox').classList.toggle('low', timeLeft<10); $('hTimeBox').classList.toggle('mid', timeLeft>=10 && timeLeft<20);
   if(order){
     const pk=order.phase==='pickup';
-    $('oIcon').textContent = pk ? order.shop.shop.icon : '🏠';
-    $('oText').textContent = pk ? order.shop.shop.name+'에서 '+order.shop.shop.item+' 받기' : order.home.name+'에 '+order.shop.shop.item+' 배달';
-    const left3=order.t3-order.t, left2=order.t2-order.t;
-    $('oSub').textContent = left3>0 ? '★★★ 남은 '+Math.ceil(left3)+'초' : left2>0 ? '★★ 남은 '+Math.ceil(left2)+'초' : '★ 천천히 가도 괜찮아요';
+    const home=order.stops[order.si], multi=order.stops.length>1, item=order.shop.shop.item;
+    $('oIcon').textContent = pk ? order.shop.shop.icon : home.icon;
+    $('oText').textContent = pk ? order.shop.shop.name+'에서 '+item+(multi?' 2개':'')+' 받기' : home.name+'에 '+item+' 배달'+(multi?' ('+(order.si+1)+'/'+order.stops.length+')':'');
+    const {t3,t2}=thr(), left3=t3-order.t, left2=t2-order.t;
+    const tags=[KINDS[order.kind].tag, multi&&pk?'📦×2 묶음':'', !pk&&regLevel(home.name)?REG_NAME[regLevel(home.name)]:''].filter(Boolean).join(' · ');
+    $('oSub').textContent = (tags?tags+' · ':'') + (left3>0 ? '★★★ '+Math.ceil(left3)+'초' : left2>0 ? '★★ '+Math.ceil(left2)+'초' : '★ 천천히 가도 괜찮아요');
   }
   const cb=$('condBar'), carrying=order && order.phase==='deliver';
   $('condFill').style.transform=`scaleX(${carrying?cond/100:1})`;
@@ -1439,7 +1524,7 @@ function start(){
   audio(); engineOn(); play('click');
   showOnly(null); resize(); clearToast(); reset(); applyBoosts(); state='play'; paused=false;
   setPlayingUi(true); hud(); drawMinimap(); cv.focus();
-  toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!', 1400);
+  toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag:''), 1400);
   track('game_start', {car:carId, pet:petId, boosts:usedBoosts.join(',')});
 }
 function restart(){
@@ -1645,8 +1730,18 @@ let rankTab='best';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
 function renderRank(){
-  ['best','recent','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  ['best','recent','global','reg'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
   const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
+  if(rankTab==='reg'){
+    const list=HOMES.filter(h=>regs[h.name]).sort((a,b)=>regs[b.name]-regs[a.name]);
+    box.innerHTML=`<small style="color:var(--soft);text-align:center">같은 집에 ${REG_AT[0]}번 배달하면 단골(팁 +2), ${REG_AT[1]}번이면 찐단골(팁 +4) · ${list.length}/${HOMES.length}집</small>`;
+    for(const h of list){
+      const n=regs[h.name], lv=regLevel(h.name), nx=REG_AT.find(a=>a>n);
+      box.insertAdjacentHTML('beforeend', `<div class="rk"><span class="md">${h.icon}</span><b>${h.name}</b><small>${REG_NAME[lv]||'이웃'}</small><small>배달 ${n}번${nx?' · '+REG_NAME[REG_AT.indexOf(nx)+1].split(' ')[1]+'까지 '+(nx-n)+'번':''}</small><small></small></div>`);
+    }
+    if(!list.length) box.insertAdjacentHTML('beforeend', '<small style="color:var(--soft);text-align:center">아직 배달한 집이 없어요.</small>');
+    return;
+  }
   if(rankTab!=='global'){
     const list=runs[rankTab];
     if(!list.length) return msg('아직 기록이 없어요. 한 판 배달해 보세요!');
@@ -1677,6 +1772,7 @@ $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
+$('tabReg').addEventListener('click', ()=>{ rankTab='reg'; renderRank(); });
 
 /* ---------------- 전체 순위 올리기 ---------------- */
 // 서버에는 배달 건수를 stage(to)로 보냄. 1건 이상 배달한 판만 올릴 수 있음

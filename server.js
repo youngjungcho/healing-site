@@ -2042,8 +2042,9 @@ const SCORE_CHECKS = {
   // 1초에 약 133m라서 1초에 1.5(=150m)를 못 넘고, 점수도 1초에 2,000점을 넘기 어려움
   bureung: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 1.5 && score <= 2000 * time + 2000,
   // 빵빵 동네배달: to는 배달 건수. 가게→집이 최소 600px쯤이고 싣고 내리는 데 1초 가까이 걸려서
-  // 터보로 달려도 한 건에 2초는 걸림. 한 건 점수는 모든 보너스를 합쳐도 600점 남짓 (길 코인·시계 점수는 1초에 60점 넘기 어려움)
-  baedal: ({ score, from, to, time }) => from === 1 && to <= 1 + time / 1.8 && score <= 900 * to + 60 * time + 1000,
+  // 터보로 달려도 한 건에 2초는 걸림. 한 건 점수는 따끈한·조심조심 주문과 단골 보너스까지 합쳐도 900점 남짓
+  // (길 코인·시계 점수는 1초에 60점 넘기 어려움)
+  baedal: ({ score, from, to, time }) => from === 1 && to <= 1 + time / 1.8 && score <= 1300 * to + 60 * time + 1000,
 };
 function scoreLooksValid(slug, r) {
   return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);
