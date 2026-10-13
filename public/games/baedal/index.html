@@ -348,6 +348,7 @@ function play(n){
     case 'shield': tone(880,.3,'sine',.15,440); noise(.2,.2,3000,1); break;
     case 'crash': noise(.45,.5,350,.5); tone(140,.3,'sawtooth',.13,50); break;
     case 'cone': tone(420,.08,'square',.08,260); noise(.12,.2,1800,1); break;
+    case 'quack': tone(520,.09,'sawtooth',.07,380); tone(520,.09,'sawtooth',.07,380,.13); break;
     case 'meow': tone(700,.18,'triangle',.12,1100); tone(1000,.25,'triangle',.1,650,.16); break;
     case 'honk': tone(392,.22,'square',.07); tone(494,.22,'square',.06); tone(392,.22,'square',.07,null,.28); tone(494,.22,'square',.06,null,.28); break;
     case 'bump': tone(90,.08,'square',.08); break;
@@ -457,6 +458,8 @@ const MISSIONS = [
   {id:'fragile', name:'조심조심 짐 멀쩡히 배달', goal:3, unit:'번', reward:50},
   {id:'multi',   name:'묶음 배달 끝내기',   goal:2,  unit:'번', reward:50},
   {id:'regular', name:'새 단골 만들기',     goal:1,  unit:'집', reward:60},
+  {id:'duck',    name:'오리 가족에게 양보하기', goal:2, unit:'번', reward:50},
+  {id:'rain',    name:'빗길 배달',          goal:3,  unit:'건', reward:40},
 ];
 const M_BONUS=100;
 const dayKey = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -540,7 +543,7 @@ function genWorld(){
   blocks=[]; lots=[]; shops=[]; homes=[]; borderTrees=[];
   let parks=0;
   for(let j=0;j<NB;j++) for(let i=0;i<NB;i++){
-    const b={i, j, x:i*CELL+RW, y:j*CELL+RW, park:false, seed:Math.random()};
+    const b={i, j, x:i*CELL+RW, y:j*CELL+RW, w:BS, h:BS, park:false, seed:Math.random()};
     if(parks<3 && Math.random()<.1 && !(i===2&&j===2)){ b.park=true; parks++; }
     blocks.push(b);
     if(b.park) continue;
@@ -607,12 +610,13 @@ addEventListener('resize', resize);
 /* ---------------- 게임 상태 ---------------- */
 let state='menu';   // menu | play | out(시간 끝, 멈추는 중) | over
 let paused=false;
-let P=null, npcs=[], items=[], cones=[], cats=[], fx=[], floats=[], flakes=[];
+let P=null, npcs=[], items=[], cones=[], cats=[], works=[], fx=[], floats=[], flakes=[], drops=[];
 let camX=WORLD/2, camY=WORLD/2;
 let order=null, lastShop=null;
 let scoreF, coinsRun, cnt, star3Cnt, perfectCnt, streak, maxStreak, cond, timeLeft, elapsed, odo, odoMark, hits;
 let magnetT, turboT, shields, cloudUsed, invT, scoreMul, usedBoosts, petT, pet, cntStart, nextUnlock;
-let themeIdx=0, themePrev=0, themeT=1, catT, wallT, slowHint, honkT, accelSec;
+let themeIdx=0, themePrev=0, themeT=1, catT, wallT, slowHint, honkT, accelSec, evT, rainT;
+const RAIN_LEN=20, WORK_LEN=30;
 let bestScore = store.get('best', 0);
 let runs = {best: store.get('runsBest', []), recent: store.get('runsRecent', [])};
 
@@ -627,12 +631,12 @@ const addScore = n => { const v=n*scoreMul; scoreF+=v; return Math.round(v); };
 function reset(){
   genWorld();
   const c=CAR();
-  P={x:rc(3)+140, y:rc(3)+LANE, a:0, spd:0, c};
-  npcs=[]; items=[]; cones=[]; cats=[]; fx=[]; floats=[]; greeters=[];
+  P={x:rc(3)+140, y:rc(3)+LANE, a:0, spd:0, vx:0, vy:0, c};
+  npcs=[]; items=[]; cones=[]; cats=[]; works=[]; fx=[]; floats=[]; greeters=[];
   scoreF=0; coinsRun=0; cnt=0; star3Cnt=0; perfectCnt=0; streak=0; maxStreak=0; cond=100; elapsed=0; odo=0; odoMark=0; hits=0; accelSec=0;
   timeLeft=60+(carId==='van'?8:0);
   magnetT=0; turboT=0; shields=carId==='fire'?1:0; cloudUsed=false; invT=0; scoreMul=1; usedBoosts=[]; petT=0;
-  themeIdx=0; themePrev=0; themeT=1; catT=4; wallT=0; slowHint=false; honkT=0;
+  themeIdx=0; themePrev=0; themeT=1; catT=4; wallT=0; slowHint=false; honkT=0; evT=20; rainT=0;
   pet={x:P.x-30, y:P.y}; cntStart=bestCnt;
   nextUnlock=CARS.filter(c=>!unlocked(c)).sort((a,b)=>a.at-b.at)[0]||null;
   camX=P.x; camY=P.y;
@@ -701,7 +705,9 @@ function spawnNpc(minD=320){
 }
 // 교차로에서 갈 방향 고르기 (되돌아가기는 막다른 곳에서만)
 function turnNpc(n, any){
-  const ok=DIRS.filter(([dx,dy])=>{ const i=n.ni+dx, j=n.nj+dy; return i>=0&&i<=NB&&j>=0&&j<=NB && (any || !(dx===-n.dx&&dy===-n.dy)); });
+  let ok=DIRS.filter(([dx,dy])=>{ const i=n.ni+dx, j=n.nj+dy; return i>=0&&i<=NB&&j>=0&&j<=NB && (any || !(dx===-n.dx&&dy===-n.dy)); });
+  const open=ok.filter(([dx,dy])=>!segBlocked(n.ni, n.nj, n.ni+dx, n.nj+dy));   // 공사 중인 길은 피함
+  if(open.length) ok=open;
   const straight=ok.find(([dx,dy])=>dx===n.dx&&dy===n.dy);
   const [dx,dy] = straight && Math.random()<.5 ? straight : pick(ok);
   n.dx=dx; n.dy=dy; n.ti=n.ni+dx; n.tj=n.nj+dy;
@@ -722,6 +728,54 @@ function spawnItem(kind, anywhere){
 function spawnCone(){
   const s=spotAway(260, 3000, 45);
   cones.push({x:s.x, y:s.y, fly:false});
+}
+/* ---------------- 길 이벤트 (오리 가족 · 공사 · 소나기) ---------------- */
+// 공사: 교차로 사이 길 한 칸의 가운데를 막음. horiz면 k번째 가로 도로의 s번째 칸
+function segBlocked(i1, j1, i2, j2){
+  if(!works.length) return false;
+  if(j1===j2) return works.some(w=>w.horiz && w.k===j1 && w.s===Math.min(i1,i2));
+  return works.some(w=>!w.horiz && w.k===i1 && w.s===Math.min(j1,j2));
+}
+function spawnWork(){
+  for(let t=0;t<30;t++){
+    const horiz=Math.random()<.5, k=Math.floor(rand(0,NB+1)), s=Math.floor(rand(0,NB));
+    const mid=s*CELL+RW+BS/2, cx=horiz?mid:rc(k), cy=horiz?rc(k):mid;
+    if(Math.hypot(cx-P.x, cy-P.y)<260) continue;
+    if([order.shop, ...order.stops].some(z=>Math.hypot(z.zx-cx, z.zy-cy)<70)) continue;
+    if(works.some(w=>w.horiz===horiz && w.k===k && w.s===s)) continue;
+    if(npcs.some(n=>Math.hypot(n.x-cx, n.y-cy)<60)) continue;
+    const w=horiz ? {x:mid-10, y:rc(k)-RW/2, w:20, h:RW} : {x:rc(k)-RW/2, y:mid-10, w:RW, h:20};
+    works.push(Object.assign(w, {horiz, k, s, cx, cy, t:0}));
+    return true;
+  }
+  return false;
+}
+// 오리 가족: 엄마 오리 뒤로 아기 오리 셋이 줄지어 길을 건넘
+function spawnDucks(){
+  for(let t=0;t<30;t++){
+    const s=roadSpot(50), d=Math.hypot(s.x-P.x, s.y-P.y);
+    if(d<150 || d>300) continue;
+    const ahead=(s.x-P.x)*Math.cos(P.a)+(s.y-P.y)*Math.sin(P.a);
+    if(ahead<80) continue;
+    const dir=Math.random()<.5?-1:1, edge=rc(s.k)-dir*(RW/2-2), fam={yielded:false};
+    for(let i=0;i<4;i++){
+      const back=edge-dir*i*15, c = s.horiz ? {x:s.x+(i%2?3:-3), y:back, vx:0, vy:dir*20} : {x:back, y:s.y+(i%2?3:-3), vx:dir*20, vy:0};
+      c.end=rc(s.k)+dir*(RW/2+4); c.horiz=s.horiz; c.scared=0; c.yielded=false; c.kind='duck'; c.baby=i>0; c.fam=fam;
+      cats.push(c);
+    }
+    return true;
+  }
+  return false;
+}
+function roadEvent(){
+  const opts=['duck','duck','work'];
+  if(rainT<=0) opts.push('rain','rain');
+  const e=pick(opts);
+  if(e==='duck' && spawnDucks()){ toast('🦆 오리 가족이 건너요! 잠깐 멈춰요', 1800); }
+  else if(e==='work' && works.length<2 && spawnWork()){ toast('🚧 공사 중! 미니맵을 봐요', 1700); }
+  else if(e==='rain'){ rainT=RAIN_LEN; toast('🌧️ 소나기! 미끄러워요 · 팁 ×1.3', 1800); }
+  else return false;
+  return true;
 }
 function spawnCat(){
   // 앞쪽 길을 가로질러 걷는 고양이
@@ -817,23 +871,23 @@ const angDiff = (a,b) => { let d=(b-a)%(Math.PI*2); if(d>Math.PI) d-=Math.PI*2; 
 // 자동차 몸통을 앞·뒤 원 두 개로 보고 블록(벽)과 겹치면 밀어냄
 function pushOutCircle(o, r){
   let hit=false;
-  for(const b of blocks){
-    if(o.x<b.x-r || o.x>b.x+BS+r || o.y<b.y-r || o.y>b.y+BS+r) continue;
-    const nx=Math.max(b.x, Math.min(o.x, b.x+BS)), ny=Math.max(b.y, Math.min(o.y, b.y+BS));
+  for(const list of [blocks, works]) for(const b of list){
+    if(o.x<b.x-r || o.x>b.x+b.w+r || o.y<b.y-r || o.y>b.y+b.h+r) continue;
+    const nx=Math.max(b.x, Math.min(o.x, b.x+b.w)), ny=Math.max(b.y, Math.min(o.y, b.y+b.h));
     const dx=o.x-nx, dy=o.y-ny, d2=dx*dx+dy*dy;
     if(d2>=r*r) continue;
     hit=true;
     if(d2>1e-4){ const d=Math.sqrt(d2); o.x=nx+dx/d*r; o.y=ny+dy/d*r; }
     else {
-      const l=o.x-b.x, rr=b.x+BS-o.x, t=o.y-b.y, bt=b.y+BS-o.y, m=Math.min(l,rr,t,bt);
-      if(m===l) o.x=b.x-r; else if(m===rr) o.x=b.x+BS+r; else if(m===t) o.y=b.y-r; else o.y=b.y+BS+r;
+      const l=o.x-b.x, rr=b.x+b.w-o.x, t=o.y-b.y, bt=b.y+b.h-o.y, m=Math.min(l,rr,t,bt);
+      if(m===l) o.x=b.x-r; else if(m===rr) o.x=b.x+b.w+r; else if(m===t) o.y=b.y-r; else o.y=b.y+b.h+r;
     }
   }
   const cx=Math.max(r, Math.min(WORLD-r, o.x)), cy=Math.max(r, Math.min(WORLD-r, o.y));
   if(cx!==o.x || cy!==o.y){ o.x=cx; o.y=cy; hit=true; }
   return hit;
 }
-const inBlock = (x, y) => x<0 || y<0 || x>WORLD || y>WORLD || blocks.some(b=>x>b.x && x<b.x+BS && y>b.y && y<b.y+BS);
+const inBlock = (x, y) => x<0 || y<0 || x>WORLD || y>WORLD || [...blocks, ...works].some(b=>x>b.x && x<b.x+b.w && y>b.y && y<b.y+b.h);
 function collideWalls(){
   const r=carR(), off=P.c.h/2-r+1;
   let hit=false;
@@ -877,12 +931,15 @@ function update(dt){
   if(state==='out'){ want=0; rate=300; }
   P.spd += Math.sign(want-P.spd)*Math.min(Math.abs(want-P.spd), rate*dt);
   if(state==='out' && Math.abs(P.spd)<2){ finish('time'); return; }
-  const mv=P.spd*dt;
-  P.x+=Math.cos(P.a)*mv; P.y+=Math.sin(P.a)*mv;
-  odo+=Math.abs(mv);
+  const tvx=Math.cos(P.a)*P.spd, tvy=Math.sin(P.a)*P.spd;
+  if(rainT>0){ const g=Math.min(1, dt*(carId==='jeep'?6:2.4)); P.vx+=(tvx-P.vx)*g; P.vy+=(tvy-P.vy)*g; }
+  else { P.vx=tvx; P.vy=tvy; }
+  P.x+=P.vx*dt; P.y+=P.vy*dt;
+  odo+=Math.hypot(P.vx, P.vy)*dt;
   if(collideWalls()){
     const cap=carId==='jeep'?170:70;
     if(Math.abs(P.spd)>cap){ if(wallT<=0 && Math.abs(P.spd)>110) play('bump'); P.spd=Math.sign(P.spd)*cap; }
+    const v=Math.hypot(P.vx, P.vy); if(v>cap){ P.vx*=cap/v; P.vy*=cap/v; }
     wallT=.3;
   }
   wallT=Math.max(0, wallT-dt);
@@ -915,7 +972,7 @@ function update(dt){
         const ux=d>.01?dx/d:1, uy=d>.01?dy/d:0, push=pr+2-d;
         P.x+=ux*push; P.y+=uy*push; collideWalls();
         if(invT<=0){
-          P.spd*=-.25; play('crash'); hits++;
+          P.spd*=-.25; P.vx*=-.25; P.vy*=-.25; play('crash'); hits++;
           burst((P.x+n.x)/2, (P.y+n.y)/2, '#FFFFFF', 12, 200);
           hurt(25, '쿵!');
         }
@@ -933,13 +990,20 @@ function update(dt){
     // 고양이: 천천히 가면 비켜 주고 고맙다고 함, 빠르게 가면 깜짝 놀라 짐이 흔들림
     for(const c of cats){
       if(c.scared) continue;
-      const d=Math.hypot(P.x-c.x, P.y-c.y);
-      if(d<26){
+      const d=Math.hypot(P.x-c.x, P.y-c.y), duck=c.kind==='duck';
+      if(d<(duck?22:26)){
         c.scared=1; const ux=(c.x-P.x)/(d||1), uy=(c.y-P.y)/(d||1); c.vx=ux*220; c.vy=uy*220;
-        play('meow');
-        if(Math.abs(P.spd)<70 || turboT>0){ float(c.x, c.y-14, '냐옹~', '#FFE45C', 15); }
-        else { P.spd*=.4; float(c.x, c.y-14, '냥!!', '#FF8A80', 17); hurt(10, ''); }
-      }else if(d<60 && !c.yielded && Math.abs(P.spd)<40 && playing){
+        if(duck){
+          // 한 마리가 놀라면 가족이 다 같이 날아오름
+          for(const o of cats) if(o.fam===c.fam && !o.scared){ o.scared=1; const a=Math.atan2(o.y-P.y, o.x-P.x)+rand(-.5,.5); o.vx=Math.cos(a)*200; o.vy=Math.sin(a)*200; }
+          play('quack'); c.fam.yielded=true;
+        } else play('meow');
+        if(Math.abs(P.spd)<70 || turboT>0){ float(c.x, c.y-14, duck?'꽥!':'냐옹~', '#FFE45C', 15); }
+        else { P.spd*=.4; float(c.x, c.y-14, duck?'꽥꽥!!':'냥!!', '#FF8A80', 17); hurt(10, ''); }
+      }else if(duck && d<90 && !c.fam.yielded && Math.abs(P.spd)<30 && playing){
+        c.fam.yielded=true; mProg('duck',1); addCoins(3); const pts=addScore(80);
+        float(c.x, c.y-18, '꽥꽥 고마워요 💕', '#FFE45C', 15); float(c.x, c.y-2, '+'+pts+' 🪙+3', '#fff', 13); play('check');
+      }else if(!duck && d<60 && !c.yielded && Math.abs(P.spd)<40 && playing){
         c.yielded=true; mProg('cat',1); float(c.x, c.y-16, '고마워옹 💕', '#FFE45C', 14); addScore(30);
       }
     }
@@ -951,6 +1015,11 @@ function update(dt){
     return dir>0 ? v<c.end : v>c.end;
   });
   if(playing){ catT-=dt; if(catT<=0){ catT=rand(5,9); spawnCat(); } }
+  // 길 이벤트
+  if(playing){ evT-=dt; if(evT<=0) evT = roadEvent() ? rand(25,40) : 3; }
+  if(rainT>0){ rainT=Math.max(0, rainT-dt); if(rainT===0 && playing) toast('☀️ 비가 그쳤어요', 1000); }
+  for(const w of works) w.t+=dt;
+  works=works.filter(w=>w.t<WORK_LEN);
   for(const c of cones) if(c.fly){ c.x+=c.vx*dt; c.y+=c.vy*dt; c.vx*=.96; c.vy*=.96; c.rot+=c.vr*dt; c.alpha-=dt*.8; }
   const nCones=cones.length; cones=cones.filter(c=>!c.fly||c.alpha>0);
   for(let k=cones.length;k<nCones;k++) spawnCone();
@@ -997,6 +1066,15 @@ function updateNpcs(dt){
       const rx=P.x-n.x, ry=P.y-n.y, ah=rx*ax+ry*ay, lat=Math.abs(-rx*ay+ry*ax);
       if(ah>0 && ah<n.h/2+34 && lat<24){ goal=0; if(!n.honked && running()){ n.honked=true; float(n.x, n.y-20, '빵!', '#fff', 13); } }
       else if(ah>80 || lat>40) n.honked=false;
+    }
+    for(const c of cats){
+      if(c.scared) continue;
+      const rx=c.x-n.x, ry=c.y-n.y, ah=rx*ax+ry*ay, lat=Math.abs(-rx*ay+ry*ax);
+      if(ah>0 && ah<n.h/2+30 && lat<22){ goal=0; break; }
+    }
+    if(segBlocked(n.ni, n.nj, n.ti, n.tj)){
+      const mx=(rc(n.ni)+rc(n.ti))/2, my=(rc(n.nj)+rc(n.tj))/2, w=works.find(w=>Math.abs(w.cx-mx)<1 && Math.abs(w.cy-my)<1 && (w.cx-n.cx)*n.dx+(w.cy-n.cy)*n.dy>0);
+      if(w && (w.cx-n.cx)*n.dx+(w.cy-n.cy)*n.dy < n.h/2+40){ [n.ni,n.ti]=[n.ti,n.ni]; [n.nj,n.tj]=[n.tj,n.nj]; n.dx=-n.dx; n.dy=-n.dy; }
     }
     if(n.ghostT<=0) for(const o of npcs){
       if(o===n || o.fly) continue;
@@ -1078,7 +1156,8 @@ function arrive(){
   const kindOk = order.kind==='hot' ? stars>=2 : order.kind==='fragile' ? cond>=70 : false;
   const lv=regLevel(home.name);
   const pts=addScore((100+60*stars)*(.4+.6*cond/100)*(1+.1*Math.min(streak,5))*(carId==='pizza'?1.2:1)*(kindOk?K.mul:1)*(1+.05*lv));
-  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)) + 2*lv; if(petId==='dog') tip+=2;
+  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)*(rainT>0?1.3:1)) + 2*lv; if(petId==='dog') tip+=2;
+  if(rainT>0) mProg('rain',1);
   addCoins(tip);
   play('deliver'); burst(P.x,P.y,'#FFE27A',16,170); burst(P.x,P.y,'#FFB7D5',10,140);
   float(P.x, P.y-44, '★'.repeat(stars)+'☆'.repeat(3-stars), '#FFE45C', 22);
@@ -1330,10 +1409,29 @@ function draw(){
     ctx.fillStyle='#F28C28'; ctx.beginPath(); ctx.arc(0,0,2.5,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
+  // 공사 중
+  for(const w of works){
+    if(!inView(w.cx, w.cy, 80)) continue;
+    const a=Math.min(1, w.t*3, (WORK_LEN-w.t)*1.5);
+    ctx.globalAlpha=Math.max(0,a);
+    ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(w.x+3, w.y+4, w.w, w.h);
+    ctx.save(); ctx.beginPath(); ctx.rect(w.x, w.y, w.w, w.h); ctx.clip();
+    ctx.fillStyle='#F28C28'; ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.fillStyle='#fff'; for(let q=-RW;q<RW*2;q+=14){ ctx.beginPath(); if(w.horiz){ ctx.moveTo(w.x, w.y+q); ctx.lineTo(w.x+w.w, w.y+q-12); ctx.lineTo(w.x+w.w, w.y+q-5); ctx.lineTo(w.x, w.y+q+7); } else { ctx.moveTo(w.x+q, w.y); ctx.lineTo(w.x+q-12, w.y+w.h); ctx.lineTo(w.x+q-5, w.y+w.h); ctx.lineTo(w.x+q+7, w.y); } ctx.fill(); }
+    ctx.restore();
+    ctx.font='22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000';
+    ctx.fillText('🚧', w.cx, w.cy);
+    ctx.globalAlpha=1;
+  }
   // 고양이
   ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillStyle='#000';
-  for(const c of cats){ if(inView(c.x,c.y,30)) ctx.fillText('🐈', c.x, c.y+(c.scared?-Math.sin(c.scared*Math.PI)*14:Math.abs(Math.sin(now*10))*-2)); }
+  for(const c of cats){
+    if(!inView(c.x,c.y,30)) continue;
+    const y=c.y+(c.scared?-Math.sin(Math.min(1,c.scared)*Math.PI)*14:Math.abs(Math.sin(now*10+c.x))*-2);
+    if(c.kind==='duck'){ ctx.font=(c.baby?14:20)+'px sans-serif'; ctx.fillText(c.baby?'🐥':'🦆', c.x, y); ctx.font='20px sans-serif'; }
+    else ctx.fillText('🐈', c.x, y);
+  }
   // 다른 차
   for(const n of npcs){
     if(!inView(n.x,n.y,40)) continue;
@@ -1397,6 +1495,19 @@ function draw(){
     for(const f of flakes){ f.y+=f.v/60; f.x+=Math.sin(now+f.s)*.3; if(f.y>LH){ f.y=-4; f.x=rand(0,LW); } ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill(); }
   }
 
+  // 소나기
+  if(rainT>0){
+    const rf=Math.min(1, rainT/1.5, (RAIN_LEN-rainT)/1.5);
+    ctx.fillStyle=`rgba(50,70,105,${.2*rf})`; ctx.fillRect(0,0,LW,LH);
+    ctx.strokeStyle=`rgba(210,225,255,${.55*rf})`; ctx.lineWidth=1.3;
+    ctx.beginPath();
+    for(let i=0;i<70;i++){ const x=rand(-20,LW), y=rand(-20,LH); ctx.moveTo(x,y); ctx.lineTo(x+5,y+16); }
+    ctx.stroke();
+    if(drops.length<12) drops.push({x:rand(0,LW), y:rand(0,LH), t:0});
+    ctx.strokeStyle=`rgba(230,240,255,${.5*rf})`;
+    for(const d of drops){ d.t+=1/60; ctx.beginPath(); ctx.ellipse(d.x, d.y, 2+d.t*16, 1+d.t*7, 0, 0, Math.PI*2); ctx.stroke(); }
+    drops=drops.filter(d=>d.t<.5);
+  }
   ctx.save(); ctx.translate(LW/2-camX, LH/2-camY);
   // 가는 방향 화살표 (목적지가 멀 때)
   if(tg && P){
@@ -1445,6 +1556,8 @@ function drawMinimap(){
   mctx.fillStyle=tc.road; mctx.fillRect(0,0,S,S);
   mctx.fillStyle=tc.ground;
   for(const b of blocks) mctx.fillRect(b.x*k, b.y*k, BS*k, BS*k);
+  mctx.fillStyle='#E8463F';
+  for(const w of works) mctx.fillRect(w.x*k-2, w.y*k-2, w.w*k+4, w.h*k+4);
   mctx.fillStyle='rgba(255,255,255,.55)';
   for(const s of shops) mctx.fillRect(s.zx*k-2, s.zy*k-2, 4, 4);
   if(petId==='owl') for(const it of items){ if(it.kind==='coin') continue; mctx.fillStyle=it.kind==='clock'?'#3FB06B':'#8E7DFF'; mctx.beginPath(); mctx.arc(it.x*k, it.y*k, 3, 0, Math.PI*2); mctx.fill(); }
@@ -1486,6 +1599,8 @@ function hud(){
   if(magnetT>0) it.push('🧲 '+magnetT.toFixed(1));
   if(turboT>0) it.push('🚀 '+turboT.toFixed(1));
   if(shields>0) it.push('🛡️'+(shields>1?'×'+shields:''));
+  if(rainT>0) it.push('🌧️ '+Math.ceil(rainT));
+  if(works.length) it.push('🚧 공사 '+works.length);
   const box=$('hItems'), html=it.map(t=>`<span>${t}</span>`).join('');
   if(box.innerHTML!==html) box.innerHTML=html;
   box.hidden=!it.length;
@@ -1593,7 +1708,7 @@ function showMenu(){
   state='menu'; setPlayingUi(false); showOnly('menuOv');
   if(!P) reset();
   if(!unlocked(CAR())) carId='mini';
-  P.c=CAR(); fx=[]; floats=[]; cats=[];
+  P.c=CAR(); fx=[]; floats=[]; cats=[]; works=[]; rainT=0;
   const cc=$('curCar'); cc.innerHTML=''; cc.append(carCanvas(CAR()), document.createTextNode(CAR().name+(petId!=='none' ? ' + '+PET().icon+' '+PET().name : '')));
   const bl=$('boostLine'); bl.hidden=!boosts.length; bl.textContent='다음 판 부스트: '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join(' ');
   const mb=$('menuBest'); mb.hidden=!bestScore && !wallet;
