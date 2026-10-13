@@ -266,9 +266,9 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 (() => {
 // 캐릭터 해금 도입(v2) 때 이전 진행 기록을 한 번 초기화
 try{
-  if(localStorage.getItem('wakppu-side-ver')!=='2'){
+  if(localStorage.getItem('wakppu-side-ver')!=='3'){
     Object.keys(localStorage).filter(k=>k.startsWith('wakppu-side')).forEach(k=>localStorage.removeItem(k));
-    localStorage.setItem('wakppu-side-ver','2');
+    localStorage.setItem('wakppu-side-ver','3');
   }
 }catch(e){}
 const $ = id => document.getElementById(id);
