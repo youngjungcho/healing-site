@@ -72,7 +72,7 @@ button{font:inherit}
 .char[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .char:disabled{opacity:.45;cursor:default}
 .char:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-.shopTabs{display:flex;gap:6px}
+.shopTabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .mlist{display:flex;flex-direction:column;gap:8px;width:min(100%,460px)}
 .gsub{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;border:1.5px dashed var(--accent);border-radius:14px;max-width:360px}
 .gsub b{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;color:var(--ink)}
@@ -215,6 +215,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="shopTabs" role="tablist">
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
+        <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
       </div>
       <div class="mlist" id="rankList"></div>
@@ -1288,7 +1289,7 @@ function recordRun(){
 }
 function showResult(){
   track('game_over', {stage:level, start_stage:startLevel, score, time_sec:Math.round(elapsed), max_combo:runCombo, character:charId, pet:petId});
-  lastGlobalRank=0; shareMsg('');
+  lastGlobalRank=0; lastWeekRank=0; shareMsg('');
   const rank = recordRun();
   $('rRank').hidden = !rank; $('rRank').textContent = ' 기록판 '+rank+'위!';
   state='over';
@@ -1888,14 +1889,15 @@ let rankTab='best';
 const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
 const SCORE_API = '/api/games/wakppu/scores';
 let myScoreIds=[]; try{ myScoreIds=JSON.parse(localStorage.getItem('wakppu-side-myscores')||'[]'); }catch(e){}
-async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
-let gsubRun=null, lastGlobalRank=0;
+// period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
+async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
 /* ---------------- 결과 공유 ---------------- */
 const SHARE_URL='https://swimpyonote.com/games/wakppu/';
 function shareText(){
   let t='🍬 왁뿌 점프맵에서 '+score.toLocaleString('ko-KR')+'점! '+level+'단계까지 갔어요';
   if(runCombo>=10) t+=' (최고 콤보 '+runCombo+')';
-  if(lastGlobalRank) t+='\n🏆 전체 순위 '+lastGlobalRank+'위!';
+  if(lastGlobalRank) t+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) t+='\n🏆 이번 주 '+lastWeekRank+'위!';
   return t+'\n나를 이겨 볼 사람?';
 }
 function shareMsg(m){ const el=$('shareMsg'); el.textContent=m; el.hidden=!m; }
@@ -1913,11 +1915,12 @@ async function offerGlobal(){
   const box=$('gsub'); box.hidden=true;
   if(!ONLINE || score<=0) return;
   const run={score, from:startLevel, to:level, time:+elapsed.toFixed(1), char:charId}; gsubRun=run;
-  let list; try{ list=await fetchGlobal(); }catch(e){ return; }
+  let list, week; try{ [list, week]=await Promise.all([fetchGlobal(), fetchGlobal('week')]); }catch(e){ return; }
   if(gsubRun!==run || state!=='over') return;
   const pos = list.filter(r=>r.score>=run.score).length + 1;
-  if(pos>20) return;
-  $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
+  const wpos = week.filter(r=>r.score>=run.score).length + 1;
+  if(pos>20 && wpos>20) return;   // 전체나 이번 주 둘 중 하나라도 20위 안이면 올릴 수 있게
+  $('gsubTitle').textContent = pos<=20 ? '🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
   try{ $('gsubName').value=localStorage.getItem('wakppu-side-nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}   // 비어 있으면 쉼표 공용 닉네임(댓글)으로
   $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
   box.hidden=false;
@@ -1933,8 +1936,10 @@ $('gsubBtn').addEventListener('click', async ()=>{
     if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
     try{ localStorage.setItem('wakppu-side-nick',name); myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); localStorage.setItem('wakppu-side-myscores',JSON.stringify(myScoreIds)); }catch(e){}
     if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
-    track('leaderboard_submit', {rank:d.rank||0, score:run.score});
-    $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
+    track('leaderboard_submit', {rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
+    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
+      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
     $('gsubName').disabled=true; gsubRun=null; play('win');
   }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
 });
@@ -1942,10 +1947,11 @@ $('gsubName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gsubBtn').
 async function renderGlobal(box){
   if(!ONLINE){ box.innerHTML='<small style="color:var(--soft);text-align:center">전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.</small>'; return; }
   box.innerHTML='<small style="color:var(--soft);text-align:center">불러오는 중…</small>';
-  let list; try{ list=await fetchGlobal(); }catch(e){ box.innerHTML='<small style="color:var(--soft);text-align:center">순위를 불러오지 못했어요.</small>'; return; }
-  if(rankTab!=='global') return;
+  const tab=rankTab;
+  let list; try{ list=await fetchGlobal(tab==='week'?'week':''); }catch(e){ box.innerHTML='<small style="color:var(--soft);text-align:center">순위를 불러오지 못했어요.</small>'; return; }
+  if(rankTab!==tab) return;
   box.innerHTML='';
-  if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!</small>'; return; }
+  if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">'+(tab==='week' ? '이번 주에는 아직 기록이 없어요. 이번 주 1위가 되어 보세요!' : '아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!')+'</small>'; return; }
   const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   list.forEach((r,i)=>{
     const ch=CHARS.find(c=>c.id===r.char), d=new Date(r.date);
@@ -1956,9 +1962,9 @@ async function renderGlobal(box){
   });
 }
 function renderRank(){
-  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent')); $('tabGlobal').setAttribute('aria-selected',String(rankTab==='global'));
+  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent')); $('tabWeek').setAttribute('aria-selected',String(rankTab==='week')); $('tabGlobal').setAttribute('aria-selected',String(rankTab==='global'));
   const box=$('rankList');
-  if(rankTab==='global'){ renderGlobal(box); return; }
+  if(rankTab==='global' || rankTab==='week'){ renderGlobal(box); return; }
   const list = runs[rankTab]; box.innerHTML='';
   if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 기록이 없어요. 한 판 달려 보세요!</small>'; return; }
   list.forEach((r,i)=>{
@@ -1978,6 +1984,7 @@ $('goRank').addEventListener('click', openRank);
 $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
 let mTimer=0;
 function renderMissions(){
