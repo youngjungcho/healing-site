@@ -96,7 +96,13 @@ button{font:inherit}
 .gcar b{font-family:"Jua",sans-serif;font-weight:400;font-size:14px}
 .gcar small{color:var(--soft);font-size:11px;line-height:1.3}
 #carInfo{min-height:3em;color:var(--ink);font-size:14px}
-.tabs{display:flex;gap:6px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.swatch{display:inline-block;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);vertical-align:middle}
+.attend{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:min(100%,440px)}
+.aday{background:var(--tray);border:1.5px solid var(--line);border-radius:12px;padding:6px 2px;font-size:11px;color:var(--soft);display:flex;flex-direction:column;align-items:center;gap:2px}
+.aday b{font-family:"Jua",sans-serif;font-weight:400;font-size:14px;color:var(--ink)}
+.aday.got{opacity:.5}
+.aday.today{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .tab{font-family:"Jua",sans-serif;font-size:15px;border:1.5px solid var(--line);background:var(--tray);color:var(--ink);border-radius:999px;padding:6px 16px;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .shopList{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(100%,520px)}
@@ -220,10 +226,13 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tabCar" aria-selected="true">차</button>
         <button class="tab" role="tab" id="tabPet" aria-selected="false">펫</button>
+        <button class="tab" role="tab" id="tabPaint" aria-selected="false">색칠</button>
       </div>
       <div class="garage" id="garage" role="radiogroup" aria-label="차"></div>
       <p id="carInfo"></p>
       <div class="best" id="petWallet" hidden></div>
+      <div class="curcar" id="paintCar" hidden></div>
+      <div class="shopList" id="paints" hidden></div>
       <div class="shopList" id="pets" hidden></div>
       <button class="go" id="garageOk">선택 완료</button>
     </div>
@@ -252,10 +261,18 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
+        <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
       </div>
       <div class="mlist" id="rankList"></div>
       <button class="go" id="rankOk">닫기</button>
+    </div>
+
+    <div class="overlay" id="attendOv" hidden>
+      <h2>📅 출석 보상</h2>
+      <p id="attendText"></p>
+      <div class="attend" id="attendDays"></div>
+      <button class="go" id="attendOk">받기</button>
     </div>
 
     <div class="overlay" id="pauseOv" hidden>
@@ -268,7 +285,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 
   <footer>
     <span id="footHelp">← → 핸들 · ↑ 액셀 · Space 부스터 · P 멈춤 · R 다시</span>
-    <span style="display:flex;gap:6px"><a class="mute" id="toHub" href="/games/" hidden>← 쉼표 게임</a><button class="mute" id="muteBtn" aria-pressed="false">소리 끄기</button></span>
+    <span style="display:flex;gap:6px"><a class="mute" id="toHub" href="/games/" hidden>← 쉼표 게임</a><button class="mute" id="musicBtn" aria-pressed="false">음악 끄기</button><button class="mute" id="muteBtn" aria-pressed="false">소리 끄기</button></span>
   </footer>
 </main>
 
@@ -341,6 +358,7 @@ function play(n){
     case 'win': tone(660,.15,'sine',.1); tone(880,.2,'sine',.1,null,.12); tone(990,.3,'sine',.1,null,.24); break;
     case 'check': tone(990,.1,'sine',.1); tone(1480,.2,'sine',.1,null,.09); break;
     case 'click': tone(880,.05,'sine',.08); break;
+    case 'siren': for(let i=0;i<4;i++){ tone(960,.22,'triangle',.07,null,i*.45); tone(720,.22,'triangle',.07,null,i*.45+.22); } break;
   }
 }
 function engineOn(){
@@ -363,6 +381,55 @@ function setMute(m){
 }
 $('muteBtn').addEventListener('click', ()=>setMute(!muted));
 setMute(muted);
+// 휴대폰 진동 (터치 기기에서, 화면을 한 번이라도 누른 뒤에만 — 그 전엔 브라우저가 막고 경고를 남김)
+const buzz = ms => { if(!isTouch || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return; try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+
+/* ---------------- 배경음악 (풍경마다 다른 잔잔한 곡을 WebAudio로 연주) ---------------- */
+// ch: 2마디씩 이어지는 코드 4개(미디 음 번호), slow: 아르페지오를 반 박자 걸러 침
+const MUSIC = [
+  {bpm:88, ch:[[60,64,67],[55,59,62],[57,60,64],[53,57,60]]},          // 봄: C G Am F
+  {bpm:80, ch:[[53,57,60],[55,59,62],[57,60,64],[52,55,59]]},          // 바다: F G Am Em
+  {bpm:76, ch:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]]},          // 단풍: Am F C G
+  {bpm:72, ch:[[50,54,57],[47,50,54],[55,59,62],[57,61,64]], slow:true}, // 눈: D Bm G A
+  {bpm:70, ch:[[53,57,60,64],[52,55,59,62],[50,53,57,60],[48,52,55,59]], slow:true},   // 밤: Fmaj7 Em7 Dm7 Cmaj7
+];
+let musicOn=store.get('music', true), mGain=null, musicTimer=0, mNext=0, mStep=0;
+const mf = n => 440*Math.pow(2,(n-69)/12);
+function mNote(f, t, d, type, v, att=.01){
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.value=f;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+att); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g); g.connect(mGain); o.start(t); o.stop(t+d+.05);
+}
+function musicStart(){
+  const a=audio(); if(!a || musicTimer) return;
+  mGain=a.createGain(); mGain.gain.value=0; mGain.connect(master);
+  mNext=a.currentTime+.1; mStep=0; musicTimer=setInterval(musicTick, 60);
+}
+function musicTick(){
+  const now=AC.currentTime;
+  const v = !musicOn || paused ? 0 : running() ? 1 : .5;   // 메뉴·결과 화면에선 작게
+  mGain.gain.setTargetAtTime(v, now, .4);
+  if(mNext < now-.1) mNext=now+.05;   // 탭을 숨겼다 돌아오면 밀린 음을 한꺼번에 치지 않게
+  if(!musicOn || paused) return;
+  const th=MUSIC[(state==='menu'?0:themeIdx)%MUSIC.length], step=60/th.bpm/2;
+  while(mNext < now+.25){
+    const chord=th.ch[Math.floor(mStep/16)%th.ch.length], k=mStep%16;
+    if(k===0){ chord.forEach(n=>mNote(mf(n-12), mNext, step*16, 'sine', .02, .8)); }   // 패드
+    if(k===0 || k===8) mNote(mf(chord[0]-24), mNext, step*6, 'sine', k?.05:.07, .02);   // 베이스
+    if(!th.slow || k%2===0){
+      const tones=[chord[0], chord[1], chord[2], chord[0]+12], pat=[0,1,2,3,2,1,2,1];
+      mNote(mf(tones[pat[k%8]]+12), mNext, step*2.4, 'triangle', .028);
+    }
+    mNext+=step; mStep++;
+  }
+}
+function setMusic(on){
+  musicOn=on; store.set('music', on);
+  $('musicBtn').textContent = on ? '음악 끄기' : '음악 켜기'; $('musicBtn').setAttribute('aria-pressed', String(!on));
+}
+$('musicBtn').addEventListener('click', ()=>{ setMusic(!musicOn); musicStart(); });
+setMusic(musicOn);
 
 /* ---------------- 지갑 ---------------- */
 let wallet = store.get('coins', 0);
@@ -382,6 +449,22 @@ const CARS = [
   {id:'bus',    name:'통통 버스',      at:4, color:'#6CC3A0', w:32, h:66, desc:'출발 때 거대화 4초',  long:'출발하면 4초 동안 거대화해요. 거대화 아이템은 2배 오래 가요.'},
   {id:'rocket', name:'무지개 로켓카',  at:5,   color:'#B79CFF', w:28, h:50, desc:'부스터 +1.5초, 아슬아슬 점수 +30%', long:'부스터가 1.5초 더 오래 가고, 아슬아슬 점수를 30% 더 받아요.'},
 ];
+// 색칠: 한 번 산 색은 어느 차에나 칠할 수 있고, 차마다 고른 색을 기억함
+const PAINTS = [
+  {id:'base',  name:'원래 색',  color:null,      price:0},
+  {id:'mint',  name:'민트',     color:'#5FD3A6', price:80},
+  {id:'sky',   name:'하늘',     color:'#6EC1F0', price:80},
+  {id:'lilac', name:'라벤더',   color:'#B9A3F5', price:80},
+  {id:'cherry',name:'체리',     color:'#F76C82', price:80},
+  {id:'lemon', name:'레몬',     color:'#F9DC5C', price:80},
+  {id:'peach', name:'복숭아',   color:'#FFB38A', price:80},
+  {id:'snow',  name:'눈꽃',     color:'#F4F7FA', price:120},
+  {id:'coal',  name:'숯검정',   color:'#3F4552', price:120},
+  {id:'gold',  name:'황금',     color:'#E8B10C', price:300},
+];
+let paintOwned = store.get('paints', ['base']);
+let paintBy = store.get('paintBy', {});   // {차 id: 색 id}
+const carColor = c => { const p=PAINTS.find(x=>x.id===paintBy[c.id]); return p && p.color || c.color; };
 let bestKm = store.get('bestKm', null);
 if(bestKm===null) bestKm = Math.max(0, ...store.get('runs', []).map(r=>r.km||0));   // 예전 버전 기록에서 최장 거리를 이어받음
 const legacyOwned = store.get('owned', []);   // 예전 버전에서 코인으로 산 차는 계속 탈 수 있게
@@ -507,6 +590,7 @@ let accelSec=0;
 let dist, speed, scoreF, coinsRun, nearCnt, smashCnt, combo, maxCombo, comboT, gauge, boostT, graceT, fuel, tank, elapsed;
 let spawnAcc, nextCoinAt, nextFuelAt, nextBoxAt, decoAccL, decoAccR, themeIdx, hitT, hits, shakeT;
 let magnetT, giantT, shields, cloudUsed, scoreMul, usedBoosts, petT, pet, kmStart, nextUnlock;
+let nextAmbAt, nextGoldAt, ambWarn, flagPassed;
 let bestScore = store.get('best', 0);
 let runs = {best: store.get('runsBest', null) || store.get('runs', []), recent: store.get('runsRecent', [])};
 
@@ -530,6 +614,7 @@ function reset(){
   gauge=0; boostT=0; graceT=0; tank=100*(carId==='taxi'?1.25:carId==='van'?1.1:1); fuel=tank; elapsed=0; accelSec=0;
   spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; hitT=0; hits=0; shakeT=0;
   magnetT=0; giantT=0; shields=carId==='dump'?1:0; cloudUsed=false; scoreMul=1; usedBoosts=[]; petT=0;
+  nextAmbAt=rand(700,1000); nextGoldAt=rand(450,700); ambWarn=null; flagPassed=false;
   pet={x:P.x-30, y:P.y-20}; kmStart=bestKm;
   nextUnlock=CARS.filter(c=>!unlocked(c)).sort((a,b)=>a.at-b.at)[0]||null;
   for(let y=-40; y<LH+40; y+=46){ addDeco(-1, y); addDeco(1, y+20); }
@@ -551,7 +636,7 @@ function applyBoosts(){
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const TRAFFIC_COLORS=['#E8EEF2','#F28B82','#AECBFA','#FDD663','#A8DAB5','#D7AEFB','#FFFFFF','#9AA0A6','#F6AEA9','#78D9EC'];
-function laneBusy(lane, yMax){ return cars.some(c=>!c.fly && Math.abs(c.x-laneX(lane))<LANE_W*.6 && c.y-c.h/2 < yMax); }
+function laneBusy(lane, yMax){ return cars.some(c=>!c.fly && !c.amb && Math.abs(c.x-laneX(lane))<LANE_W*.6 && c.y-c.h/2 < yMax); }
 const freeLanes = y => [0,1,2,3].filter(l=>!laneBusy(l, y));
 function spawnRow(){
   const m=meters();
@@ -564,8 +649,17 @@ function spawnRow(){
     const c={x:laneX(l), lane:l, y:-h/2-10, w, h, truck, color:truck?pick(['#4F7CAC','#E07A5F','#81B29A','#F2CC8F']):pick(TRAFFIC_COLORS),
       spd: Math.min(cap, truck?rand(130,170):rand(150,240)+Math.min(60,m/100)), minGap:99, passed:false, lc:null, lcT:-1};
     if(m>900 && Math.random()<Math.min(.3, m/15000)) c.lcT=rand(.6,2.2);   // 잠시 뒤 깜빡이 켜고 차선 바꿈
+    if(meters()>=nextGoldAt && !truck){ c.gold=true; c.color='#FFD23F'; nextGoldAt=meters()+rand(900,1400); }   // 부스터로 튕겨내면 코인이 쏟아짐
     cars.push(c);
   });
+}
+// 구급차: 경고(사이렌·화살표) 1.8초 뒤, 그때 내 차가 있던 차선 아래에서 빠르게 올라옴. 비켜 주면 보너스
+function warnAmb(){
+  const lane=Math.max(0, Math.min(LANES-1, Math.round((P.x-laneX(0))/LANE_W)));
+  ambWarn={lane, t:1.8}; toast('🚑 뒤에서 구급차가 와요! 비켜 주세요', 1500); play('siren');
+}
+function spawnAmb(lane){
+  cars.push({amb:true, x:laneX(lane), lane, y:LH+60, w:30, h:58, color:'#FFFFFF', spd:speed+200, minGap:99, passed:false, touched:false, lc:null, lcT:-1});
 }
 function spawnCoins(){
   const free=freeLanes(60);
@@ -660,7 +754,7 @@ function steerDir(){
 }
 function tryBoost(){
   if(gauge<100 || boostT>0 || state!=='play') return;
-  gauge=0; boostT=boostDur(); mProg('boost',1); play('boost'); toast('🔥 부스터!', 900); shakeT=.25;
+  gauge=0; boostT=boostDur(); mProg('boost',1); play('boost'); buzz(40); toast('🔥 부스터!', 900); shakeT=.25;
 }
 
 /* ---------------- 진행 ---------------- */
@@ -686,7 +780,8 @@ function update(dt){
   // 핸들
   if(running()){
     const dir=steerDir(), hand=handling(), maxV=250*hand;
-    if(dir) P.vx += dir*1500*hand*dt; else P.vx *= Math.max(0, 1-dt*9);
+    const slip=themeMix(3);   // 눈길: 핸들을 놓아도 한동안 미끄러지고, 꺾는 힘도 약함
+    if(dir) P.vx += dir*1500*hand*(1-.3*slip)*dt; else P.vx *= Math.max(0, 1-dt*(9-7.5*slip));
     if(dir && Math.sign(P.vx)!==dir) P.vx += dir*1800*hand*dt;   // 반대로 꺾을 땐 더 빠르게
     P.vx=Math.max(-maxV, Math.min(maxV, P.vx));
     P.x+=P.vx*dt;
@@ -709,7 +804,13 @@ function update(dt){
 
   // 풍경 구간
   const ti=Math.floor(meters()/THEME_LEN);
-  if(ti!==themeIdx && playing){ themeIdx=ti; toast(THEMES[ti%THEMES.length].name, 1600); play('win'); }
+  if(ti!==themeIdx && playing){
+    themeIdx=ti; toast(THEMES[ti%THEMES.length].name, 1600); play('win');
+    if(ti%THEMES.length===3) toast('❄️ 길이 미끄러워요!', 1400);
+    if(ti%THEMES.length===4) toast('🌧️ 비가 와서 앞이 잘 안 보여요', 1600);
+  }
+  // 내 최고 거리 깃발을 지나면 알림
+  if(playing && !flagPassed && kmStart>=.1 && meters()>=kmStart*1000){ flagPassed=true; toast('🎉 최고 거리 경신!', 1500); play('win'); buzz(30); }
 
   // 생성
   if(playing){
@@ -719,7 +820,9 @@ function update(dt){
     if(meters()>=nextCoinAt){ spawnCoins(); nextCoinAt=meters()+rand(130,220); }
     if(meters()>=nextFuelAt){ spawnOne('fuel'); nextFuelAt=meters()+rand(420,580); }
     if(meters()>=nextBoxAt){ spawnOne('box'); nextBoxAt=meters()+rand(450,700); }
+    if(meters()>=nextAmbAt && !ambWarn && !cars.some(c=>c.amb)){ warnAmb(); nextAmbAt=meters()+rand(1100,1700); }
   }
+  if(ambWarn && (ambWarn.t-=dt)<=0){ spawnAmb(ambWarn.lane); ambWarn=null; }
   decoAccL+=dy; decoAccR+=dy;
   if(decoAccL>rand(38,70)){ decoAccL=0; addDeco(-1, -40); }
   if(decoAccR>rand(38,70)){ decoAccR=0; addDeco(1, -40); }
@@ -729,9 +832,18 @@ function update(dt){
   const pw=P.w*P.sc, ph=P.h*P.sc;
   for(const c of cars){
     if(c.fly){ c.x+=c.vx*dt; c.y+=c.vy*dt+dy; c.rot+=c.vr*dt; c.alpha-=dt*1.1; continue; }
+    if(c.amb){   // 다른 차는 그냥 통과해서 지나감. 내 차와 겹치면 보너스 없음(벌칙도 없음)
+      c.spd=speed+200; c.y+=(speed-c.spd)*dt;
+      if(running() && Math.abs(c.x-P.x)<(c.w+pw)/2-3 && Math.abs(c.y-P.y)<(c.h+ph)/2-3 && !c.touched){ c.touched=true; float(P.x, P.y-40, '빵빵!', '#fff', 16); play('bump'); }
+      if(!c.passed && c.y+c.h/2 < P.y-ph/2){
+        c.passed=true;
+        if(!c.touched && playing){ addCoins(10); addScore(100); float(c.x, c.y+20, '양보 감사해요! 🪙+10', '#7CFFB0', 16); play('coin'); buzz(15); }
+      }
+      continue;
+    }
     // 같은 차선 앞차보다 빨리 못 감 (겹치지 않게)
     for(const o of cars){
-      if(o===c || o.fly || o.y>=c.y) continue;
+      if(o===c || o.fly || o.amb || o.y>=c.y) continue;
       if(Math.abs(o.x-c.x)<LANE_W*.7 && c.y-o.y < (c.h+o.h)/2+26 && o.spd<c.spd) c.spd=o.spd;
     }
     // 차선 바꾸기
@@ -756,7 +868,7 @@ function update(dt){
       else if(hitT>0){}   // 방금 부딪혀서 잠깐 무적: 그냥 지나감
       else if(shields>0 || (petId==='cloud' && !cloudUsed)){
         if(shields>0) shields--; else { cloudUsed=true; petSay('☁️'); }
-        graceT=1; smash(c); play('shield'); toast('보호막!', 800);
+        graceT=1; smash(c); play('shield'); buzz(50); toast('보호막!', 800);
       }
       else hit(c);
     }else if(gy<0){
@@ -766,7 +878,7 @@ function update(dt){
       if(c.minGap<13 && playing && !tough() && hitT<=0) nearMiss(c);   // 무적일 땐 아슬아슬로 안 침
     }
   }
-  cars=cars.filter(c=> c.fly ? c.alpha>0 : (c.y<LH+140 && c.y>-420));
+  cars=cars.filter(c=> c.fly ? c.alpha>0 : c.amb ? c.y>-120 : (c.y<LH+140 && c.y>-420));
 
   // 아이템
   const magR = magnetT>0 ? 120 : boostT>0 ? 70 : carId==='tow' ? 50 : 0;
@@ -810,7 +922,7 @@ function collect(it){
     fuel=Math.min(tank, fuel+tank*.42); if(state==='out') state='play';
     mProg('fuel',1); play('fuel'); float(it.x,it.y,'연료 +','#7CFFB0',18); burst(it.x,it.y,'#7CFFB0',10,120);
   }else{
-    mProg('item',1); play('item'); burst(it.x,it.y,'#C9B6FF',12,140);
+    mProg('item',1); play('item'); buzz(20); burst(it.x,it.y,'#C9B6FF',12,140);
     const k=pick(shields>0 ? ['magnet','giant'] : ['magnet','giant','shield']);
     if(k==='magnet'){ magnetT=itemDur('magnet'); toast('🧲 자석!', 900); }
     if(k==='giant'){ giantT=itemDur('giant')*(carId==='bus'?2:1); toast('💪 거대화!', 900); }
@@ -824,18 +936,19 @@ function nearMiss(c){
   gauge=Math.min(100, gauge + 17*(carId==='fire'?1.5:1));
   float((c.x+P.x)/2, P.y-30, combo>1 ? `아슬아슬! x${combo}` : '아슬아슬!', '#FFE45C', combo>4?20:17);
   float((c.x+P.x)/2, P.y-12, '+'+pts, '#fff', 13);
-  play('near');
+  play('near'); buzz(12);
   if(gauge>=100 && boostT<=0) toast(isTouch?'부스터 버튼을 눌러요!':'Space로 부스터!', 1000);
 }
 function smash(c, col='#FFB13B'){
   c.fly=true; c.vx=(c.x<P.x?-1:1)*rand(260,380); c.vy=-rand(120,260); c.vr=rand(-9,9); c.rot=0; c.alpha=1;
-  smashCnt++; mProg('smash',1); const pts=addScore(150); play('smash'); shakeT=.18; burst(c.x,c.y,col,14,220);
+  smashCnt++; mProg('smash',1); const pts=addScore(c.gold?400:150); play('smash'); buzz(25); shakeT=.18; burst(c.x,c.y,col,14,220);
   float(c.x, c.y, '+'+pts, col, 18);
+  if(c.gold){ addCoins(15); burst(c.x,c.y,'#FFE27A',30,300); float(c.x, c.y-22, '코인 와르르! 🪙+15', '#FFE27A', 18); play('gold'); }
 }
 // 부딪히면 끝나지 않고 연료가 20% 줄고, 1.5초 동안 무적(깜빡임). 연료가 바닥나면 거기서 끝
 const HIT_FUEL=.2, HIT_INV=1.5;
 function hit(c){
-  hits++; hitT=HIT_INV; combo=0; comboT=0; shakeT=.4; play('crash');
+  hits++; hitT=HIT_INV; combo=0; comboT=0; shakeT=.4; play('crash'); buzz([60,40,90]);
   fuel=Math.max(0, fuel-tank*HIT_FUEL);
   burst((c.x+P.x)/2, (c.y+P.y)/2, '#FFFFFF', 14, 220); burst((c.x+P.x)/2, (c.y+P.y)/2, '#FFB13B', 10, 180);
   float(P.x, P.y-P.h/2-14, '쾅! 연료 −20%', '#FF8A80', 18);
@@ -857,7 +970,7 @@ function updatePet(dt){
   if(petId==='bunny' && petT>=15){ petT=0; fuel=Math.min(tank, fuel+tank*.06); petSay('⛽'); play('fuel'); }
   if(petId==='fox' && petT>=20){ petT=0; spawnOne('box'); petSay('🎁'); }
   if(petId==='penguin' && petT>=12){
-    const c=cars.filter(c=>!c.fly && c.y<P.y-40 && c.y>0).sort((a,b)=>b.y-a.y)[0];
+    const c=cars.filter(c=>!c.fly && !c.amb && c.y<P.y-40 && c.y>0).sort((a,b)=>b.y-a.y)[0];
     if(c){ petT=0; smash(c, '#9FE3FF'); petSay('❄'); }
   }
 }
@@ -872,6 +985,14 @@ function drawCarShape(g, kind, color, w, h, opt={}){
   g.fillStyle='#22262E';
   const wy = h>56 ? [-h*.32, h*.12, h*.3] : [-h*.3, h*.22];
   for(const y of wy){ g.fillRect(-w/2-2, y-5, 4, 11); g.fillRect(w/2-2, y-5, 4, 11); }
+  if(kind==='amb'){
+    R(-w/2,-h/2,w,h,7,'#FFFFFF');
+    R(-w/2+3,-h/2+5,w-6,h*.14,3,'#2D3A4A');
+    g.fillStyle='#F2545B'; g.fillRect(-w/2,-h/2+h*.62,w,4); g.fillRect(-3,-h/2+h*.34,6,16); g.fillRect(-8,-h/2+h*.34+5,16,6);
+    const on=Math.floor(performance.now()/180)%2;
+    g.fillStyle=on?'#FF3B3B':'#3B82FF'; g.fillRect(-w/2+3,-h/2+h*.24,(w-6)/2,4); g.fillStyle=on?'#3B82FF':'#FF3B3B'; g.fillRect(0,-h/2+h*.24,(w-6)/2,4);
+    lights(); return;
+  }
   if(kind==='truck'||kind==='dump'||kind==='tow'){
     // 앞 운전석 + 뒤 짐칸
     const cab=h*(kind==='truck'?.27:.32);
@@ -924,6 +1045,12 @@ function drawDeco(d, night){
   }
   g.restore();
 }
+// 지금 풍경이 idx번(0봄 1바다 2단풍 3눈 4밤)인 정도 0~1. 구간이 바뀔 때 120m 동안 서서히 변함
+function themeMix(idx){
+  if(!P) return 0;
+  const m=meters(), i=Math.floor(m/THEME_LEN), t = i===0 ? 1 : Math.min(1, (m%THEME_LEN)/120), n=THEMES.length;
+  return (i%n===idx ? t : 0) + (i>0 && (i-1)%n===idx ? 1-t : 0);
+}
 function themeColors(){
   const m=meters(), i=Math.floor(m/THEME_LEN), f=(m%THEME_LEN)/THEME_LEN;
   const cur=THEMES[i%THEMES.length], prev=THEMES[(i+THEMES.length-1)%THEMES.length];
@@ -951,8 +1078,20 @@ function draw(){
   for(let l=1;l<LANES;l++){ const x=ROAD_L+l*LANE_W-1.5; for(let y=off-60; y<LH+20; y+=60) ctx.fillRect(x,y,3,30); }
   // 풍경
   for(const o of deco) drawDeco(o, tc.night>.5);
-  // 아이템
   const now=performance.now()/1000;
+  // 내 최고 거리 깃발: 결승선처럼 길을 가로지르는 체크무늬
+  if(P && running() && kmStart>=.1){
+    const fy=P.y-(kmStart*1000-meters())*10;
+    if(fy>-30 && fy<LH+30){
+      for(let x=ROAD_L, i=0; x<ROAD_R; x+=8, i++){ ctx.fillStyle=i%2?'#FFFFFF':'#2D3A4A'; ctx.fillRect(x,fy-4,8,4); ctx.fillStyle=i%2?'#2D3A4A':'#FFFFFF'; ctx.fillRect(x,fy,8,4); }
+      const label='🏁 내 최고 '+kmStart.toFixed(2)+'km';
+      ctx.font='13px Jua, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const tw=ctx.measureText(label).width+16;
+      rr(LW/2-tw/2, fy-26, tw, 18, 9); ctx.fillStyle='rgba(240,122,58,.92)'; ctx.fill();
+      ctx.fillStyle='#fff'; ctx.fillText(label, LW/2, fy-17);
+    }
+  }
+  // 아이템
   for(const it of items){
     if(it.kind==='coin'){
       const sx=Math.abs(Math.cos(now*5+it.y*.05)), r=it.gold?it.r+2:it.r;
@@ -980,7 +1119,8 @@ function draw(){
     ctx.save(); ctx.translate(c.x,c.y);
     if(c.fly){ ctx.globalAlpha=Math.max(0,c.alpha); ctx.rotate(c.rot); }
     ctx.fillStyle='rgba(0,0,0,.18)'; rr(-c.w/2+2,-c.h/2+3,c.w,c.h,8); ctx.fill();
-    drawCarShape(ctx, c.truck?'truck':'car', c.color, c.w, c.h, {box:c.color, brake:c.lc&&c.lc.t<0});
+    drawCarShape(ctx, c.amb?'amb':c.truck?'truck':'car', c.color, c.w, c.h, {box:c.color, brake:c.lc&&c.lc.t<0});
+    if(c.gold && !c.fly){ for(let i=0;i<3;i++){ const a=now*3+i*2.1; ctx.fillStyle=`rgba(255,255,255,${.5+.5*Math.sin(now*8+i)})`; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.fillText('✦', Math.cos(a)*(c.w/2+6), Math.sin(a)*(c.h/2)); } }
     if(c.lc && Math.floor(now*6)%2===0){ ctx.fillStyle='#FFA726'; const x=c.lc.to>c.lc.from ? c.w/2-4 : -c.w/2; ctx.fillRect(x,-c.h/2+2,4,4); ctx.fillRect(x,c.h/2-6,4,4); }   // 깜빡이
     ctx.restore();
   }
@@ -994,7 +1134,7 @@ function draw(){
       ctx.fillStyle=grd; ctx.beginPath(); ctx.moveTo(-8,P.h/2); ctx.lineTo(8,P.h/2); ctx.lineTo(0,P.h/2+fl+8); ctx.fill();
     }
     ctx.fillStyle='rgba(0,0,0,.2)'; rr(-P.w/2+2,-P.h/2+3,P.w,P.h,10); ctx.fill();
-    drawCarShape(ctx, P.c.id, P.c.color, P.w, P.h);
+    drawCarShape(ctx, P.c.id, carColor(P.c), P.w, P.h);
     ctx.restore();
     const ring=(r,col)=>{ ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); ctx.ellipse(P.x,P.y,r*P.sc,(P.h/2+10)*P.sc,0,0,Math.PI*2); ctx.stroke(); };
     if(shields>0) ring(P.w/2+12, `rgba(255,210,63,${.6+.2*Math.sin(now*5)})`);
@@ -1011,6 +1151,24 @@ function draw(){
     if(P){ const y=P.y-P.h*P.sc/2, g=ctx.createLinearGradient(P.x,y,P.x,y-150); g.addColorStop(0,`rgba(255,240,180,${.32*tc.night})`); g.addColorStop(1,'rgba(255,240,180,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(P.x-8,y); ctx.lineTo(P.x+8,y); ctx.lineTo(P.x+28,y-150); ctx.lineTo(P.x-28,y-150); ctx.fill(); }
     for(const c of cars){ if(c.fly) continue; ctx.fillStyle=`rgba(255,60,60,${.5*tc.night})`; ctx.beginPath(); ctx.arc(c.x-c.w/2+5,c.y+c.h/2,4,0,Math.PI*2); ctx.arc(c.x+c.w/2-5,c.y+c.h/2,4,0,Math.PI*2); ctx.fill(); }
     ctx.globalCompositeOperation='source-over';
+  }
+  // 날씨: 눈송이 / 비와 먼 곳 어둡게 (화면 위치를 시간·거리로 계산해서 따로 저장하지 않음)
+  const snow=themeMix(3), rain=themeMix(4);
+  if(snow>0){
+    ctx.fillStyle=`rgba(255,255,255,${.85*snow})`;
+    for(let i=0;i<55;i++){ const sx=(i*73.13)%LW + Math.sin(now*1.3+i)*8, sy=((i*131.7) + now*45 + d*.35)%(LH+20)-10; ctx.beginPath(); ctx.arc(sx, sy, 1.2+(i%3)*.7, 0, Math.PI*2); ctx.fill(); }
+  }
+  if(rain>0){
+    const fog=ctx.createLinearGradient(0,0,0,LH*.5); fog.addColorStop(0,`rgba(8,10,28,${.6*rain})`); fog.addColorStop(1,'rgba(8,10,28,0)');
+    ctx.fillStyle=fog; ctx.fillRect(-10,-10,LW+20,LH*.5+10);
+    ctx.strokeStyle=`rgba(180,200,255,${.45*rain})`; ctx.lineWidth=1.2;
+    for(let i=0;i<45;i++){ const rx=(i*57.31 + now*60)%LW, ry=((i*97.3) + now*520 + d*.4)%(LH+30)-15; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-4,ry+14); ctx.stroke(); }
+  }
+  // 구급차 경고: 그 차선 아래쪽에 깜빡이는 표시
+  if(ambWarn && Math.floor(now*5)%2===0){
+    const x=laneX(ambWarn.lane);
+    rr(x-24, LH-46, 48, 34, 10); ctx.fillStyle='rgba(242,84,91,.85)'; ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🚑▲', x, LH-29);
   }
   // 부스터 속도선
   if(boostT>0 || accelOn()){
@@ -1065,7 +1223,7 @@ function frame(t){
 function idleDrive(dt){ if(!P) return; dist+=120*dt; for(const o of deco) o.y+=120*dt; deco=deco.filter(o=>o.y<LH+60); decoAccL+=120*dt; decoAccR+=120*dt; if(decoAccL>55){decoAccL=0;addDeco(-1,-40);} if(decoAccR>55){decoAccR=0;addDeco(1,-40);} }
 
 /* ---------------- 흐름 ---------------- */
-const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv'];
+const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','attendOv','pauseOv'];
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
   $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on; $('accelBtn').hidden=!(on && isTouch); setAccelTouch(false);
@@ -1073,7 +1231,7 @@ function setPlayingUi(on){
   if(!on){ $('boostBtn').hidden=true; $('hItems').hidden=true; }
 }
 function start(){
-  audio(); engineOn(); play('click');
+  audio(); engineOn(); musicStart(); play('click');
   showOnly(null); resize(); clearToast(); reset(); applyBoosts(); state='play'; paused=false;
   if(carId==='bus') giantT=4;
   setPlayingUi(true); hud(); cv.focus();
@@ -1132,7 +1290,7 @@ function finish(reason){
     $('rWallet').textContent='보유 🪙 '+wallet.toLocaleString('ko-KR');
     $('newBest').hidden=!isBest;
     const ul=$('rUnlock'); ul.hidden=!newly.length; ul.textContent='🔓 새 차 해금: '+newly.map(c=>c.name).join(', ')+' — 차고에서 골라 보세요';
-    shareMsg(''); lastGlobalRank=0;
+    shareMsg(''); lastGlobalRank=0; lastWeekRank=0;
     showOnly('overOv'); $('againBtn').focus();
     offerGlobal(reason);
   }, reason==='quit' ? 0 : 500);
@@ -1140,7 +1298,7 @@ function finish(reason){
 function carCanvas(c, w=68, h=112){
   const cvs=document.createElement('canvas'); cvs.width=w; cvs.height=h;
   const g=cvs.getContext('2d'), s=Math.min(w/(c.w+12), h/(c.h+10));
-  g.setTransform(s,0,0,s,w/2,h/2); drawCarShape(g, c.id, c.color, c.w, c.h);
+  g.setTransform(s,0,0,s,w/2,h/2); drawCarShape(g, c.id, carColor(c), c.w, c.h);
   return cvs;
 }
 function showMenu(){
@@ -1154,7 +1312,34 @@ function showMenu(){
   const mb=$('menuBest'); mb.hidden=!bestScore && !wallet;
   mb.textContent=[bestScore ? '최고 '+bestScore.toLocaleString('ko-KR')+'점' : '', bestKm ? '최장 '+bestKm.toFixed(2)+'km' : '', '🪙 '+wallet.toLocaleString('ko-KR')].filter(Boolean).join(' · ');
   $('missionBtn').innerHTML='📋 미션 ('+mDone()+'/3)'+(mClaimable() ? '<span class="dot"></span>' : '');
+  if(attendDue()) openAttend();
 }
+
+/* ---------------- 출석 보상 ---------------- */
+// 하루 한 번, 처음 화면을 열면 받음. 이어서 오면 보상이 커지고, 7일째 다음엔 1일째로 돌아감. 하루라도 거르면 1일째부터
+const ATTEND=[20,30,40,50,60,80,150];
+let attend = store.get('attend', {last:'', streak:0});
+const attendDue = () => attend.last !== dayKey();
+function nextStreak(){
+  const y=new Date(); y.setDate(y.getDate()-1);
+  const yKey=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+  return attend.last===yKey && attend.streak<ATTEND.length ? attend.streak+1 : 1;
+}
+function openAttend(){
+  const n=nextStreak();
+  showOnly('attendOv');
+  $('attendText').textContent = n>1 ? n+'일째 이어서 왔어요! 오늘 보상을 받아 가세요.' : '오늘의 출석 보상이에요. 내일도 오면 보상이 커져요!';
+  $('attendDays').innerHTML = ATTEND.map((c,i)=>`<div class="aday${i+1<n?' got':''}${i+1===n?' today':''}">${i+1}일<b>🪙${c}</b>${i+1<n?'✓':''}</div>`).join('');
+  $('attendOk').textContent='🪙 '+ATTEND[n-1]+' 받기';
+  $('attendOk').focus();
+}
+$('attendOk').addEventListener('click', ()=>{
+  if(!attendDue()){ backToMenu(); return; }
+  const n=nextStreak(), c=ATTEND[n-1];
+  attend={last:dayKey(), streak:n}; store.set('attend', attend);
+  wallet+=c; saveWallet(); play('gold'); buzz(30); track('daily_attend', {streak:n, reward:c});
+  toast('🪙 +'+c, 1000); backToMenu();
+});
 $('goBtn').addEventListener('click', start);
 $('againBtn').addEventListener('click', start);
 $('overMenu').addEventListener('click', ()=>{ showMenu(); $('goBtn').focus(); });
@@ -1164,10 +1349,31 @@ const backToMenu = () => { showMenu(); $('goBtn').focus(); };
 function openGarage(){ showOnly('garageOv'); setGarageTab('car'); const on=$('garage').querySelector('[aria-checked="true"]'); if(on) on.focus(); }
 function closeGarage(){ backToMenu(); }
 function setGarageTab(t){
-  $('tabCar').setAttribute('aria-selected', String(t==='car')); $('tabPet').setAttribute('aria-selected', String(t==='pet'));
-  $('garage').hidden=$('carInfo').hidden = t!=='car'; $('pets').hidden=$('petWallet').hidden = t!=='pet';
-  if(t==='car') buildCars(); else renderPets();
+  $('tabCar').setAttribute('aria-selected', String(t==='car')); $('tabPet').setAttribute('aria-selected', String(t==='pet')); $('tabPaint').setAttribute('aria-selected', String(t==='paint'));
+  $('garage').hidden=$('carInfo').hidden = t!=='car'; $('pets').hidden = t!=='pet'; $('petWallet').hidden = t==='car';
+  $('paintCar').hidden=$('paints').hidden = t!=='paint';
+  if(t==='car') buildCars(); else if(t==='pet') renderPets(); else renderPaints();
 }
+function renderPaints(){
+  $('petWallet').textContent='보유 🪙 '+wallet.toLocaleString('ko-KR');
+  const pc=$('paintCar'); pc.innerHTML=''; pc.append(carCanvas(CAR()), document.createTextNode(CAR().name+'에 칠하기'));
+  const box=$('paints'); box.innerHTML='';
+  const cur=paintBy[carId]||'base';
+  for(const p of PAINTS){
+    const d=document.createElement('div'); d.className='shopItem';
+    d.innerHTML=`<span class="swatch" style="background:${p.color||CAR().color}"></span><b>${p.name}</b>`;
+    const b=document.createElement('button'); b.className='buy';
+    if(paintOwned.includes(p.id)){
+      b.textContent = cur===p.id ? '칠한 색' : '칠하기'; b.disabled = cur===p.id;
+      b.addEventListener('click', ()=>{ paintBy[carId]=p.id; store.set('paintBy', paintBy); play('click'); renderPaints(); });
+    }else{
+      b.textContent='🪙 '+p.price; b.disabled = wallet<p.price;
+      b.addEventListener('click', ()=>{ if(wallet<p.price) return; wallet-=p.price; paintOwned.push(p.id); paintBy[carId]=p.id; saveWallet(); store.set('paints', paintOwned); store.set('paintBy', paintBy); track('shop_buy', {kind:'paint', item_id:p.id, price:p.price}); play('coin'); toast(p.name+' 색 구매 완료'); renderPaints(); });
+    }
+    d.append(b); box.append(d);
+  }
+}
+$('tabPaint').addEventListener('click', ()=>setGarageTab('paint'));
 function buildCars(){
   const box=$('garage'); box.innerHTML='';
   for(const c of CARS){
@@ -1283,11 +1489,13 @@ const SCORE_API='/api/games/bureung/scores';
 let myScoreIds=store.get('myscores', []);
 let rankTab='best';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+// period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
+async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
 function renderRank(){
-  ['best','recent','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  ['best','recent','week','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
   const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
-  if(rankTab!=='global'){
+  const online = rankTab==='global' || rankTab==='week';
+  if(!online){
     const list=runs[rankTab];
     if(!list.length) return msg('아직 기록이 없어요. 한 판 달려 보세요!');
     box.innerHTML='';
@@ -1300,15 +1508,16 @@ function renderRank(){
   }
   if(!ONLINE) return msg('전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.');
   msg('불러오는 중…');
-  fetchGlobal().then(list=>{
-    if(rankTab!=='global') return;
-    if(!list.length) return msg('아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
+  const tab=rankTab;
+  fetchGlobal(tab==='week'?'week':'').then(list=>{
+    if(rankTab!==tab) return;
+    if(!list.length) return msg(tab==='week' ? '이번 주에는 아직 기록이 없어요. 이번 주 1위가 되어 보세요!' : '아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
     box.innerHTML='';
     list.forEach((r,i)=>{
       const c=CARS.find(x=>x.id===r.char), d=new Date(r.date);
       box.insertAdjacentHTML('beforeend', `<div class="rk${myScoreIds.includes(r.id)?' me':''}"><span class="md">${['🥇','🥈','🥉'][i]||(i+1)}</span><b>${esc(r.name)}</b><small>${r.score.toLocaleString('ko-KR')}점</small><small>${(r.stage/10).toFixed(1)}km${c?' · '+esc(c.name):''}</small><small>${d.getMonth()+1}/${d.getDate()}</small></div>`);
     });
-  }).catch(()=>{ if(rankTab==='global') msg('순위를 불러오지 못했어요.'); });
+  }).catch(()=>{ if(rankTab===tab) msg('순위를 불러오지 못했어요.'); });
 }
 function openRank(){ showOnly('rankOv'); rankTab='best'; renderRank(); $('rankOk').focus(); }
 function closeRank(){ backToMenu(); }
@@ -1316,21 +1525,22 @@ $('rankBtn').addEventListener('click', openRank);
 $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
 
 /* ---------------- 전체 순위 올리기 ---------------- */
 // 서버에는 거리를 100m 단위 정수(stage)로 보냄: 3.4km → 34
-let gsubRun=null, lastGlobalRank=0;
+let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
 async function offerGlobal(reason){
   const box=$('gsub'); box.hidden=true;
   if(!ONLINE || reason==='quit' || !lastRun || lastRun.score<=0) return;
   const run={score:lastRun.score, from:1, to:Math.min(999, Math.max(1, Math.floor(lastRun.km*10))), time:lastRun.time, char:lastRun.car};
   gsubRun=run;
-  let list; try{ list=await fetchGlobal(); }catch(e){ return; }
+  let all, week; try{ [all, week]=await Promise.all([fetchGlobal(), fetchGlobal('week')]); }catch(e){ return; }
   if(gsubRun!==run || state!=='over') return;
-  const pos=list.filter(r=>r.score>=run.score).length+1;
-  if(pos>20) return;
-  $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
+  const pos=all.filter(r=>r.score>=run.score).length+1, wpos=week.filter(r=>r.score>=run.score).length+1;
+  if(pos>20 && wpos>20) return;   // 전체나 이번 주 둘 중 하나라도 20위 안이면 올릴 수 있게
+  $('gsubTitle').textContent = pos<=20 ? '🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
   try{ $('gsubName').value=localStorage.getItem(KEY+'nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}
   $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
   box.hidden=false;
@@ -1347,8 +1557,10 @@ $('gsubBtn').addEventListener('click', async ()=>{
     try{ localStorage.setItem(KEY+'nick', name); }catch(e){}   // 공용 댓글창이 이 키(<slug>-side-nick)를 읽음
     myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); store.set('myscores', myScoreIds);
     if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
-    track('leaderboard_submit', {rank:d.rank||0, score:run.score});
-    $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
+    track('leaderboard_submit', {rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
+    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
+      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
     $('gsubName').disabled=true; gsubRun=null; play('win');
   }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
 });
@@ -1361,7 +1573,7 @@ $('shareBtn').addEventListener('click', async ()=>{
   if(!lastRun) return;
   let text='🚗 부릉부릉 고속도로에서 '+lastRun.score.toLocaleString('ko-KR')+'점! '+lastRun.km.toFixed(2)+'km 달렸어요';
   if(lastRun.combo>=5) text+=' (아슬아슬 '+lastRun.combo+'연속)';
-  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!';
+  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) text+='\n🏆 이번 주 '+lastWeekRank+'위!';
   text+='\n나보다 멀리 갈 수 있어?';
   if(navigator.share){
     try{ await navigator.share({title:'부릉부릉 고속도로', text, url:SHARE_URL}); track('share', {method:'web_share'}); return; }

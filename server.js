@@ -2050,11 +2050,24 @@ function scoreLooksValid(slug, r) {
 }
 const publicScore = r => ({ id: r.id, name: r.name, score: r.score, stage: r.stage, char: r.char, date: r.date });
 
+// 주간 순위: 한국 시간 월요일 0시에 새로 시작. all['<slug>@week'] = { week: '2026-10-12', list: [...] }
+function weekKey(d = new Date()) {
+  const k = new Date(d.getTime() + 9 * 3600 * 1000);   // 한국 시간 기준 날짜
+  k.setUTCDate(k.getUTCDate() - (k.getUTCDay() + 6) % 7);   // 그 주 월요일
+  return k.toISOString().slice(0, 10);
+}
+function weekList(all, slug) {
+  const w = all[slug + '@week'];
+  return w && w.week === weekKey() ? w.list : [];
+}
+
 app.get('/api/games/:slug/scores', (req, res) => {
   const { slug } = req.params;
   if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
-  const list = (loadScores()[slug] || []).slice(0, SCORE_SHOW).map(publicScore);
-  res.json({ ok: true, scores: list });
+  const all = loadScores();
+  const week = req.query.period === 'week';
+  const list = (week ? weekList(all, slug) : (all[slug] || [])).slice(0, SCORE_SHOW).map(publicScore);
+  res.json({ ok: true, scores: list, ...(week ? { week: weekKey() } : {}) });
 });
 
 app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
@@ -2077,12 +2090,16 @@ app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
   const list = all[slug] || [];
   const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, score, stage: to, from, char, time: Math.round(time),
     date: new Date().toISOString(), ip: req.ip };
+  const byScore = (a, b) => b.score - a.score || a.date.localeCompare(b.date);
   list.push(rec);
-  list.sort((a, b) => b.score - a.score || a.date.localeCompare(b.date));
+  list.sort(byScore);
   all[slug] = list.slice(0, SCORE_KEEP);
+  const wl = weekList(all, slug).concat(rec).sort(byScore).slice(0, SCORE_KEEP);
+  all[slug + '@week'] = { week: weekKey(), list: wl };
   saveScores(all);
   const rank = all[slug].indexOf(rec) + 1;   // 보관 범위 밖이면 0
-  res.json({ ok: true, rank, id: rec.id, show: SCORE_SHOW });
+  const weekRank = wl.indexOf(rec) + 1;
+  res.json({ ok: true, rank, weekRank, id: rec.id, show: SCORE_SHOW });
 });
 
 // 운영자: 보관된 기록 전체 보기 (IP는 뒷자리를 가려서 — 도배 여부만 알아볼 수 있게)
@@ -2104,7 +2121,10 @@ app.delete('/api/admin/games/:slug/scores/:id', requireAdmin, (req, res) => {
   const all = loadScores();
   const before = (all[slug] || []).length;
   all[slug] = (all[slug] || []).filter(r => r.id !== id);
-  if (all[slug].length === before) return res.status(404).json({ ok: false, message: '해당 기록이 없어요.' });
+  const w = all[slug + '@week'];
+  const wBefore = w ? w.list.length : 0;
+  if (w) w.list = w.list.filter(r => r.id !== id);   // 주간 순위에서도 함께 지움
+  if (all[slug].length === before && (!w || w.list.length === wBefore)) return res.status(404).json({ ok: false, message: '해당 기록이 없어요.' });
   saveScores(all);
   res.json({ ok: true });
 });
