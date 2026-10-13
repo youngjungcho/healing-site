@@ -56,7 +56,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
 .boostBtn{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-family:"Jua",sans-serif;font-size:20px;color:#fff;background:linear-gradient(135deg,#FF9A3C,#FF4F7B);border:0;border-radius:999px;padding:12px 30px;box-shadow:0 4px 0 #B8364F,0 0 24px rgba(255,120,80,.7);cursor:pointer;animation:pulse .7s ease-in-out infinite alternate;touch-action:none}
 @keyframes pulse{to{transform:translateX(-50%) scale(1.07)}}
 .pausebtn{position:absolute;right:10px;top:104px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.8);font-size:15px;cursor:pointer;color:#1F3330}
-.boostBtn[hidden],.pausebtn[hidden],.hud[hidden],.bars[hidden],.hitems[hidden]{display:none}
+.accelBtn{position:absolute;right:12px;bottom:14px;width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.75);background:rgba(255,255,255,.3);color:#fff;font-family:"Jua",sans-serif;font-size:15px;line-height:1.1;text-shadow:0 1px 2px rgba(0,0,0,.45);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.accelBtn.on{background:rgba(255,140,60,.85);border-color:#fff;transform:scale(.94)}
+.accelBtn[hidden],.boostBtn[hidden],.pausebtn[hidden],.hud[hidden],.bars[hidden],.hitems[hidden]{display:none}
 .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:20px;gap:10px;text-align:center;background:color-mix(in srgb,var(--tray) 80%,transparent);backdrop-filter:blur(4px);overflow-y:auto}
 .overlay[hidden],.overlay [hidden]{display:none}
 .overlay > *{flex-shrink:0}
@@ -172,11 +174,12 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
     <div class="toast" id="toast"></div>
     <button class="pausebtn" id="pauseBtn" aria-label="잠깐 멈춤" hidden>❚❚</button>
     <button class="boostBtn" id="boostBtn" hidden>🔥 부스터!</button>
+    <button class="accelBtn" id="accelBtn" aria-label="액셀 (누르고 있으면 빨라져요)" hidden>▲<br>액셀</button>
 
     <div class="overlay" id="menuOv">
       <h2>🚗 부릉부릉 고속도로</h2>
       <p>차 사이를 <b>아슬아슬</b>하게 지나가면 부스터가 차요.<br>부스터를 켜면 앞차를 튕겨내며 질주! 부딪히면 연료가 줄어드니<br>연료통 ⛽ 을 챙겨서 최대한 멀리 가 보세요.</p>
-      <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 핸들</span><span><kbd>Space</kbd> 부스터</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
+      <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 핸들</span><span><kbd>↑</kbd> 액셀</span><span><kbd>Space</kbd> 부스터</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
       <div class="curcar" id="curCar"></div>
       <div class="line" id="boostLine" hidden></div>
       <div class="best" id="menuBest" hidden></div>
@@ -264,7 +267,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
   </div>
 
   <footer>
-    <span id="footHelp">← → 핸들 · Space 부스터 · P 멈춤 · R 다시</span>
+    <span id="footHelp">← → 핸들 · ↑ 액셀 · Space 부스터 · P 멈춤 · R 다시</span>
     <span style="display:flex;gap:6px"><a class="mute" id="toHub" href="/games/" hidden>← 쉼표 게임</a><button class="mute" id="muteBtn" aria-pressed="false">소리 끄기</button></span>
   </footer>
 </main>
@@ -296,7 +299,7 @@ function track(name, params={}){
 const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
 if(ONLINE) $('toHub').hidden=false;
 const isTouch = matchMedia('(pointer: coarse)').matches;
-if(isTouch) $('footHelp').textContent='화면 왼쪽·오른쪽을 눌러 핸들 · 부스터 버튼';
+if(isTouch) $('footHelp').textContent='화면 왼쪽·오른쪽을 눌러 핸들 · 액셀 버튼 꾹 · 부스터 버튼';
 
 /* ---------------- 소리 (WebAudio로 직접 만듦) ---------------- */
 let AC=null, master=null, muted=store.get('mute', false), engine=null;
@@ -500,6 +503,7 @@ addEventListener('resize', resize);
 let state='menu';   // menu | play | out(연료 바닥) | over
 let paused=false;
 let P=null, cars=[], items=[], deco=[], fx=[], floats=[];
+let accelSec=0;
 let dist, speed, scoreF, coinsRun, nearCnt, smashCnt, combo, maxCombo, comboT, gauge, boostT, graceT, fuel, tank, elapsed;
 let spawnAcc, nextCoinAt, nextFuelAt, nextBoxAt, decoAccL, decoAccR, themeIdx, hitT, hits, shakeT;
 let magnetT, giantT, shields, cloudUsed, scoreMul, usedBoosts, petT, pet, kmStart, nextUnlock;
@@ -523,7 +527,7 @@ function reset(){
   P={x:laneX(1.5), y:LH-112, vx:0, w:c.w, h:c.h, rot:0, sc:1, c};
   cars=[]; items=[]; deco=[]; fx=[]; floats=[];
   dist=0; speed=180; scoreF=0; coinsRun=0; nearCnt=0; smashCnt=0; combo=0; maxCombo=0; comboT=0;
-  gauge=0; boostT=0; graceT=0; tank=100*(carId==='taxi'?1.25:carId==='van'?1.1:1); fuel=tank; elapsed=0;
+  gauge=0; boostT=0; graceT=0; tank=100*(carId==='taxi'?1.25:carId==='van'?1.1:1); fuel=tank; elapsed=0; accelSec=0;
   spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; hitT=0; hits=0; shakeT=0;
   magnetT=0; giantT=0; shields=carId==='dump'?1:0; cloudUsed=false; scoreMul=1; usedBoosts=[]; petT=0;
   pet={x:P.x-30, y:P.y-20}; kmStart=bestKm;
@@ -608,7 +612,7 @@ addEventListener('keydown', e=>{
   if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code) && running()) e.preventDefault();
   keys[e.code]=true;
   if(e.repeat) return;
-  if((e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW') && state==='play' && !paused) tryBoost();
+  if(e.code==='Space' && state==='play' && !paused) tryBoost();
   if((e.code==='KeyP'||e.code==='Escape') && running()) setPaused(!paused);
   if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
   if(e.code==='Escape'){
@@ -620,7 +624,7 @@ addEventListener('keydown', e=>{
   }
 });
 addEventListener('keyup', e=>{ keys[e.code]=false; });
-addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; touchDir.clear(); if(running()) setPaused(true); });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; touchDir.clear(); setAccelTouch(false); if(running()) setPaused(true); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running()) setPaused(true); });
 cv.addEventListener('pointerdown', e=>{
   if(!running()) return;
@@ -638,6 +642,15 @@ cv.addEventListener('pointermove', e=>{
 cv.addEventListener('contextmenu', e=>e.preventDefault());
 $('boostBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); tryBoost(); });
 $('boostBtn').addEventListener('click', e=>{ if(e.detail===0) tryBoost(); });   // 키보드로 누른 경우
+// 액셀: 누르고 있는 동안 속도 1.3배 · 아슬아슬 점수 1.5배 · 연료 소모 1.5배 (휴대폰은 오른쪽 아래 버튼)
+const ACCEL_SPD=1.3, ACCEL_NEAR=1.5, ACCEL_BURN=1.5;
+let accelTouch=false;
+function setAccelTouch(on){ accelTouch=on; $('accelBtn').classList.toggle('on', on); }
+const accelOn = () => state==='play' && !paused && (keys.ArrowUp || keys.KeyW || accelTouch);
+const ab=$('accelBtn');
+ab.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ ab.setPointerCapture(e.pointerId); }catch(_){} setAccelTouch(true); });
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>ab.addEventListener(ev, ()=>setAccelTouch(false)));
+ab.addEventListener('contextmenu', e=>e.preventDefault());
 function steerDir(){
   let d=0;
   if(keys.ArrowLeft||keys.KeyA) d-=1;
@@ -654,10 +667,11 @@ function tryBoost(){
 const tough = () => boostT>0 || graceT>0 || giantT>0;   // 부딪혀도 앞차를 튕겨냄
 function update(dt){
   if(running()) elapsed+=dt;
+  if(accelOn()) accelSec+=dt;
   const playing = state==='play';
   // 속도
   if(state==='out'){ speed=Math.max(0, speed-170*dt); if(speed<=1) finish('fuel'); }
-  else { const t=baseSpeed()*(boostT>0?1.6:1); speed += (t-speed)*Math.min(1, dt*(boostT>0?3:1.2)); }
+  else { const t=baseSpeed()*(boostT>0?1.6:1)*(accelOn()?ACCEL_SPD:1); speed += (t-speed)*Math.min(1, dt*(boostT>0?3:1.2)); }
   const dy=speed*dt;
   const m0=meters();
   dist+=dy;
@@ -665,7 +679,7 @@ function update(dt){
 
   // 연료
   if(playing && boostT<=0){
-    fuel -= dy/10 * .1 * burnMul();
+    fuel -= dy/10 * .1 * burnMul() * (accelOn()?ACCEL_BURN:1);
     if(fuel<=0){ fuel=0; state='out'; toast('⛽ 연료가 바닥났어요…', 1800); }
   }
 
@@ -806,7 +820,7 @@ function collect(it){
 function nearMiss(c){
   nearCnt++; combo++; comboT=comboWin(); maxCombo=Math.max(maxCombo, combo);
   mProg('near',1); mProg('combo', combo);
-  const pts=addScore(20*Math.min(combo,10)*(1+.05*ups.near)*(carId==='rocket'?1.3:1));
+  const pts=addScore(20*Math.min(combo,10)*(1+.05*ups.near)*(carId==='rocket'?1.3:1)*(accelOn()?ACCEL_NEAR:1));
   gauge=Math.min(100, gauge + 17*(carId==='fire'?1.5:1));
   float((c.x+P.x)/2, P.y-30, combo>1 ? `아슬아슬! x${combo}` : '아슬아슬!', '#FFE45C', combo>4?20:17);
   float((c.x+P.x)/2, P.y-12, '+'+pts, '#fff', 13);
@@ -999,9 +1013,9 @@ function draw(){
     ctx.globalCompositeOperation='source-over';
   }
   // 부스터 속도선
-  if(boostT>0){
-    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2;
-    for(let i=0;i<10;i++){ const x=rand(0,LW), y=rand(0,LH); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+rand(30,70)); ctx.stroke(); }
+  if(boostT>0 || accelOn()){
+    ctx.strokeStyle=boostT>0?'rgba(255,255,255,.55)':'rgba(255,255,255,.3)'; ctx.lineWidth=2;
+    for(let i=0;i<(boostT>0?10:5);i++){ const x=rand(0,LW), y=rand(0,LH); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+rand(30,70)); ctx.stroke(); }
   }
   for(const f of floats){
     ctx.globalAlpha=Math.min(1,(1-f.t/.9)*1.6);
@@ -1054,7 +1068,7 @@ function idleDrive(dt){ if(!P) return; dist+=120*dt; for(const o of deco) o.y+=1
 const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv'];
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
-  $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on;
+  $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on; $('accelBtn').hidden=!(on && isTouch); setAccelTouch(false);
   document.body.classList.toggle('playing', on);
   if(!on){ $('boostBtn').hidden=true; $('hItems').hidden=true; }
 }
@@ -1076,7 +1090,7 @@ function restart(){
 function setPaused(p){
   if(!running()) return;
   paused=p; $('pauseOv').hidden=!p;
-  for(const k in keys) keys[k]=false; touchDir.clear();
+  for(const k in keys) keys[k]=false; touchDir.clear(); setAccelTouch(false);
   engineSet(0, !p);
   if(p) $('resumeBtn').focus(); else cv.focus();
 }
@@ -1104,7 +1118,7 @@ function finish(reason){
     runs.recent.unshift(lastRun); runs.recent=runs.recent.slice(0,10);
     store.set('runsBest', runs.best); store.set('runsRecent', runs.recent);
   }
-  track('game_over', {reason, score, km:lastRun.km, time_sec:Math.round(elapsed), car:carId, pet:petId, near_miss:nearCnt, hits});
+  track('game_over', {reason, score, km:lastRun.km, time_sec:Math.round(elapsed), car:carId, pet:petId, near_miss:nearCnt, hits, accel_sec:Math.round(accelSec)});
 
   setTimeout(()=>{
     setPlayingUi(false);

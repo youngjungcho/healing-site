@@ -2038,9 +2038,9 @@ function isKnownGame(slug) {
 const SCORE_CHECKS = {
   // 왁뿌 점프맵: from~to는 지나간 단계. 단계 수에 비해 점수·시간이 터무니없으면 거절
   wakppu: ({ score, from, to, time }) => score <= 250000 * (to - from + 1) && time >= 3 * (to - from),
-  // 부릉부릉 고속도로: to는 달린 거리(100m 단위). 부스터 최고 속도로도 1초에 1.2(=120m)를 못 넘고,
-  // 점수도 1초에 2,000점을 넘기 어려움
-  bureung: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 1.2 && score <= 2000 * time + 2000,
+  // 부릉부릉 고속도로: to는 달린 거리(100m 단위). 액셀(1.3배)과 부스터(1.6배)를 함께 써도 최고 속도가
+  // 1초에 약 133m라서 1초에 1.5(=150m)를 못 넘고, 점수도 1초에 2,000점을 넘기 어려움
+  bureung: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 1.5 && score <= 2000 * time + 2000,
 };
 function scoreLooksValid(slug, r) {
   return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);
