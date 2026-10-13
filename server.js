@@ -2041,6 +2041,9 @@ const SCORE_CHECKS = {
   // 부릉부릉 고속도로: to는 달린 거리(100m 단위). 액셀(1.3배)과 부스터(1.6배)를 함께 써도 최고 속도가
   // 1초에 약 133m라서 1초에 1.5(=150m)를 못 넘고, 점수도 1초에 2,000점을 넘기 어려움
   bureung: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 1.5 && score <= 2000 * time + 2000,
+  // 빵빵 동네배달: to는 배달 건수. 가게→집이 최소 700px쯤이라 터보로 달려도 한 건에 2.5초는 걸리고,
+  // 한 건 점수는 모든 보너스를 합쳐도 600점 남짓 (길 코인·시계 점수는 1초에 60점 넘기 어려움)
+  baedal: ({ score, from, to, time }) => from === 1 && to <= 1 + time / 2.5 && score <= 900 * to + 60 * time + 1000,
 };
 function scoreLooksValid(slug, r) {
   return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);

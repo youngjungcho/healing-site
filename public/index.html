@@ -2857,6 +2857,7 @@
       if(!slug){ el.innerHTML = '게임이 없어요.'; return; }
       // games.json의 stageUnit: 비어 있으면 'N단계', 'km10'이면 stage를 100m 단위 거리로 보고 'N.Nkm'
       const km10 = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.unit === 'km10';
+      const count = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.unit === 'count';   // 'count'면 stage를 건수로 보고 'N건'
       const data = await (await fetch('/api/admin/games/' + encodeURIComponent(slug) + '/scores')).json();
       if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
       if(!data.scores.length){
@@ -2869,7 +2870,7 @@
             <span class="admin-type">${i + 1}위</span>
           </div>
           <div class="admin-item-body"><strong>${escapeHtml(r.name)}</strong> · ${Number(r.score).toLocaleString('ko-KR')}점</div>
-          <div class="admin-item-meta">${km10 ? (r.stage / 10).toFixed(1) + 'km' : (r.from && r.from !== r.stage ? r.from + '→' : '') + r.stage + '단계'} · ${escapeHtml(r.char || '')} · ${formatDate(r.date)} · IP ${escapeHtml(r.ip || '-')}</div>
+          <div class="admin-item-meta">${km10 ? (r.stage / 10).toFixed(1) + 'km' : count ? r.stage + '건' : (r.from && r.from !== r.stage ? r.from + '→' : '') + r.stage + '단계'} · ${escapeHtml(r.char || '')} · ${formatDate(r.date)} · IP ${escapeHtml(r.ip || '-')}</div>
           <div class="admin-item-actions">
             <button class="btn-ghost" onclick="adminDeleteScore('${escapeHtml(slug)}','${escapeHtml(r.id)}')">삭제</button>
           </div>
