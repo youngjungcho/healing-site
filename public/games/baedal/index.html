@@ -186,7 +186,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 
     <div class="overlay" id="menuOv">
       <h2>📦 빵빵 동네배달</h2>
-      <p>가게 <b>📍</b>에서 짐을 싣고 화살표를 따라 <b>🏠 이웃집</b>까지 배달해요.<br>방향키를 누르면 그쪽으로 달리고, 떼면 멈춰요.<br>정차 구역에 들어가면 저절로 싣고 내려요.<br>빨리 갈수록 팁 ★이 늘고, 부딪히면 짐이 흔들려요!</p>
+      <p>가게 <b>📍</b>에서 짐을 싣고 화살표를 따라 <b>🏠 이웃집</b>까지 배달해요.<br><span id="ctlHelp">방향키를 누르면 그쪽으로 달리고, 떼면 멈춰요.</span><br>정차 구역에 들어가면 저절로 싣고 내려요.<br>빨리 갈수록 팁 ★이 늘고, 부딪히면 짐이 흔들려요!</p>
       <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 누른 쪽으로 달리기 · 떼면 멈춤</span><span><kbd>Space</kbd> 빵빵!</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
       <div class="curcar" id="curCar"></div>
       <div class="line" id="boostLine" hidden></div>
@@ -309,7 +309,12 @@ function track(name, params={}){
 const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
 if(ONLINE) $('toHub').hidden=false;
 const isTouch = matchMedia('(pointer: coarse)').matches;
-if(isTouch) $('footHelp').textContent='화면을 누른 채 가고 싶은 쪽으로 끌어요 · 떼면 멈춰요';
+// 휴대폰은 '밀어서 꺾기' (주소에 ?swipe를 붙이면 PC에서도 시험 가능)
+const AUTO = isTouch || new URLSearchParams(location.search).has('swipe');
+if(AUTO){
+  $('footHelp').textContent='화면을 밀면 다음 교차로에서 꺾어요 · 반대로 밀면 유턴 · 꾹 누르면 브레이크';
+  $('ctlHelp').innerHTML='차는 길을 따라 <b>알아서 달려요.</b> 화면을 밀면 <b>다음 교차로에서</b> 그쪽으로 꺾고,<br>반대로 밀면 유턴, 꾹 누르고 있으면 브레이크예요.';
+}
 
 /* ---------------- 소리 (WebAudio로 직접 만듦) ---------------- */
 let AC=null, master=null, muted=store.get('mute', false), engine=null;
@@ -819,6 +824,7 @@ addEventListener('keydown', e=>{
   keys[e.code]=true;
   if(e.repeat) return;
   if(e.code==='Space' && state==='play' && !paused) honk();
+  if(AUTO){ const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.code]; if(d) swipe(...d); }
   if((e.code==='KeyP'||e.code==='Escape') && running()) setPaused(!paused);
   if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
   if(e.code==='Escape'){
@@ -830,37 +836,108 @@ addEventListener('keydown', e=>{
   }
 });
 addEventListener('keyup', e=>{ keys[e.code]=false; });
-addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; joy=null; if(running()) setPaused(true); });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; touch=null; if(running()) setPaused(true); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running()) setPaused(true); });
-// 휴대폰: 화면을 누른 자리가 조이스틱 가운데, 끄는 방향으로 달림
-let joy=null;
-const toLogical = e => { const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)/K, (e.clientY-r.top)/K]; };
+// 휴대폰: 화면을 밀면(스와이프) 그 방향을 예약. 밀지 않고 꾹 누르고 있으면 브레이크
+let touch=null;
 cv.addEventListener('pointerdown', e=>{
-  if(!running() || joy) return;
-  const [x,y]=toLogical(e);
-  joy={id:e.pointerId, ox:x, oy:y, x, y};
+  if(!running() || !AUTO || touch) return;
+  touch={id:e.pointerId, x:e.clientX, y:e.clientY, t0:performance.now(), swiped:false};
   try{ cv.setPointerCapture(e.pointerId); }catch(_){}
   e.preventDefault();
 });
 cv.addEventListener('pointermove', e=>{
-  if(!joy || joy.id!==e.pointerId) return;
-  const [x,y]=toLogical(e);
-  joy.x=x; joy.y=y;
-  const d=Math.hypot(x-joy.ox, y-joy.oy), M=60;   // 너무 멀리 끌면 가운데를 따라옴
-  if(d>M){ joy.ox=x-(x-joy.ox)/d*M; joy.oy=y-(y-joy.oy)/d*M; }
+  if(!touch || touch.id!==e.pointerId) return;
+  const dx=e.clientX-touch.x, dy=e.clientY-touch.y;
+  if(Math.hypot(dx,dy)<22) return;
+  if(Math.abs(dx)>Math.abs(dy)) swipe(Math.sign(dx),0); else swipe(0,Math.sign(dy));
+  touch.x=e.clientX; touch.y=e.clientY; touch.swiped=true;   // 손을 떼지 않고 다시 밀어도 됨
 });
-['pointerup','pointercancel','lostpointercapture'].forEach(ev=>cv.addEventListener(ev, e=>{ if(joy && joy.id===e.pointerId) joy=null; }));
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>cv.addEventListener(ev, e=>{ if(touch && touch.id===e.pointerId) touch=null; }));
 cv.addEventListener('contextmenu', e=>e.preventDefault());
 // 가고 싶은 방향(화면 기준 각도). 아무것도 안 누르면 null
 function wantDir(){
-  if(state!=='play' || paused) return null;
+  if(state!=='play' || paused || AUTO) return null;
   let x=0, y=0;
   if(keys.ArrowLeft||keys.KeyA) x-=1;
   if(keys.ArrowRight||keys.KeyD) x+=1;
   if(keys.ArrowUp||keys.KeyW) y-=1;
   if(keys.ArrowDown||keys.KeyS) y+=1;
-  if(joy && Math.hypot(joy.x-joy.ox, joy.y-joy.oy)>10){ x=joy.x-joy.ox; y=joy.y-joy.oy; }
   return (x||y) ? Math.atan2(y, x) : null;
+}
+/* ---------------- 밀어서 꺾기 (휴대폰) ---------------- */
+// 차는 도로 격자를 따라 알아서 달림. auto.ti·tj는 다음 교차로, q는 예약한 방향
+let auto=null;
+const nodeIdx = v => Math.max(0, Math.min(NB, Math.round((v-RW/2)/CELL)));
+const nodeOpen = (i, j, dx, dy) => { const a=i+dx, b=j+dy; return a>=0 && a<=NB && b>=0 && b<=NB && !segBlocked(i, j, a, b); };
+function autoInit(){
+  const best=DIRS.reduce((b,d)=>Math.cos(P.a)*d[0]+Math.sin(P.a)*d[1] > Math.cos(P.a)*b[0]+Math.sin(P.a)*b[1] ? d : b);
+  auto={dx:best[0], dy:best[1], q:null, brake:false, o:LANE};
+  autoAim();
+}
+function autoAim(){   // 지금 위치와 방향으로 다음 교차로를 다시 셈
+  const {dx,dy}=auto, f=((dx?P.x:P.y)-RW/2)/CELL, n=Math.max(0, Math.min(NB, (dx||dy)>0 ? Math.ceil(f-.02) : Math.floor(f+.02)));
+  if(dx){ auto.ti=n; auto.tj=nodeIdx(P.y); } else { auto.tj=n; auto.ti=nodeIdx(P.x); }
+}
+function swipe(dx, dy){
+  if(!auto || state!=='play' || paused) return;
+  if(dx===-auto.dx && dy===-auto.dy){ auto.dx=dx; auto.dy=dy; auto.q=null; autoAim(); float(P.x, P.y-30, '유턴!', '#fff', 15); }
+  else if(dx===auto.dx && dy===auto.dy) auto.q=null;   // 진행 방향으로 밀면 예약 취소
+  else auto.q=[dx,dy];
+  play('click');
+}
+function autoDrive(maxS){
+  if(touch && !touch.swiped && performance.now()-touch.t0>150) auto.brake=true; else auto.brake=false;
+  let {dx,dy}=auto, sg=dx||dy;
+  const along=()=>dx?P.x:P.y, distNode=()=>((dx?rc(auto.ti):rc(auto.tj))-along())*sg;
+  // 다음 교차로에서 갈 방향: 예약한 쪽 → 직진 → (막혔으면) 목적지 쪽으로
+  const ni=auto.ti, nj=auto.tj, ok=DIRS.filter(d=>nodeOpen(ni, nj, d[0], d[1]));
+  const has=d=>d && ok.some(o=>o[0]===d[0] && o[1]===d[1]);
+  let nd;
+  if(has(auto.q)) nd=auto.q;
+  else if(has([dx,dy])) nd=[dx,dy];
+  else {
+    const tz=target(), side=ok.filter(o=>!(o[0]===-dx && o[1]===-dy)), c=side.length?side:ok;
+    const dd=o=>Math.hypot(rc(ni+o[0])-tz.zx, rc(nj+o[1])-tz.zy);
+    nd=c.slice().sort((a,b)=>dd(a)-dd(b))[0] || [-dx,-dy];
+  }
+  const straight = nd[0]===dx && nd[1]===dy;
+  // 꺾을 땐 들어갈 차선 조금 앞에서부터 돌기 시작 (늦으면 모퉁이에 부딪힘)
+  const lead = straight ? distNode() : ((dx ? rc(ni)-nd[1]*LANE : rc(nj)+nd[0]*LANE) - along())*sg;
+  if(lead <= (straight ? 4 : 24)){
+    if(nd===auto.q) auto.q=null;
+    auto.dx=nd[0]; auto.dy=nd[1]; auto.ti=ni+nd[0]; auto.tj=nj+nd[1];
+    ({dx,dy}=auto); sg=dx||dy;
+  }
+  // 이 칸이 공사로 막혔으면 앞에서 돌아감
+  if(segBlocked(auto.ti-dx, auto.tj-dy, auto.ti, auto.tj)){
+    const mx=(rc(auto.ti-dx)+rc(auto.ti))/2, my=(rc(auto.tj-dy)+rc(auto.tj))/2, ah=((dx?mx:my)-along())*sg;
+    if(ah>0 && ah<70){ auto.dx=-dx; auto.dy=-dy; auto.q=null; autoAim(); ({dx,dy}=auto); sg=dx||dy; float(P.x, P.y-30, '🚧 돌아가요', '#fff', 14); }
+  }
+  // 차선: 오른쪽 차선. 목적지가 이 길 앞쪽이면 그 쪽으로, 앞이 막혔으면 옆 차선으로
+  const cen=dx?rc(auto.tj):rc(auto.ti), lat=(x,y)=>dx?(y-cen)*dx:-(x-cen)*dy;
+  const tz=target(), zAhead=((dx?tz.zx:tz.zy)-along())*sg, zl=dx?tz.zy-cen:tz.zx-cen;
+  let o=LANE;
+  if(Math.abs(zl)<RW/2 && zAhead>-20 && zAhead<distNode()+10) o=lat(tz.zx, tz.zy);
+  const obs=(oo, range)=>{
+    let best=null;
+    const chk=(x,y,v)=>{ const ah=((dx?x:y)-along())*sg; if(ah>0 && ah<range && Math.abs(lat(x,y)-oo)<15 && (!best || ah<best.ah)) best={ah, v}; };
+    for(const n of npcs) if(!n.fly) chk(n.x, n.y, Math.cos(n.a)*dx+Math.sin(n.a)*dy>.7 ? n.spd : 0);
+    for(const c of cones) if(!c.fly) chk(c.x, c.y, 0);
+    return best;
+  };
+  let ob=turboT>0 ? null : obs(o, 90);
+  if(ob && !obs(-o, 140)){ o=-o; ob=null; }
+  auto.o=o;
+  let want=maxS;
+  if(ob) want=Math.min(want, ob.ah<45 ? 0 : Math.max(ob.v, 60));
+  // 꺾을 교차로가 가까우면 속도를 줄여 부드럽게
+  const d=distNode();
+  if(d<110 && (auto.q || !nodeOpen(auto.ti, auto.tj, dx, dy))) want=Math.min(want, 150);
+  if(auto.brake) want=0;
+  const look=Math.max(30, Math.min(60, P.spd*.18));
+  const tx = dx ? P.x+dx*look : cen-dy*o, ty = dx ? cen+dx*o : P.y+dy*look;
+  return {wd:Math.atan2(ty-P.y, tx-P.x), want};
 }
 function honk(){
   if(honkT>0) return;
@@ -901,7 +978,7 @@ function collideWalls(){
 function update(dt){
   if(running()) elapsed+=dt;
   const playing = state==='play', wd=wantDir();
-  if(wd!==null) accelSec+=dt;
+  if(wd!==null || (AUTO && playing)) accelSec+=dt;
 
   // 시간
   if(playing){
@@ -917,8 +994,9 @@ function update(dt){
   // 누른 방향으로 차가 돌아서 달리고, 손을 떼면 멈춤
   let maxS=MAX_SPD*speedMul(); if(turboT>0) maxS*=1.35;
   let want=0, rate=420;
-  if(wd!==null){
-    let diff=angDiff(P.a, wd);
+  const ad = AUTO && playing && auto ? autoDrive(maxS) : null, aim = ad ? ad.wd : wd;
+  if(aim!==null){
+    let diff=angDiff(P.a, aim);
     if(Math.abs(diff)>2.6){   // 거의 반대로 돌 땐 벽이 없는 쪽으로 돎
       const free = k => !inBlock(P.x+Math.cos(P.a)*14+Math.sin(P.a)*k*34, P.y+Math.sin(P.a)*14-Math.cos(P.a)*k*34);
       const L=free(1), R=free(-1);
@@ -927,6 +1005,7 @@ function update(dt){
     P.a += Math.sign(diff)*Math.min(Math.abs(diff), 5.5*handling()*dt);
     want = Math.abs(diff)>1.6 ? 110*speedMul() : maxS;   // 뒤로 돌 땐 속도를 줄여 좁게 돎
     rate = want>P.spd ? (turboT>0?800:520) : 480;
+    if(ad){ want=Math.min(want, ad.want); if(ad.want<P.spd) rate=950; }   // 꺾기 전·브레이크는 세게 감속
   }
   if(dz<45) want=Math.min(want, 90);   // 정차 구역 안에서는 저절로 천천히
   if(state==='out'){ want=0; rate=300; }
@@ -1453,7 +1532,7 @@ function draw(){
       ctx.fillStyle=grd; ctx.beginPath(); ctx.moveTo(-6,c.h/2); ctx.lineTo(6,c.h/2); ctx.lineTo(0,c.h/2+fl+8); ctx.fill();
     }
     ctx.fillStyle='rgba(0,0,0,.2)'; rr(-c.w/2+2,-c.h/2+3,c.w,c.h,8); ctx.fill();
-    drawCarShape(ctx, c.id, c.color, c.w, c.h, {brake:running() && wantDir()===null && P.spd>20});
+    drawCarShape(ctx, c.id, c.color, c.w, c.h, {brake:running() && (AUTO ? !!(auto && auto.brake) : wantDir()===null) && P.spd>20});
     // 싣고 있는 짐
     if(order && order.phase==='deliver' && running()){ ctx.rotate(-(P.a+Math.PI/2)); ctx.font='13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText(order.shop.shop.icon, 0, 0); }
     ctx.restore();
@@ -1510,6 +1589,14 @@ function draw(){
     drops=drops.filter(d=>d.t<.5);
   }
   ctx.save(); ctx.translate(LW/2-camX, LH/2-camY);
+  // 밀어서 예약한 방향 (다음 교차로 위)
+  if(AUTO && auto && auto.q && running()){
+    const x=rc(auto.ti), y=rc(auto.tj), a=Math.atan2(auto.q[1], auto.q[0]), p=.75+.25*Math.sin(now*8);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.globalAlpha=p;
+    ctx.fillStyle='#fff'; ctx.strokeStyle='rgba(51,48,42,.6)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(26,0); ctx.lineTo(4,-20); ctx.lineTo(4,-9); ctx.lineTo(-20,-9); ctx.lineTo(-20,9); ctx.lineTo(4,9); ctx.lineTo(4,20); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.restore();
+  }
   // 가는 방향 화살표 (목적지가 멀 때)
   if(tg && P){
     const dx=tg.zx-P.x, dy=tg.zy-P.y, d=Math.hypot(dx,dy);
@@ -1543,12 +1630,6 @@ function draw(){
   if(turboT>0){
     ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=2;
     for(let i=0;i<8;i++){ const x=rand(0,LW), y=rand(0,LH), l=rand(20,50); ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-Math.cos(P.a)*l, y-Math.sin(P.a)*l); ctx.stroke(); }
-  }
-  // 휴대폰 조이스틱
-  if(joy && running()){
-    ctx.fillStyle='rgba(255,255,255,.22)'; ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=2.5;
-    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 60, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(joy.x, joy.y, 22, 0, Math.PI*2); ctx.fill();
   }
 }
 // 미니맵 (오른쪽 위)
@@ -1632,7 +1713,7 @@ const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv']
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
   $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on; $('mm').hidden=!on;
-  joy=null;
+  touch=null;
   document.body.classList.toggle('playing', on);
   if(!on) $('hItems').hidden=true;
 }
@@ -1640,6 +1721,11 @@ function start(){
   audio(); engineOn(); play('click');
   showOnly(null); resize(); clearToast(); reset(); applyBoosts(); state='play'; paused=false;
   setPlayingUi(true); hud(); drawMinimap(); cv.focus();
+  if(AUTO){
+    autoInit();
+    const n=store.get('swipeTips', 0);
+    if(n<3){ store.set('swipeTips', n+1); setTimeout(()=>{ if(state==='play') toast('👆 화면을 밀면 다음 교차로에서 꺾어요', 2200); }, 1600); }
+  }
   toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag:''), 1400);
   track('game_start', {car:carId, pet:petId, boosts:usedBoosts.join(',')});
 }
@@ -1653,7 +1739,7 @@ function restart(){
 function setPaused(p){
   if(!running()) return;
   paused=p; $('pauseOv').hidden=!p;
-  for(const k in keys) keys[k]=false; joy=null;
+  for(const k in keys) keys[k]=false; touch=null;
   engineSet(0, !p);
   if(p) $('resumeBtn').focus(); else cv.focus();
 }
