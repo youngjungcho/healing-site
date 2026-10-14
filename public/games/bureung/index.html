@@ -616,7 +616,7 @@ function reset(){
   spawnAcc=0; nextCoinAt=60; nextFuelAt=420; nextBoxAt=320; decoAccL=0; decoAccR=0; themeIdx=0; hitT=0; hits=0; shakeT=0;
   magnetT=0; giantT=0; shields=carId==='dump'?1:0; cloudUsed=false; scoreMul=1; usedBoosts=[]; petT=0;
   nextAmbAt=rand(700,1000); nextGoldAt=rand(450,700); ambWarn=null; flagPassed=false;
-  obs=[]; nextObsAt=rand(350,500); slipT=0; drafting=false; feverT=0; fevers=0; rushT=0; nextRushAt=rand(1200,1600);
+  obs=[]; nextObsAt=rand(600,800); slipT=0; drafting=false; feverT=0; fevers=0; rushT=0; nextRushAt=rand(1200,1600);
   chal=null; nextChalAt=rand(300,450); chalDone=0; lineT=0; lineCarT=0; draftT=0; lastDraftCar=null;
   pet={x:P.x-30, y:P.y-20}; kmStart=bestKm;
   nextUnlock=CARS.filter(c=>!unlocked(c)).sort((a,b)=>a.at-b.at)[0]||null;
@@ -828,7 +828,7 @@ function update(dt){
     if(meters()>=nextFuelAt){ spawnOne('fuel'); nextFuelAt=meters()+rand(420,580); }
     if(meters()>=nextBoxAt){ spawnOne('box'); nextBoxAt=meters()+rand(450,700); }
     if(meters()>=nextAmbAt && !ambWarn && !cars.some(c=>c.amb)){ warnAmb(); nextAmbAt=meters()+rand(1100,1700); }
-    if(meters()>=nextObsAt){ spawnObs(); nextObsAt=meters()+rand(220,420); }
+    if(meters()>=nextObsAt){ spawnObs(); nextObsAt=meters()+rand(450,700); }
     if(meters()>=nextRushAt && rushT<=0){ rushT=RUSH_T; toast('🚗 러시아워! 차가 많아져요 · 점수 1.5배', 1600); play('siren'); }
     if(!chal && meters()>=nextChalAt) startChal();
     // 차선 사이 선 위에 오래 머물면, 그 자리를 물고 달리는 차가 내려옴
