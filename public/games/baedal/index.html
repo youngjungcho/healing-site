@@ -116,6 +116,11 @@ button{font:inherit}
 .shopItem .dots{color:var(--accent);font-size:11px;letter-spacing:2px}
 .shopItem .two{display:flex;gap:4px;flex-wrap:wrap}
 .buy.alt{background:var(--tray);color:var(--ink);border:1.5px solid var(--line)}
+.shopItem.locked .ic{filter:grayscale(1);opacity:.35}
+.shopItem.locked b{color:var(--soft)}
+.tut{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);max-width:88%;width:max-content;background:rgba(51,48,42,.88);color:#fff;font-family:"Jua",sans-serif;font-size:15px;line-height:1.4;text-align:center;border-radius:14px;padding:8px 14px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:tutBob 1.2s ease-in-out infinite alternate}
+.tut[hidden]{display:none}
+@keyframes tutBob{to{transform:translateX(-50%) translateY(-4px)}}
 .plaza{display:grid;grid-template-columns:repeat(3,64px);gap:6px;padding:10px;background:#E8DFC9;border-radius:18px;border:3px solid #CDBF9F}
 .slot{width:64px;height:64px;border-radius:12px;border:2px dashed rgba(120,100,70,.4);background:rgba(255,255,255,.4);font-size:34px;line-height:1;cursor:pointer;padding:0;color:#33302A}
 .slot.filled{border-style:solid;border-color:rgba(120,100,70,.25)}
@@ -189,6 +194,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
     <div class="hitems" id="hItems" hidden></div>
     <canvas class="mm" id="mm" width="168" height="168" hidden></canvas>
     <div class="toast" id="toast"></div>
+    <div class="tut" id="tut" hidden></div>
     <button class="pausebtn" id="pauseBtn" aria-label="잠깐 멈춤" hidden>❚❚</button>
 
     <div class="overlay" id="menuOv">
@@ -205,6 +211,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="go2" id="missionBtn">📋 미션</button>
         <button class="go2" id="rankBtn">🏆 기록판</button>
         <button class="go2" id="decoBtn">🏡 꾸미기</button>
+        <button class="go2" id="dexBtn">📖 도감</button>
       </div>
     </div>
 
@@ -244,6 +251,17 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <button class="go" id="garageOk">선택 완료</button>
     </div>
 
+    <div class="overlay" id="dexOv" hidden>
+      <h2>배달 도감</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabDexItem" aria-selected="true">물건</button>
+        <button class="tab" role="tab" id="tabDexHome" aria-selected="false">이웃</button>
+      </div>
+      <small id="dexInfo" style="color:var(--soft)"></small>
+      <div class="shopList" id="dexList" role="tabpanel"></div>
+      <button class="go" id="dexOk">닫기</button>
+    </div>
+
     <div class="overlay" id="decoOv" hidden>
       <h2>동네 꾸미기</h2>
       <div class="best" id="decoWallet"></div>
@@ -280,7 +298,6 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
         <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
-        <button class="tab" role="tab" id="tabReg" aria-selected="false">단골</button>
       </div>
       <div class="mlist" id="rankList"></div>
       <button class="go" id="rankOk">닫기</button>
@@ -372,6 +389,7 @@ function play(n){
     case 'shield': tone(880,.3,'sine',.15,440); noise(.2,.2,3000,1); break;
     case 'crash': noise(.45,.5,350,.5); tone(140,.3,'sawtooth',.13,50); break;
     case 'cone': tone(420,.08,'square',.08,260); noise(.12,.2,1800,1); break;
+    case 'pop': tone(880,.06,'triangle',.12,1320); noise(.12,.15,3000,1); break;
     case 'quack': tone(520,.09,'sawtooth',.07,380); tone(520,.09,'sawtooth',.07,380,.13); break;
     case 'meow': tone(700,.18,'triangle',.12,1100); tone(1000,.25,'triangle',.1,650,.16); break;
     case 'honk': tone(392,.22,'square',.07); tone(494,.22,'square',.06); tone(392,.22,'square',.07,null,.28); tone(494,.22,'square',.06,null,.28); break;
@@ -464,6 +482,13 @@ const UP_PRICE=[50,100,200,350,550];
 let ups = Object.assign({time:0,speed:0,tip:0,item:0,guard:0}, store.get('ups', {}));
 let boosts = store.get('boosts', []);
 const saveShop = () => { store.set('ups', ups); store.set('boosts', boosts); saveWallet(); };
+
+/* ---------------- 배달 도감 (처음 배달한 물건·이웃마다 코인, 다 모으면 큰 보상) ---------------- */
+let dex=Object.assign({items:{}, done:{}}, store.get('dex', {}));
+const saveDex = () => store.set('dex', dex);
+const DEX_REWARD={item:10, home:5, allItems:100, allHomes:200};
+// 도감 보상은 판 코인이 아니라 지갑으로 바로 들어감
+function dexReward(n){ wallet+=n; saveWallet(); }
 
 /* ---------------- 동네 꾸미기 (광장 3×3 칸에 장식을 놓음) ---------------- */
 // 광장에 놓은 장식의 ♥(인기)를 더한 만큼 배달 팁 +% (최대 30%). glow는 밤에 불이 켜짐
@@ -681,7 +706,7 @@ function reset(){
   genWorld();
   const c=CAR();
   P={x:2*CELL+RW+BS/2, y:rc(3)+LANE, a:0, spd:0, vx:0, vy:0, c};   // 광장 바로 아래 길에서 출발
-  npcs=[]; items=[]; cones=[]; cats=[]; works=[]; fx=[]; floats=[]; greeters=[];
+  npcs=[]; items=[]; cones=[]; cats=[]; works=[]; fx=[]; floats=[]; greeters=[]; parcels=[];
   scoreF=0; coinsRun=0; cnt=0; star3Cnt=0; perfectCnt=0; streak=0; maxStreak=0; cond=100; elapsed=0; odo=0; odoMark=0; hits=0; accelSec=0;
   timeLeft=60+(carId==='van'?8:0);
   magnetT=0; turboT=0; shields=carId==='fire'?1:0; cloudUsed=false; invT=0; scoreMul=1; usedBoosts=[]; petT=0;
@@ -712,9 +737,10 @@ function applyBoosts(){
 // 주문 하나 = 가게에서 싣고(pickup) → 집에 내림(deliver). 묶음 배달이면 두 집에 차례로.
 // pars[i]는 i번째 집까지 대략 걸릴 시간(초). 이걸로 ★ 기준을 정함
 function newOrder(){
-  let cand=shops.filter(s=>s!==lastShop && mdist(P,s)>=250 && mdist(P,s)<=950);
+  const easy0 = tut && cnt===0;   // 첫 판 안내 중 첫 주문은 가까운 곳으로
+  let cand=shops.filter(s=>s!==lastShop && mdist(P,s)>=(easy0?200:250) && mdist(P,s)<=(easy0?650:950));
   if(!cand.length) cand=shops.filter(s=>s!==lastShop);
-  const shop=pick(cand), far=Math.min(1300, 800+cnt*15);
+  const shop=pick(cand), far=easy0 ? 700 : Math.min(1300, 800+cnt*15);
   const md=(a,b)=>Math.abs(a.zx-b.zx)+Math.abs(a.zy-b.zy);
   let hc=homes.filter(h=>h.b!==shop.b && md(shop,h)>=350 && md(shop,h)<=far);
   if(!hc.length) hc=homes.filter(h=>h.b!==shop.b);
@@ -872,7 +898,7 @@ addEventListener('keydown', e=>{
   if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
   if(e.code==='Escape'){
     if(!$('garageOv').hidden) closeGarage(); else if(!$('rankOv').hidden) closeRank();
-    else if(!$('shopOv').hidden) closeShop(); else if(!$('decoOv').hidden) closeDeco(); else if(!$('missionOv').hidden) closeMissions();
+    else if(!$('shopOv').hidden) closeShop(); else if(!$('decoOv').hidden) closeDeco(); else if(!$('dexOv').hidden) closeDex(); else if(!$('missionOv').hidden) closeMissions();
   }
   if(e.code==='Enter' && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='BUTTON'){
     if(state==='menu' && !$('menuOv').hidden) start(); else if(state==='over' && !$('overOv').hidden) start();
@@ -908,6 +934,25 @@ function wantDir(){
   if(keys.ArrowDown||keys.KeyS) y+=1;
   return (x||y) ? Math.atan2(y, x) : null;
 }
+/* ---------------- 첫 판 안내 (처음 한 번, 첫 배달까지) ---------------- */
+let tut=false, tutText='', tutTimer=0;
+function setTut(t){ if(t===tutText) return; tutText=t; const el=$('tut'); el.textContent=t; el.hidden=!t; }
+// 받침이 있으면(ㄹ 빼고) '으로', 없으면 '로'
+const ro = w => { const c=w.charCodeAt(w.length-1)-0xAC00; return w+(c>=0 && c<11172 && c%28 && c%28!==8 ? '으로' : '로'); };
+function updateTut(){
+  if(!tut) return;
+  const z=target(), pk=order.phase==='pickup', near=Math.hypot(P.x-z.zx, P.y-z.zy)<110;
+  if(pk) setTut(near ? '동그라미 안에 들어가면 저절로 짐을 실어요' :
+    (AUTO ? '👆 화면을 밀면 다음 교차로에서 꺾어요 · 화살표를 따라 📍'+ro(order.shop.shop.name)+'!' : '방향키를 누르는 쪽으로 달려요 · 화살표를 따라 📍'+ro(order.shop.shop.name)+'!'));
+  else setTut(near ? '동그라미에 들어가면 배달 완료!' : '이제 '+order.stops[order.si].icon+' '+ro(order.stops[order.si].name)+'! 빨리 갈수록 ★이 늘어요');
+}
+function endTut(){
+  tut=false; store.set('tutDone', true);
+  setTut('잘했어요! 배달할 때마다 ⏱️ 시간이 늘어나요. 이제 시간이 흘러요!');
+  clearTimeout(tutTimer); tutTimer=setTimeout(()=>setTut(''), 3500);
+  track('tutorial_done', {});
+}
+
 /* ---------------- 밀어서 꺾기 (휴대폰) ---------------- */
 // 차는 도로 격자를 따라 알아서 달림. auto.ti·tj는 다음 교차로, q는 예약한 방향
 let auto=null;
@@ -1026,7 +1071,7 @@ function update(dt){
   // 시간
   if(playing){
     const before=Math.ceil(timeLeft);
-    timeLeft-=dt;
+    if(!tut) timeLeft-=dt;   // 첫 판 안내 중(첫 배달 전)에는 시간이 멈춰 있음
     if(timeLeft<=10 && Math.ceil(timeLeft)!==before && timeLeft>0) play('tick');
     if(timeLeft<=0){ timeLeft=0; state='out'; toast('⏰ 오늘 배달 끝!', 1600); }
     order.t+=dt;
@@ -1139,7 +1184,8 @@ function update(dt){
   });
   if(playing){ catT-=dt; if(catT<=0){ catT=rand(5,9); spawnCat(); } }
   // 길 이벤트
-  if(playing){ evT-=dt; if(evT<=0) evT = roadEvent() ? rand(25,40) : 3; }
+  if(playing && !tut){ evT-=dt; if(evT<=0) evT = roadEvent() ? rand(25,40) : 3; }
+  if(playing) updateTut();
   if(rainT>0){ rainT=Math.max(0, rainT-dt); if(rainT===0 && playing) toast('☀️ 비가 그쳤어요', 1000); }
   for(const w of works) w.t+=dt;
   works=works.filter(w=>w.t<WORK_LEN);
@@ -1169,6 +1215,14 @@ function update(dt){
   for(const f of floats){ f.t+=dt; f.y-=40*dt; }
   floats=floats.filter(f=>f.t<.9);
   for(const g of greeters) g.t+=dt;
+  for(const q of parcels){
+    q.t+=dt;
+    if(q.t>=PARCEL_T && !q.done){
+      q.done=true; q.home.bounceAt=performance.now()/1000; play('pop');
+      for(const c of ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FFB7D5']) burst(q.x1, q.y1, c, 6, 170);
+    }
+  }
+  parcels=parcels.filter(q=>!q.done);
   greeters=greeters.filter(g=>g.t<2.6);
 
   // 타이머
@@ -1282,10 +1336,14 @@ function arrive(){
   let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)*(rainT>0?1.3:1)*(1+decoBonus()/100)) + 2*lv; if(petId==='dog') tip+=2;
   if(rainT>0) mProg('rain',1);
   addCoins(tip);
-  play('deliver'); burst(P.x,P.y,'#FFE27A',16,170); burst(P.x,P.y,'#FFB7D5',10,140);
+  play('deliver'); burst(P.x,P.y,'#FFE27A',10,140);
   float(P.x, P.y-44, '★'.repeat(stars)+'☆'.repeat(3-stars), '#FFE45C', 22);
   float(P.x, P.y-24, '+'+pts+'  🪙+'+tip, '#fff', 14);
+  // 짐이 차에서 집 현관으로 포물선을 그리며 날아감 → 닿으면 집이 통통, 색종이
+  parcels.push({x0:P.x, y0:P.y, x1:home.dx, y1:home.dy, t:0, icon:order.shop.shop.icon, home});
   greet(home, stars, kindOk);
+  dexItem(order.shop.shop);
+  if(tut) endTut();
   if(streak>=2) setTimeout(()=>{ if(state==='play') toast(streak+'연속 ★★★!', 900); }, 1300);
   // 묶음 배달: 다음 집으로
   if(order.si < order.stops.length-1){
@@ -1311,9 +1369,19 @@ function arrive(){
   cond=100;
 }
 // 손님이 현관에 나와 말풍선으로 인사함. 같은 이름의 집은 배달할수록 단골이 됨
-let greeters=[];
+let greeters=[], parcels=[];
+const PARCEL_T=.45;
+function dexItem(sh){
+  const first=!dex.items[sh.item];
+  dex.items[sh.item]=(dex.items[sh.item]||0)+1;
+  if(first){
+    dexReward(DEX_REWARD.item); float(P.x, P.y-62, '📖 새 물건 '+sh.icon+' 🪙+'+DEX_REWARD.item, '#C9F0FF', 14);
+    if(!dex.done.items && SHOP_TYPES.every(t=>dex.items[t.item])){ dex.done.items=true; dexReward(DEX_REWARD.allItems); setTimeout(()=>{ if(state==='play') toast('📖 물건 도감 완성! 🪙+'+DEX_REWARD.allItems, 1800); play('win'); }, 2800); }
+  }
+  saveDex();
+}
 function greet(home, stars, kindOk){
-  const before=regLevel(home.name);
+  const before=regLevel(home.name), newbie=!regs[home.name];
   regs[home.name]=(regs[home.name]||0)+1; store.set('regs', regs);
   const lv=regLevel(home.name);
   let lines;
@@ -1328,7 +1396,11 @@ function greet(home, stars, kindOk){
   const placed=deco.slots.filter(Boolean);
   if(lv===before && decoPop()>=8 && placed.length && Math.random()<.18) lines=['광장이 점점 예뻐져요!', '광장 '+DECO(pick(placed)).icon+' 정말 좋아요!', '우리 동네 최고예요!'];
   const text=pick(lines);
-  greeters.push({x:home.dx, y:home.dy, icon:home.icon, text, t:0});
+  greeters.push({x:home.dx, y:home.dy, icon:home.icon, text, t:-PARCEL_T});   // 짐이 닿은 뒤에 나옴
+  if(newbie){
+    dexReward(DEX_REWARD.home); setTimeout(()=>float(home.dx, home.dy-70, '📖 새 이웃 🪙+'+DEX_REWARD.home, '#C9F0FF', 14), 600);
+    if(!dex.done.homes && HOMES.every(h=>regs[h.name])){ dex.done.homes=true; saveDex(); dexReward(DEX_REWARD.allHomes); setTimeout(()=>{ if(state==='play') toast('📖 이웃 도감 완성! 🪙+'+DEX_REWARD.allHomes, 1800); play('win'); }, 3200); }
+  }
   toast(home.icon+' “'+text+'”', 1300);
   if(lv>before){ setTimeout(()=>{ if(state==='play') toast('🏠 '+home.name+' '+REG_NAME[lv]+'!', 1500); }, 1400); play('win'); mProg('regular',1); }
 }
@@ -1402,6 +1474,15 @@ function drawTree(x, y, r, c){
   ctx.fillStyle='rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(x-r*.3,y-r*.3,r*.5,0,Math.PI*2); ctx.fill();
 }
 function drawLot(L, tc, now){
+  const bt=L.bounceAt ? now-L.bounceAt : 9;
+  if(bt>=.6) return drawLotBody(L, tc, now);
+  // 배달 받은 집이 통통 튐
+  const k=1+.18*Math.sin(bt/.6*Math.PI)*(1-bt/.6), cx=L.x+LS/2, cy=L.y+LS/2;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
+  drawLotBody(L, tc, now);
+  ctx.restore();
+}
+function drawLotBody(L, tc, now){
   const cx=L.x+LS/2, cy=L.y+LS/2, s=L.seed;
   if(L.kind==='yard'){
     drawTree(cx-18, cy-14, 15, '#4FA36B'); drawTree(cx+16, cy+12, 13, '#5EB377');
@@ -1680,7 +1761,15 @@ function draw(){
       ctx.restore();
     }
   }
+  for(const q of parcels){
+    const k=Math.min(1, q.t/PARCEL_T), x=q.x0+(q.x1-q.x0)*k, y=q.y0+(q.y1-q.y0)*k, h=Math.sin(k*Math.PI)*42;
+    ctx.fillStyle='rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(x, y+6, 8*(1-k*.3), 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.translate(x, y-h); ctx.rotate(k*Math.PI*2);
+    ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#000'; ctx.fillText(q.icon, 0, 0);
+    ctx.restore();
+  }
   for(const g of greeters){
+    if(g.t<0) continue;
     const a=Math.min(1, g.t*5, (2.6-g.t)*3), pop=Math.min(1, g.t*4), hop=Math.abs(Math.sin(g.t*6))*4*(g.t<1.2?1:0);
     ctx.globalAlpha=Math.max(0,a);
     ctx.font=`${Math.round(24*pop)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -1782,9 +1871,10 @@ function idleDrive(dt){
 }
 
 /* ---------------- 흐름 ---------------- */
-const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv','decoOv'];
+const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv','decoOv','dexOv'];
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
+  if(!on){ clearTimeout(tutTimer); setTut(''); }
   $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on; $('mm').hidden=!on;
   touch=null;
   document.body.classList.toggle('playing', on);
@@ -1792,12 +1882,13 @@ function setPlayingUi(on){
 }
 function start(){
   audio(); engineOn(); play('click');
+  tut=!store.get('tutDone', false); clearTimeout(tutTimer); setTut('');
   showOnly(null); resize(); clearToast(); reset(); applyBoosts(); state='play'; paused=false;
   setPlayingUi(true); hud(); drawMinimap(); cv.focus();
   if(AUTO){
     autoInit();
     const n=store.get('swipeTips', 0);
-    if(n<3){ store.set('swipeTips', n+1); setTimeout(()=>{ if(state==='play') toast('👆 화면을 밀면 다음 교차로에서 꺾어요', 2200); }, 1600); }
+    if(n<3 && !tut){ store.set('swipeTips', n+1); setTimeout(()=>{ if(state==='play') toast('👆 화면을 밀면 다음 교차로에서 꺾어요', 2200); }, 1600); }
   }
   toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag.split(' ')[0]:''), 1400);
   track('game_start', {car:carId, pet:petId, boosts:usedBoosts.join(',')});
@@ -1967,6 +2058,35 @@ $('shopOk').addEventListener('click', closeShop);
 $('tabBoost').addEventListener('click', ()=>{ shopTab='boost'; renderShop(); });
 $('tabUp').addEventListener('click', ()=>{ shopTab='up'; renderShop(); });
 
+/* ---------------- 도감 화면 ---------------- */
+let dexTab='item';
+function renderDex(){
+  $('tabDexItem').setAttribute('aria-selected', String(dexTab==='item')); $('tabDexHome').setAttribute('aria-selected', String(dexTab==='home'));
+  const box=$('dexList'); box.innerHTML='';
+  const card=(icon,name,sub,got)=>{ const d=document.createElement('div'); d.className='shopItem'+(got?'':' locked'); d.innerHTML=`<span class="ic">${icon}</span><b>${got?name:'???'}</b><small>${sub}</small>`; box.append(d); };
+  if(dexTab==='item'){
+    const n=SHOP_TYPES.filter(t=>dex.items[t.item]).length;
+    $('dexInfo').textContent=`물건 ${n}/${SHOP_TYPES.length} · 처음 배달하면 🪙+${DEX_REWARD.item}, 다 모으면 🪙+${DEX_REWARD.allItems}`+(dex.done.items?' (받음)':'');
+    for(const t of SHOP_TYPES){
+      const c=dex.items[t.item]||0, tag=t.kind ? KINDS[t.kind].tag : '';
+      card(t.icon, t.item, c ? `${t.name} · ${c}번 배달${tag?'<br>'+tag:''}` : t.name+'에서 받아 배달해 보세요', c>0);
+    }
+  }else{
+    const met=HOMES.filter(h=>regs[h.name]).length;
+    $('dexInfo').textContent=`이웃 ${met}/${HOMES.length} · 새 이웃 🪙+${DEX_REWARD.home}, 다 만나면 🪙+${DEX_REWARD.allHomes} · ${REG_AT[0]}번이면 단골(팁 +2), ${REG_AT[1]}번이면 찐단골(팁 +4)`+(dex.done.homes?' (받음)':'');
+    for(const h of HOMES.slice().sort((a,b)=>(regs[b.name]||0)-(regs[a.name]||0))){
+      const n=regs[h.name]||0, lv=regLevel(h.name), nx=REG_AT.find(a=>a>n);
+      card(h.icon, h.name, n ? `${REG_NAME[lv]||'이웃'} · 배달 ${n}번${nx?'<br>'+REG_NAME[REG_AT.indexOf(nx)+1].split(' ')[1]+'까지 '+(nx-n)+'번':''}` : '아직 못 만났어요', n>0);
+    }
+  }
+}
+function openDex(){ showOnly('dexOv'); dexTab='item'; renderDex(); $('dexOv').scrollTop=0; $('tabDexItem').focus({preventScroll:true}); }
+function closeDex(){ backToMenu(); }
+$('dexBtn').addEventListener('click', openDex);
+$('dexOk').addEventListener('click', closeDex);
+$('tabDexItem').addEventListener('click', ()=>{ dexTab='item'; renderDex(); });
+$('tabDexHome').addEventListener('click', ()=>{ dexTab='home'; renderDex(); });
+
 /* ---------------- 꾸미기 화면 ---------------- */
 let decoSel=0;
 function renderDeco(){
@@ -2046,18 +2166,8 @@ const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 // period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
 async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
 function renderRank(){
-  ['best','recent','week','global','reg'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  ['best','recent','week','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
   const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
-  if(rankTab==='reg'){
-    const list=HOMES.filter(h=>regs[h.name]).sort((a,b)=>regs[b.name]-regs[a.name]);
-    box.innerHTML=`<small style="color:var(--soft);text-align:center">같은 집에 ${REG_AT[0]}번 배달하면 단골(팁 +2), ${REG_AT[1]}번이면 찐단골(팁 +4) · ${list.length}/${HOMES.length}집</small>`;
-    for(const h of list){
-      const n=regs[h.name], lv=regLevel(h.name), nx=REG_AT.find(a=>a>n);
-      box.insertAdjacentHTML('beforeend', `<div class="rk"><span class="md">${h.icon}</span><b>${h.name}</b><small>${REG_NAME[lv]||'이웃'}</small><small>배달 ${n}번${nx?' · '+REG_NAME[REG_AT.indexOf(nx)+1].split(' ')[1]+'까지 '+(nx-n)+'번':''}</small><small></small></div>`);
-    }
-    if(!list.length) box.insertAdjacentHTML('beforeend', '<small style="color:var(--soft);text-align:center">아직 배달한 집이 없어요.</small>');
-    return;
-  }
   if(rankTab!=='global' && rankTab!=='week'){
     const list=runs[rankTab];
     if(!list.length) return msg('아직 기록이 없어요. 한 판 배달해 보세요!');
@@ -2090,7 +2200,6 @@ $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
 $('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
-$('tabReg').addEventListener('click', ()=>{ rankTab='reg'; renderRank(); });
 
 /* ---------------- 전체 순위 올리기 ---------------- */
 // 서버에는 배달 건수를 stage(to)로 보냄. 1건 이상 배달한 판만 올릴 수 있음
