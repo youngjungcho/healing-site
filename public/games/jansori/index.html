@@ -618,9 +618,10 @@ const LV_SEC = 15;
 function diff(){
   const L=level, h=mode==='hard';
   return {
-    gap: h ? Math.max(.24, .78-.05*(L-1)) : Math.max(.34, 1.15-.07*(L-1)),
-    spd: h ? Math.min(430, 150+18*(L-1)) : Math.min(330, 105+14*(L-1)),
-    vx:  h ? 70 : 18,
+    // 아내 모드는 1~3단계(처음 45초)를 몸풀기로 느슨하게 시작해서 4단계쯤 예전 시작 세기에 닿음
+    gap: h ? Math.max(.24, 1.0-.075*(L-1)) : Math.max(.34, 1.15-.07*(L-1)),
+    spd: h ? Math.min(430, 120+22*(L-1)) : Math.min(330, 105+14*(L-1)),
+    vx:  h ? Math.min(70, 35+10*(L-1)) : 18,
   };
 }
 const slowMul = () => (coffeeT>0 ? .5 : 1) * (petId==='turtle' ? .92 : 1);
@@ -669,11 +670,11 @@ function throwAnim(){ G.mouthT=.28; G.armT=.3; }
 function pattern(){
   const L=level, h=mode==='hard', d=diff(), W=WORDS[mode], sm=slowMul(), m=mouth();
   const list=[['drop', 10]];
-  if(h || L>=3) list.push(['aim', h?5:3]);
-  if(h ? L>=2 : L>=5) list.push(['fan', h?4:2]);
-  if(h ? L>=2 : L>=3) list.push(['rain', h?3:2]);
-  if(h ? L>=3 : L>=6) list.push(['glare', h?3:1.5]);
-  if(h ? L>=3 : L>=4) list.push(['bomb', h?2.5:1.5]);
+  if(h ? L>=2 : L>=3) list.push(['aim', h?(L>=4?5:3):3]);
+  if(h ? L>=3 : L>=5) list.push(['fan', h?4:2]);
+  if(h ? L>=3 : L>=3) list.push(['rain', h?3:2]);
+  if(h ? L>=4 : L>=6) list.push(['glare', h?3:1.5]);
+  if(h ? L>=4 : L>=4) list.push(['bomb', h?2.5:1.5]);
   let tot=list.reduce((s,x)=>s+x[1],0), r=Math.random()*tot, kind='drop';
   for(const [k,wt] of list){ if((r-=wt)<0){ kind=k; break; } }
   const txt = () => L<2 || Math.random()<.35 ? pickFresh(W.w.filter(t=>t.length<=7)) : pickFresh(W.w);
@@ -835,7 +836,9 @@ function update(dt){
 
   // 여자친구는 위에서 왔다 갔다
   const gs = 60+level*6;
-  if(Math.abs(G.tx-G.x)<4) G.tx = Math.random()<.45 ? clamp(B.x+rand(-60,60), 50, LW-50) : rand(50, LW-50);
+  // 남자친구 쪽으로 다가가 던지는 비율 (아내 모드 1~2단계는 덜 따라옴)
+  const chase = mode==='hard' && level<=2 ? .25 : .45;
+  if(Math.abs(G.tx-G.x)<4) G.tx = Math.random()<chase ? clamp(B.x+rand(-60,60), 50, LW-50) : rand(50, LW-50);
   G.x += Math.sign(G.tx-G.x)*Math.min(Math.abs(G.tx-G.x), gs*dt);
 
   // 잔소리 던지기
