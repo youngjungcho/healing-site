@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>잔소리 피하기 – 쏟아지는 잔소리 피하기 게임</title>
+<meta name="description" content="여자친구(보통)와 아내(어려움)가 쏟아내는 잔소리를 요리조리 피하는 게임. 하트 3개로 최대한 오래 버텨 보세요!">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="쉼표 게임">
+<meta property="og:title" content="잔소리 피하기 — 쉼표 게임">
+<meta property="og:description" content="또 게임해? 양말 뒤집어 벗지 마! 쏟아지는 잔소리를 피해 최대한 오래 버티기.">
+<meta property="og:image" content="https://swimpyonote.com/games/jansori/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://swimpyonote.com/games/jansori/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7E6EC; --ink:#3A2430; --soft:#7D6070; --tray:#FFF8FA; --line:#E8C9D5; --accent:#E8558A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#21161B; --ink:#F7E9EE; --soft:#BFA2AE; --tray:#2E2027; --line:#4A3540; --accent:#FF6E9C; }
+}
+:root[data-theme="dark"]{ --bg:#21161B; --ink:#F7E9EE; --soft:#BFA2AE; --tray:#2E2027; --line:#4A3540; --accent:#FF6E9C; }
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Gowun Dodum",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 22px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+h1{font-family:"Jua",sans-serif;font-weight:400;font-size:clamp(34px,6.5vw,58px);line-height:.95;margin:0;letter-spacing:-.02em}
+header p{margin:0 0 4px;max-width:22em;color:var(--soft);font-size:15px;line-height:1.5;text-align:right}
+.stage{position:relative;margin:0 auto;width:min(100%,540px,calc((100dvh - 150px)*.7));aspect-ratio:7/10;border:1.5px solid var(--line);border-radius:22px;overflow:hidden;background:#FCE4EC;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.hud{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:6px;pointer-events:none;align-items:flex-start}
+.hud > div{background:rgba(255,255,255,.88);color:#3A2430;border-radius:12px;padding:4px 10px;font-size:11px;line-height:1.3}
+.hud b{display:block;font-family:"Jua",sans-serif;font-weight:400;font-size:19px;font-variant-numeric:tabular-nums}
+.hud .hp{margin-left:auto;text-align:right}
+.hud .hp b{letter-spacing:1px;font-size:17px}
+.hud .hp b.ouch{animation:ouch .4s}
+@keyframes ouch{30%{transform:scale(1.35) rotate(-8deg)}}
+.bars{position:absolute;left:10px;right:10px;top:60px;display:flex;gap:6px;pointer-events:none}
+.bar{flex:1;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.88);border-radius:10px;padding:4px 8px;font-size:12px;color:#3A2430}
+.bar span{flex:1;height:8px;border-radius:4px;background:rgba(58,36,48,.15);overflow:hidden}
+.bar i{display:block;height:100%;width:100%;transform-origin:left;border-radius:4px;background:linear-gradient(90deg,#FF9EC0,#E8558A)}
+.bar.full{box-shadow:0 0 0 2px #E8558A}
+.bar b{font-weight:400}
+.hitems{position:absolute;left:10px;top:92px;display:flex;gap:5px;pointer-events:none}
+.hitems span{background:rgba(255,255,255,.88);color:#3A2430;border-radius:9px;padding:2px 8px;font-size:12px;font-variant-numeric:tabular-nums}
+.toast{position:absolute;left:50%;top:48%;transform:translate(-50%,0);font-family:"Jua",sans-serif;font-size:clamp(20px,4.6vw,30px);color:#fff;text-shadow:0 2px 0 rgba(58,36,48,.6),0 0 16px rgba(58,36,48,.4);pointer-events:none;opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,-8px)}
+.skillBtn{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-family:"Jua",sans-serif;font-size:20px;color:#fff;background:linear-gradient(135deg,#FF9EC0,#E8558A);border:0;border-radius:999px;padding:12px 30px;box-shadow:0 4px 0 #A8325D,0 0 24px rgba(232,85,138,.7);cursor:pointer;animation:pulse .7s ease-in-out infinite alternate;touch-action:none;white-space:nowrap}
+.skillBtn.hard{background:linear-gradient(135deg,#7FD0F0,#3C8FD9);box-shadow:0 4px 0 #24609A,0 0 24px rgba(60,143,217,.7)}
+@keyframes pulse{to{transform:translateX(-50%) scale(1.07)}}
+.skillBtn[hidden],.hud[hidden],.bars[hidden],.hitems[hidden]{display:none}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:20px;gap:10px;text-align:center;background:color-mix(in srgb,var(--tray) 82%,transparent);backdrop-filter:blur(4px);overflow-y:auto}
+.overlay[hidden],.overlay [hidden]{display:none}
+.overlay > *{flex-shrink:0}
+.overlay h2{font-family:"Jua",sans-serif;font-weight:400;font-size:clamp(28px,6vw,40px);margin:0}
+.overlay p{margin:0;color:var(--soft);line-height:1.6;max-width:30em}
+.keys{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--soft)}
+.keys kbd{font-family:"Jua",sans-serif;background:var(--tray);border:1.5px solid var(--line);border-bottom-width:3px;border-radius:7px;padding:1px 7px;color:var(--ink)}
+button{font:inherit}
+.go{font-family:"Jua",sans-serif;font-size:22px;color:#fff;background:var(--accent);border:0;border-radius:999px;padding:12px 38px;cursor:pointer;box-shadow:0 4px 0 color-mix(in srgb,var(--accent) 60%,#000)}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 color-mix(in srgb,var(--accent) 60%,#000)}
+.go2{font-family:"Jua",sans-serif;font-size:16px;color:var(--ink);background:var(--tray);border:1.5px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer}
+.go:focus-visible,.go2:focus-visible,.mute:focus-visible,.tab:focus-visible,.buy:focus-visible,.skillBtn:focus-visible,.gcar:focus-visible,.mode:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+.best{font-family:"Jua",sans-serif;font-size:17px;color:var(--ink)}
+.line{font-size:13px;color:var(--soft)}
+.curcar{display:flex;align-items:center;gap:8px;font-family:"Jua",sans-serif;font-size:16px}
+.curcar canvas{width:36px;height:48px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E8333F;margin-left:5px;vertical-align:middle}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:min(100%,380px)}
+.mode{background:var(--tray);border:1.5px solid var(--line);border-radius:16px;padding:10px 8px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px}
+.mode .ic{font-size:30px;line-height:1.1}
+.mode b{font-family:"Jua",sans-serif;font-weight:400;font-size:18px}
+.mode small{color:var(--soft);font-size:12px;line-height:1.35}
+.mode[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.mode.hardm[aria-checked="true"]{border-color:#3C8FD9;box-shadow:0 0 0 2px #3C8FD9}
+.res{display:grid;grid-template-columns:repeat(3,auto);gap:4px 20px;justify-content:center;font-size:13px;color:var(--soft)}
+.res b{display:block;font-family:"Jua",sans-serif;font-weight:400;font-size:22px;color:var(--ink)}
+.lastword{font-family:"Jua",sans-serif;font-size:16px;color:var(--ink);background:var(--tray);border:1.5px dashed var(--line);border-radius:14px;padding:6px 14px;max-width:340px}
+.lastword small{display:block;font-family:"Gowun Dodum",sans-serif;font-size:12px;color:var(--soft)}
+.newbest{font-family:"Jua",sans-serif;color:var(--accent);font-size:18px}
+.unlock{font-family:"Jua",sans-serif;font-size:16px;color:var(--ink);background:var(--tray);border:1.5px solid var(--accent);border-radius:12px;padding:6px 14px}
+.gsub{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;border:1.5px dashed var(--accent);border-radius:14px;max-width:340px}
+.gsub b{font-family:"Jua",sans-serif;font-weight:400;font-size:16px}
+.gsub .row{display:flex;gap:6px}
+.gsub input{font:inherit;font-size:15px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);background:var(--tray);color:var(--ink);width:150px}
+.gsub small{color:var(--soft);font-size:12px}
+.buy{font-family:"Jua",sans-serif;font-size:14px;border:0;border-radius:999px;padding:6px 12px;background:var(--accent);color:#fff;cursor:pointer}
+.buy:disabled{opacity:.4;cursor:default}
+.garage{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;width:min(100%,520px)}
+.gcar{background:var(--tray);border:1.5px solid var(--line);border-radius:14px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--ink);font:inherit}
+.gcar[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.gcar:disabled{opacity:.5;cursor:default}
+.gcar canvas{width:42px;height:56px}
+.gcar b{font-family:"Jua",sans-serif;font-weight:400;font-size:14px}
+.gcar small{color:var(--soft);font-size:11px;line-height:1.3}
+#boyInfo{min-height:3em;color:var(--ink);font-size:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.attend{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:min(100%,440px)}
+.aday{background:var(--tray);border:1.5px solid var(--line);border-radius:12px;padding:6px 2px;font-size:11px;color:var(--soft);display:flex;flex-direction:column;align-items:center;gap:2px}
+.aday b{font-family:"Jua",sans-serif;font-weight:400;font-size:14px;color:var(--ink)}
+.aday.got{opacity:.5}
+.aday.today{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tab{font-family:"Jua",sans-serif;font-size:15px;border:1.5px solid var(--line);background:var(--tray);color:var(--ink);border-radius:999px;padding:6px 16px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabs.small .tab{font-size:13px;padding:4px 12px}
+.shopList{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(100%,520px)}
+.shopItem{background:var(--tray);border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:3px}
+.shopItem .ic{font-size:22px;line-height:1}
+.shopItem b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
+.shopItem small{color:var(--soft);font-size:12px;line-height:1.35;flex:1}
+.shopItem .dots{color:var(--accent);font-size:11px;letter-spacing:2px}
+.mlist{display:flex;flex-direction:column;gap:8px;width:min(100%,440px)}
+.mrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;background:var(--tray);border:1.5px solid var(--line);border-radius:14px;padding:8px 12px;text-align:left}
+.mrow b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
+.mrow small{color:var(--soft);font-size:12px}
+.mbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.mbar i{display:block;height:100%;background:var(--accent)}
+.mrow .buy{grid-row:1/4;grid-column:2}
+.rk{display:grid;grid-template-columns:32px 1fr auto;gap:0 10px;align-items:center;background:var(--tray);border:1.5px solid var(--line);border-radius:12px;padding:6px 12px;text-align:left}
+.rk.me{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.rk .md{grid-row:1/3;font-family:"Jua",sans-serif;font-size:18px;text-align:center}
+.rk b{font-family:"Jua",sans-serif;font-weight:400;font-size:16px}
+.rk small{color:var(--soft);font-size:12px}
+footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px auto 0;max-width:540px;color:var(--soft);font-size:13px;line-height:1.5;flex-wrap:wrap}
+.mute{background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer;white-space:nowrap;text-decoration:none;font-size:13px}
+@media (max-width:600px){
+  .wrap{padding:10px 8px 16px}
+  h1{font-size:30px} h1 br{display:none}
+  header{flex-direction:column;align-items:flex-start;gap:4px}
+  header p{font-size:12.5px;text-align:left}
+  .stage{width:100%;aspect-ratio:auto;height:min(calc(100dvh - 110px),150vw);border-radius:16px}
+  body.playing header,body.playing footer{display:none}
+  body.playing .stage{height:calc(100dvh - 20px)}
+  .hud b{font-size:16px}
+  .overlay{padding:14px;gap:8px}
+  .overlay p{font-size:13px;line-height:1.5}
+  .keys{display:none}
+  .go{font-size:19px;padding:10px 30px}
+  .go2{font-size:15px;padding:7px 13px}
+  .garage{grid-template-columns:repeat(3,1fr);gap:6px}
+  .shopList{grid-template-columns:repeat(2,1fr);gap:6px}
+  .shopItem{padding:6px 8px}
+  .shopItem small{font-size:11px}
+}
+@media (orientation:landscape) and (max-height:500px){
+  header,footer{display:none}
+  .wrap{padding:0}
+  .stage{width:auto;height:100dvh;aspect-ratio:7/10;border:0;border-radius:0}
+  .keys{display:none}
+}
+</style>
+<script>
+  // 쉼표 본 사이트와 같은 테마 설정을 따름
+  (function(){ try{ var t=localStorage.getItem('theme'); if(t) document.documentElement.setAttribute('data-theme', t); }catch(e){} })();
+</script>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>잔소리 <br>피하기</h1>
+    <p>위에서 쏟아지는 잔소리를 요리조리 피해요. 하트 3개로 최대한 오래 버텨 보세요!</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" tabindex="0" aria-label="게임 화면"></canvas>
+    <div class="hud" id="hud" hidden>
+      <div><b id="hScore">0</b>점수</div>
+      <div><b id="hTime">0:00</b>버틴 시간</div>
+      <div><b id="hLv">1</b>단계</div>
+      <div class="hp"><b id="hHp">❤️❤️❤️</b><span id="hMode">여자친구</span></div>
+    </div>
+    <div class="bars" id="bars" hidden>
+      <div class="bar" id="skillBar"><b id="skillIc">💕</b><span><i id="skillFill"></i></span></div>
+    </div>
+    <div class="hitems" id="hItems" hidden></div>
+    <div class="toast" id="toast"></div>
+    <button class="skillBtn" id="skillBtn" hidden>💕 애교 부리기!</button>
+
+    <div class="overlay" id="menuOv">
+      <h2>💢 잔소리 피하기</h2>
+      <p>위에서 쏟아지는 <b>잔소리</b>를 좌우로 피하세요.<br>아슬아슬하게 피하면 필살기 게이지가 차요. 하트 3개를 다 잃으면 끝!</p>
+      <div class="modes" role="radiogroup" aria-label="난이도">
+        <button class="mode" role="radio" id="modeNormal" data-mode="normal"><span class="ic">💕</span><b>보통 · 여자친구</b><small>귀여운 투정이<br>천천히 떨어져요</small></button>
+        <button class="mode hardm" role="radio" id="modeHard" data-mode="hard"><span class="ic">🔥</span><b>어려움 · 아내</b><small>빠르고 많고 길어요<br>째려보기 주의!</small></button>
+      </div>
+      <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 피하기</span><span><kbd>Space</kbd> 필살기</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
+      <div class="curcar" id="curBoy"></div>
+      <div class="line" id="boostLine" hidden></div>
+      <div class="best" id="menuBest" hidden></div>
+      <button class="go" id="goBtn">시작!</button>
+      <div class="btns">
+        <button class="go2" id="closetBtn">👕 옷장</button>
+        <button class="go2" id="shopBtn">🛒 상점</button>
+        <button class="go2" id="missionBtn">📋 미션</button>
+        <button class="go2" id="rankBtn">🏆 기록판</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="overOv" hidden>
+      <h2 id="overTitle">혼났어요</h2>
+      <div class="newbest" id="newBest" hidden>🎉 내 최고 기록!</div>
+      <div class="lastword" id="lastWord"></div>
+      <div class="res">
+        <div><b id="rTime">0</b>버틴 시간</div>
+        <div><b id="rScore">0</b>점수</div>
+        <div><b id="rNear">0</b>아슬아슬</div>
+        <div><b id="rDodge">0</b>피한 잔소리</div>
+        <div><b id="rItems">0</b>아이템</div>
+        <div><b id="rCoins">0</b>용돈</div>
+      </div>
+      <div class="line" id="rWallet"></div>
+      <div class="unlock" id="rUnlock" hidden></div>
+      <div class="gsub" id="gsub" hidden>
+        <b id="gsubTitle"></b>
+        <div class="row"><input id="gsubName" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="nickname"><button class="buy" id="gsubBtn">올리기</button></div>
+        <small id="gsubMsg"></small>
+      </div>
+      <button class="go" id="againBtn">다시 버티기</button>
+      <div class="btns"><button class="go2" id="shareBtn">📤 공유하기</button><button class="go2" id="overMenu">메인 메뉴</button></div>
+      <small id="shareMsg" style="color:var(--soft)" hidden></small>
+    </div>
+
+    <div class="overlay" id="closetOv" hidden>
+      <h2>옷장</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabBoy" aria-selected="true">남자친구</button>
+        <button class="tab" role="tab" id="tabPet" aria-selected="false">펫</button>
+      </div>
+      <div class="garage" id="boys" role="radiogroup" aria-label="남자친구"></div>
+      <p id="boyInfo"></p>
+      <div class="best" id="petWallet" hidden></div>
+      <div class="shopList" id="pets" hidden></div>
+      <button class="go" id="closetOk">선택 완료</button>
+    </div>
+
+    <div class="overlay" id="shopOv" hidden>
+      <h2>상점</h2>
+      <div class="best" id="shopWallet"></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabBoost" aria-selected="true">부스트</button>
+        <button class="tab" role="tab" id="tabUp" aria-selected="false">업그레이드</button>
+      </div>
+      <small id="shopHint" style="color:var(--soft)"></small>
+      <div class="shopList" id="shopList" role="tabpanel"></div>
+      <button class="go" id="shopOk">닫기</button>
+    </div>
+
+    <div class="overlay" id="missionOv" hidden>
+      <h2>일일 미션</h2>
+      <div class="mlist" id="missionList"></div>
+      <small id="missionTimer" style="color:var(--soft)"></small>
+      <button class="go" id="missionOk">닫기</button>
+    </div>
+
+    <div class="overlay" id="rankOv" hidden>
+      <h2>기록판</h2>
+      <div class="tabs small" role="tablist" aria-label="난이도">
+        <button class="tab" role="tab" id="rmNormal" aria-selected="true">💕 여자친구</button>
+        <button class="tab" role="tab" id="rmHard" aria-selected="false">🔥 아내</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
+        <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
+        <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
+        <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
+      </div>
+      <div class="mlist" id="rankList"></div>
+      <button class="go" id="rankOk">닫기</button>
+    </div>
+
+    <div class="overlay" id="attendOv" hidden>
+      <h2>📅 출석 보상</h2>
+      <p id="attendText"></p>
+      <div class="attend" id="attendDays"></div>
+      <button class="go" id="attendOk">받기</button>
+    </div>
+
+    <div class="overlay" id="pauseOv" hidden>
+      <h2>잠깐 숨 돌려요</h2>
+      <p>잔소리도 잠깐 멈췄어요. 준비되면 다시 시작해요.</p>
+      <button class="go" id="resumeBtn">계속하기</button>
+      <div class="btns"><button class="go2" id="restartBtn">처음부터 다시</button><button class="go2" id="quitBtn">그만하기</button></div>
+    </div>
+  </div>
+
+  <footer>
+    <span id="footHelp">← → 피하기 · Space 필살기 · P 멈춤 · R 다시</span>
+    <span style="display:flex;gap:6px"><a class="mute" id="toHub" href="/games/" hidden>← 쉼표 게임</a><button class="mute" id="musicBtn" aria-pressed="false">음악 끄기</button><button class="mute" id="muteBtn" aria-pressed="false">소리 끄기</button></span>
+  </footer>
+</main>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'jansori-side-';
+const store = {
+  get(k, d){ try{ const v=localStorage.getItem(KEY+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(KEY+k, JSON.stringify(v)); }catch(e){} },
+};
+
+/* ---------------- 이용 통계 (GA4) ---------------- */
+// swimpyonote.com의 /games/ 아래에서만 구글 애널리틱스로 게임 이벤트를 보냄 (파일·로컬 테스트에선 안 보냄)
+const GA_ID='G-XVVHZGMMPQ';
+const GA_ON = /(^|\.)swimpyonote\.com$/.test(location.hostname) && location.pathname.startsWith('/games/');
+window.dataLayer = window.dataLayer || [];
+function gtag(){ dataLayer.push(arguments); }
+if(GA_ON){
+  const sc=document.createElement('script'); sc.async=true; sc.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID; document.head.append(sc);
+  gtag('js', new Date()); gtag('config', GA_ID);
+}
+function track(name, params={}){
+  if(window.__trackLog) window.__trackLog.push([name, params]);   // 테스트용 기록
+  if(GA_ON) try{ gtag('event', name, params); }catch(e){}
+}
+
+const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
+if(ONLINE) $('toHub').hidden=false;
+const isTouch = matchMedia('(pointer: coarse)').matches;
+if(isTouch) $('footHelp').textContent='화면을 좌우로 문질러 피하기 · 필살기 버튼';
+
+/* ---------------- 난이도 ---------------- */
+// normal = 여자친구, hard = 아내. 기록·순위는 난이도마다 따로
+const MODES = {
+  normal: {name:'여자친구', icon:'💕', skill:'애교 부리기', skillIc:'💕', scoreMul:1},
+  hard:   {name:'아내',     icon:'🔥', skill:'설거지하기',  skillIc:'🧽', scoreMul:1.5},
+};
+let mode = store.get('mode', 'normal'); if(!MODES[mode]) mode='normal';
+const M = () => MODES[mode];
+
+/* ---------------- 소리 (WebAudio로 직접 만듦) ---------------- */
+let AC=null, master=null, muted=store.get('mute', false);
+function audio(){
+  if(!AC){
+    try{ AC=new (window.AudioContext||window.webkitAudioContext)(); master=AC.createGain(); master.gain.value=muted?0:.45; master.connect(AC.destination); }catch(e){ return null; }
+  }
+  if(AC.state==='suspended') AC.resume();
+  return AC;
+}
+function tone(f, d, type='sine', v=.2, f2=null, delay=0){
+  const a=audio(); if(!a) return;
+  const t=a.currentTime+delay, o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+  g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+d+.02);
+}
+function noise(d, v=.3, freq=1000, q=1){
+  const a=audio(); if(!a) return;
+  const buf=a.createBuffer(1, Math.ceil(a.sampleRate*d), a.sampleRate), ch=buf.getChannelData(0);
+  for(let i=0;i<ch.length;i++) ch[i]=(Math.random()*2-1)*(1-i/ch.length);
+  const s=a.createBufferSource(), f=a.createBiquadFilter(), g=a.createGain();
+  s.buffer=buf; f.type='bandpass'; f.frequency.value=freq; f.Q.value=q; g.gain.value=v;
+  s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+function play(n){
+  if(muted) return;
+  switch(n){
+    case 'blah': tone(mode==='hard'?330:520, .07, 'square', .025, mode==='hard'?260:620); break;
+    case 'coin': tone(1320,.08,'square',.06); tone(1760,.12,'square',.05,null,.05); break;
+    case 'near': noise(.18,.2,2600,.8); tone(800,.12,'triangle',.07,1200); break;
+    case 'item': tone(660,.08,'square',.08); tone(990,.08,'square',.08,null,.07); tone(1320,.14,'square',.07,null,.14); break;
+    case 'heart': tone(784,.12,'sine',.12); tone(1047,.22,'sine',.12,null,.1); break;
+    case 'skill': tone(523,.12,'sine',.12); tone(659,.12,'sine',.12,null,.1); tone(784,.12,'sine',.12,null,.2); tone(1047,.3,'sine',.12,null,.3); noise(.4,.12,4000,1); break;
+    case 'hit': noise(.35,.5,500,.6); tone(220,.3,'sawtooth',.14,90); break;
+    case 'warn': tone(1200,.08,'square',.05); tone(1200,.08,'square',.05,null,.16); break;
+    case 'beam': noise(.45,.3,1500,.5); tone(160,.4,'sawtooth',.08,120); break;
+    case 'bomb': tone(140,.35,'square',.1,70); break;
+    case 'level': tone(587,.1,'triangle',.1); tone(880,.18,'triangle',.1,null,.1); break;
+    case 'win': tone(660,.15,'sine',.1); tone(880,.2,'sine',.1,null,.12); tone(990,.3,'sine',.1,null,.24); break;
+    case 'check': tone(990,.1,'sine',.1); tone(1480,.2,'sine',.1,null,.09); break;
+    case 'click': tone(880,.05,'sine',.08); break;
+    case 'over': tone(440,.25,'triangle',.12,330); tone(330,.4,'triangle',.12,220,.22); break;
+    case 'nom': tone(300,.06,'square',.06,500); tone(500,.06,'square',.06,300,.07); break;
+  }
+}
+function setMute(m){
+  muted=m; store.set('mute', m);
+  $('muteBtn').textContent = m ? '소리 켜기' : '소리 끄기'; $('muteBtn').setAttribute('aria-pressed', String(m));
+  if(master) master.gain.value = m ? 0 : .45;
+}
+$('muteBtn').addEventListener('click', ()=>setMute(!muted));
+setMute(muted);
+const buzz = ms => { if(!isTouch || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return; try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+
+/* ---------------- 배경음악 ---------------- */
+const MUSIC = {
+  normal: {bpm:96,  ch:[[60,64,67],[57,60,64],[53,57,60],[55,59,62]]},            // C Am F G (발랄)
+  hard:   {bpm:104, ch:[[57,60,64],[53,57,60],[55,59,62],[52,56,59]]},            // Am F G E (조마조마)
+};
+let musicOn=store.get('music', true), mGain=null, musicTimer=0, mNext=0, mStep=0;
+const mf = n => 440*Math.pow(2,(n-69)/12);
+function mNote(f, t, d, type, v, att=.01){
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.value=f;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+att); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g); g.connect(mGain); o.start(t); o.stop(t+d+.05);
+}
+function musicStart(){
+  const a=audio(); if(!a || musicTimer) return;
+  mGain=a.createGain(); mGain.gain.value=0; mGain.connect(master);
+  mNext=a.currentTime+.1; mStep=0; musicTimer=setInterval(musicTick, 60);
+}
+function musicTick(){
+  const now=AC.currentTime;
+  const v = !musicOn || paused ? 0 : running() ? 1 : .5;
+  mGain.gain.setTargetAtTime(v, now, .4);
+  if(mNext < now-.1) mNext=now+.05;
+  if(!musicOn || paused) return;
+  const th=MUSIC[state==='menu' ? 'normal' : mode], bpm=th.bpm + (running() ? Math.min(24, (level-1)*2) : 0), step=60/bpm/2;
+  while(mNext < now+.25){
+    const chord=th.ch[Math.floor(mStep/16)%th.ch.length], k=mStep%16;
+    if(k===0){ chord.forEach(n=>mNote(mf(n-12), mNext, step*16, 'sine', .02, .8)); }
+    if(k===0 || k===8) mNote(mf(chord[0]-24), mNext, step*6, 'sine', k?.05:.07, .02);
+    const tones=[chord[0], chord[1], chord[2], chord[0]+12], pat=[0,2,1,3,2,1,3,2];
+    mNote(mf(tones[pat[k%8]]+12), mNext, step*2, mode==='hard' && running() ? 'square' : 'triangle', mode==='hard' && running() ? .012 : .028);
+    mNext+=step; mStep++;
+  }
+}
+function setMusic(on){
+  musicOn=on; store.set('music', on);
+  $('musicBtn').textContent = on ? '음악 끄기' : '음악 켜기'; $('musicBtn').setAttribute('aria-pressed', String(!on));
+}
+$('musicBtn').addEventListener('click', ()=>{ setMusic(!musicOn); musicStart(); });
+setMusic(musicOn);
+
+/* ---------------- 지갑 ---------------- */
+let wallet = store.get('coins', 0);
+const saveWallet = () => store.set('coins', wallet);
+
+/* ---------------- 남자친구 (옷장) ---------------- */
+// at: 한 판에 이 시간(초)을 처음 버티면 해금 (난이도 상관없이). 능력은 아래 함수들에서 id로 확인
+const BOYS = [
+  {id:'basic',    name:'평범남',     at:0,   shirt:'#7FB7E8', hair:'#3B2A22', desc:'능력 없음',          long:'평범한 남자친구예요. 특별한 능력은 없지만 착해요.'},
+  {id:'runner',   name:'운동남',     at:20,  shirt:'#5CC48A', hair:'#2A1E18', desc:'이동 속도 +15%',     long:'매일 뛰어서 발이 빨라요. 15% 더 빨리 피해요.'},
+  {id:'gentle',   name:'다정남',     at:45,  shirt:'#F6B26B', hair:'#5A3A26', desc:'시작 보호막 3초',    long:'시작하자마자 "미안해" 보호막 3초. 맞은 뒤 무적도 0.5초 더 길어요.'},
+  {id:'sharp',    name:'눈치백단',   at:75,  shirt:'#9A8CE0', hair:'#1E1E28', desc:'맞는 판정 −15%',     long:'눈치가 빨라서 몸을 쏙 피해요. 잔소리에 맞는 판정이 15% 작아요.'},
+  {id:'cook',     name:'요리남',     at:110, shirt:'#F2F2F2', hair:'#3B2A22', desc:'용돈 +40%',          long:'맛있는 걸 해 줘서 용돈을 40% 더 받아요.'},
+  {id:'romantic', name:'사랑꾼',     at:150, shirt:'#F07FA6', hair:'#4A2C20', desc:'필살기 충전 1.4배',  long:'애교·설거지 게이지가 1.4배 빨리 차요.'},
+  {id:'perfect',  name:'만능 남편',  at:210, shirt:'#2F3A56', hair:'#151515', desc:'하트 4개로 시작',    long:'뭐든 잘해서 하트를 4개 가지고 시작해요.'},
+];
+let bestSec = store.get('bestSec', 0);
+const unlocked = b => bestSec >= b.at;
+let boyId = store.get('boy', 'basic');
+const BOY = () => BOYS.find(b=>b.id===boyId) || BOYS[0];
+if(!unlocked(BOY())) boyId='basic';
+
+/* ---------------- 펫 (남자친구 옆을 따라다님) ---------------- */
+const PETS = [
+  {id:'none',   icon:'',   name:'펫 없음',     desc:'혼자 버텨요', price:0},
+  {id:'dog',    icon:'🐶', name:'냠냠 강아지', desc:'12초마다 가까운 잔소리 하나를 먹어요', price:0},
+  {id:'cat',    icon:'🐱', name:'행운 고양이', desc:'용돈을 먹을 때 25% 확률로 2배', price:150},
+  {id:'turtle', icon:'🐢', name:'느긋 거북이', desc:'잔소리가 8% 느리게 떨어져요', price:220},
+  {id:'bunny',  icon:'🐰', name:'심부름 토끼', desc:'18초마다 아이템 하나를 불러와요', price:280},
+  {id:'owl',    icon:'🦉', name:'눈치 부엉이', desc:'째려보기·폭탄 잔소리를 더 일찍 알려 줘요', price:320},
+  {id:'angel',  icon:'👼', name:'사랑의 천사', desc:'판마다 한 번, 하트가 다 떨어지면 1개로 살려 줘요', price:450},
+];
+let petOwned = store.get('pets', ['none','dog']);
+let petId = store.get('pet', 'dog'); if(!petOwned.includes(petId)) petId='none';
+const PET = () => PETS.find(p=>p.id===petId);
+const savePets = () => { store.set('pets', petOwned); store.set('pet', petId); };
+
+/* ---------------- 상점 ---------------- */
+const BOOSTS = [
+  {id:'sorry',  icon:'🙏', name:'시작 미안해', desc:'시작하고 5초 동안 무적', price:30},
+  {id:'heart',  icon:'💗', name:'하트 +1',     desc:'하트 하나 더 들고 시작', price:60},
+  {id:'gauge',  icon:'💕', name:'필살기 반충전', desc:'게이지 50%에서 시작', price:40},
+  {id:'coffee', icon:'☕', name:'모닝 커피',   desc:'처음 10초 동안 잔소리가 느려요', price:30},
+  {id:'score',  icon:'⭐', name:'점수 +10%',   desc:'이번 판 모든 점수 +10%', price:60},
+];
+const UPS = [
+  {id:'move',  icon:'👟', name:'발걸음',     per:l=>'이동 속도 +'+4*l+'%'},
+  {id:'item',  icon:'⏱️', name:'아이템 지속', per:l=>'미안해·커피 +'+(.5*l)+'초'},
+  {id:'skill', icon:'💕', name:'필살기 충전', per:l=>'게이지 +'+8*l+'%'},
+  {id:'luck',  icon:'🍀', name:'아이템 행운', per:l=>'아이템이 '+8*l+'% 자주'},
+  {id:'coin',  icon:'💵', name:'용돈 행운',   per:l=>'용돈 +'+10*l+'%'},
+];
+const UP_PRICE=[50,100,200,350,550];
+let ups = Object.assign({move:0,item:0,skill:0,luck:0,coin:0}, store.get('ups', {}));
+let boosts = store.get('boosts', []);
+const saveShop = () => { store.set('ups', ups); store.set('boosts', boosts); saveWallet(); };
+
+/* ---------------- 일일 미션 ---------------- */
+const MISSIONS = [
+  {id:'surv',  name:'한 판에 버티기',       goal:60,  unit:'초', reward:60, max:true},
+  {id:'near',  name:'아슬아슬 피하기',      goal:30,  unit:'번', reward:40},
+  {id:'dodge', name:'잔소리 흘려듣기',      goal:200, unit:'개', reward:40},
+  {id:'item',  name:'아이템 먹기',          goal:6,   unit:'개', reward:40},
+  {id:'skill', name:'필살기 쓰기',          goal:3,   unit:'번', reward:50},
+  {id:'coin',  name:'용돈 모으기',          goal:40,  unit:'원', reward:40},
+  {id:'clean', name:'하트 안 잃고 버티기',  goal:30,  unit:'초', reward:50, max:true},
+  {id:'hard',  name:'아내 모드에서 버티기', goal:40,  unit:'초', reward:60, max:true},
+  {id:'play',  name:'끝까지 버티기',        goal:3,   unit:'판', reward:30},
+];
+const M_BONUS=100;
+const dayKey = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+function pickDaily(key){
+  let h=0; for(const ch of key) h=(h*31+ch.charCodeAt(0))>>>0;
+  const rnd01 = () => (h=(h*1103515245+12345)>>>0)/4294967296;
+  const pool=MISSIONS.map(m=>m.id), out=[];
+  while(out.length<3) out.push(pool.splice(Math.floor(rnd01()*pool.length),1)[0]);
+  return out;
+}
+let daily=null;
+function ensureDaily(){
+  const key=dayKey();
+  if(!daily) daily=store.get('daily', null);
+  if(!daily || daily.date!==key){ daily={date:key, ids:pickDaily(key), prog:{}, claimed:{}, bonus:false}; saveDaily(); }
+  return daily;
+}
+const saveDaily = () => store.set('daily', daily);
+const MISSION = id => MISSIONS.find(m=>m.id===id);
+function mProg(id, n){
+  const d=ensureDaily(); if(!d.ids.includes(id)) return;
+  const m=MISSION(id), before=d.prog[id]||0;
+  if(before>=m.goal) return;
+  d.prog[id] = Math.min(m.goal, m.max ? Math.max(before,n) : before+n);
+  if(d.prog[id]>=m.goal){ setTimeout(()=>{ if(state==='play') toast('미션 완료: '+m.name+'!'); }, 600); play('check'); }
+  saveDaily();
+}
+const mDone = () => { const d=ensureDaily(); return d.ids.filter(id=>(d.prog[id]||0)>=MISSION(id).goal).length; };
+const mClaimable = () => { const d=ensureDaily(); return d.ids.some(id=>(d.prog[id]||0)>=MISSION(id).goal && !d.claimed[id]) || (d.ids.every(id=>d.claimed[id]) && !d.bonus); };
+
+/* ---------------- 잔소리 ---------------- */
+// s: 짧은 말(우수수 쏟아질 때), w: 보통 잔소리(길수록 2단계부터), b: 폭탄 잔소리(크고 넓음)
+const WORDS = {
+  normal: {
+    s:['ㅡㅡ','흥','됐어','몰라','ㅇㅇ','ㅋ','치','왜','…','그래서?'],
+    w:['밥은 먹었어?','연락 좀 해','또 게임해?','나 살쪘어?','뭐 달라진 거 없어?','아무거나 먹자','답장 왜 늦어?','나 사랑해?','내 생각 했어?',
+       '오늘 무슨 날이게?','나 머리 잘랐는데','그 여자 누구야?','나 안 화났어','사진 왜 이렇게 찍어','왜 말을 그렇게 해?','자기 전에 연락해',
+       '옷이 그게 뭐야','내 말 듣고 있어?','아까 그 표정 뭐야?','그냥 그렇다고','알아서 해','친구랑 또 술 마셔?','뭐 먹을지 골라 봐','나 오늘 어때?'],
+    b:['내가 서운한 거 진짜 몰라?!','우리 처음 만난 날 기억해?!','됐어, 알아서 해!!','나랑 일 중에 뭐가 중요해?!'],
+    lines:['오늘 무슨 날인지 알아?','나 화 안 났다니까?','그냥 그렇다고~','자기야, 잠깐 얘기 좀 해'],
+    calm:['…귀엽긴 😳','흥, 봐준다','헤헤 😊'],
+  },
+  hard: {
+    s:['여보!','에휴','아오','하…','또?!','빨리!','거봐','쯧','어휴'],
+    w:['설거지!','양말 뒤집어 벗지 마','변기 뚜껑 내려!','또 택배 왔어?','분리수거 했어?','카드값 봤어?','누워만 있을 거야?','치약 중간부터 짜지 마',
+       '불 좀 끄고 다녀','몇 시에 들어와?','냉장고 문 닫아','운동한다며?','빨래 좀 개','젖은 수건 침대에 두지 마','쓰레기 버리고 와','술 또 마셨어?',
+       '라면 또 먹어?','휴대폰 좀 그만 봐','내가 말 안 했어?','애들 숙제 봐 줘','주말에 시댁 가자','리모컨 어디 뒀어?','밥 먹고 바로 눕지 마','그건 왜 샀어?'],
+    b:['내가 몇 번을 말했어!!','당신은 왜 맨날 그래?!','거기 앉아 봐. 얘기 좀 해','말로 해서 안 되지?!!'],
+    lines:['여보!!!','거기 앉아 봐','오늘 얘기 좀 해','내가 진짜 마지막으로 말한다'],
+    calm:['…웬일이래? 😳','오, 고마워','이번만 봐준다'],
+  },
+};
+const SORRY = {
+  normal:['미안해…','내가 잘못했어','다신 안 그럴게','자기야…'],
+  hard:['죄송합니다…','네 여보…','제가 할게요','지금 하려고 했어…'],
+};
+const OVER_TITLE = {
+  normal:['결국 삐졌어요 😢','오늘 연락 끊겼어요 📵','읽씹 당했어요 💬'],
+  hard:['오늘 밤은 소파에서… 🛋️','용돈 삭감… 💸','설거지 한 달 확정 🍽️'],
+};
+// 아이템: 꽃다발(화면 잔소리 지우기), 미안해(무적), 하트(+1), 커피(잔소리 느려짐), 용돈(코인)
+const ITEMS = {
+  rose:  {icon:'💐', name:'꽃다발', glow:'#FF7FAE'},
+  sorry: {icon:'🙏', name:'미안해', glow:'#FFD166'},
+  heart: {icon:'💗', name:'하트',   glow:'#FF5C8A'},
+  coffee:{icon:'☕', name:'커피',   glow:'#C08A5C'},
+  cash:  {icon:'💵', name:'용돈',   glow:'#5CC48A'},
+};
+
+// 캔버스 글씨는 웹폰트 조각(글자 범위별)이 아직 안 받아져 있으면 기본 글꼴로 그려지고 폭도 틀어짐 → 잔소리 글자를 미리 받아 둠
+try{ document.fonts.load('16px Jua', Object.values(WORDS).flatMap(W=>[...W.s,...W.w,...W.b,...W.lines,...W.calm]).concat(...Object.values(SORRY)).join('')+'아슬냠심부름원미안해설거지다했어요자기야'); }catch(e){}
+
+/* ---------------- 화면 ---------------- */
+const stage=$('stage'), cv=$('cv'), ctx=cv.getContext('2d');
+const LW=360;
+let LH=514, K=1, DPR=1;
+const GIRL_Y = () => 128;          // 여자친구 얼굴 높이 (HUD 아래)
+const BOY_Y = () => LH-62;         // 남자친구 몸 가운데
+function resize(){
+  const r=stage.getBoundingClientRect();
+  DPR=Math.min(2, window.devicePixelRatio||1);
+  cv.width=Math.round(r.width*DPR); cv.height=Math.round(r.height*DPR);
+  K=r.width/LW; LH=r.height/K;
+  if(B) B.y=BOY_Y();
+  if(state!=='play') draw();
+}
+addEventListener('resize', resize);
+
+/* ---------------- 게임 상태 ---------------- */
+let state='menu';   // menu | play | over
+let paused=false;
+let B=null, G=null, words=[], items=[], glares=[], fx=[], floats=[];
+let elapsed, level, scoreF, hearts, maxHearts, hitT, sorryT, coffeeT, calmT, gauge, nearCnt, dodgeCnt, itemCnt, coinsRun, combo, comboT;
+let spawnT, nextItemAt, nextCashAt, petT, pet, angelUsed, scoreMul, usedBoosts, lastWord, cleanT, bestClean, hitsTaken, shakeT, secStart, skillCnt, tutT;
+let bestScore = Object.assign({normal:0, hard:0}, store.get('best', {}));
+let bestSecBy = Object.assign({normal:0, hard:0}, store.get('bestSecBy', {}));
+let runs = {best: store.get('runsBest', []), recent: store.get('runsRecent', [])};
+
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+// 능력 계산 (남자친구·펫·업그레이드)
+const moveSpd  = () => 250 * (boyId==='runner'?1.15:1) * (1+.04*ups.move);
+const hitShrink= () => boyId==='sharp' ? .85 : 1;
+const itemDur  = k => (k==='sorry'?4:5) + .5*ups.item;
+const skillMul = () => (boyId==='romantic'?1.4:1) * (1+.08*ups.skill);
+const coinMul  = () => (boyId==='cook'?1.4:1) * (1+.1*ups.coin);
+const warnTime = () => petId==='owl' ? 1.35 : .95;
+const addScore = n => { const v=n*scoreMul*M().scoreMul; scoreF+=v; return Math.round(v); };
+const fmtTime = s => { s=Math.floor(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+const fmtTimeKo = s => { s=Math.floor(s); return s>=60 ? Math.floor(s/60)+'분 '+(s%60)+'초' : s+'초'; };
+
+// 단계: 15초마다 하나씩. 난이도마다 잔소리 속도·간격이 다름
+const LV_SEC = 15;
+function diff(){
+  const L=level, h=mode==='hard';
+  return {
+    gap: h ? Math.max(.24, .78-.05*(L-1)) : Math.max(.34, 1.15-.07*(L-1)),
+    spd: h ? Math.min(430, 150+18*(L-1)) : Math.min(330, 105+14*(L-1)),
+    vx:  h ? 70 : 18,
+  };
+}
+const slowMul = () => (coffeeT>0 ? .5 : 1) * (petId==='turtle' ? .92 : 1);
+
+function reset(){
+  const b=BOY();
+  B={x:LW/2, y:BOY_Y(), vx:0, b, step:0, sayT:0, say:''};
+  G={x:LW/2, tx:LW/2, mouthT:0, armT:0, sayT:0, say:'', angry:0};
+  words=[]; items=[]; glares=[]; fx=[]; floats=[];
+  elapsed=0; level=1; scoreF=0; maxHearts=boyId==='perfect'?4:3; hearts=maxHearts; hitT=0; sorryT=0; coffeeT=0; calmT=0; gauge=0;
+  nearCnt=0; dodgeCnt=0; itemCnt=0; coinsRun=0; combo=0; comboT=0; skillCnt=0; hitsTaken=0; shakeT=0;
+  spawnT=1.2; nextItemAt=rand(7,10); nextCashAt=rand(3,5); petT=0; angelUsed=false; scoreMul=1; usedBoosts=[]; lastWord=''; cleanT=0; bestClean=0; tutT=0;
+  pet={x:B.x-36, y:B.y+10};
+  secStart=bestSec;
+  if(boyId==='gentle') sorryT=3;
+}
+function applyBoosts(){
+  for(const b of boosts){
+    if(b==='sorry') sorryT=Math.max(sorryT,5);
+    if(b==='heart'){ maxHearts++; hearts++; }
+    if(b==='gauge') gauge=50;
+    if(b==='coffee') coffeeT=10;
+    if(b==='score') scoreMul=1.1;
+  }
+  if(boosts.length) setTimeout(()=>{ if(state==='play') toast('부스트 '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join('')); }, 1300);
+  usedBoosts=boosts; boosts=[]; saveShop();
+}
+
+/* ---------------- 잔소리 만들기 ---------------- */
+const FONT = sz => sz+'px "Jua","Apple SD Gothic Neo",sans-serif';
+function makeWord(text, x, y, vx, vy, kind='w'){
+  const sz = kind==='b' ? 22 : kind==='s' ? 15 : 16;
+  ctx.font=FONT(sz);
+  let lines=[text];
+  if(kind==='b' && ctx.measureText(text).width>190 && text.includes(' ')){
+    // 가운데에서 가장 가까운 띄어쓰기에서 나눔
+    const sp=[...text].map((c,i)=>c===' '?i:-1).filter(i=>i>0).sort((a,b)=>Math.abs(a-text.length/2)-Math.abs(b-text.length/2))[0];
+    lines=[text.slice(0,sp), text.slice(sp+1)];
+  }
+  const w=Math.ceil(Math.max(...lines.map(l=>ctx.measureText(l).width)))+(kind==='b'?26:18), h=kind==='b' ? 18+24*lines.length : 28;
+  const wd={text, lines, x:clamp(x, w/2+4, LW-w/2-4), y, vx, vy, w, h, kind, sz, nm:false, rot:rand(-.08,.08)*(kind==='b'?.4:1), t:0};
+  words.push(wd); return wd;
+}
+const mouth = () => ({x:G.x, y:GIRL_Y()+24});
+function throwAnim(){ G.mouthT=.28; G.armT=.3; }
+function pattern(){
+  const L=level, h=mode==='hard', d=diff(), W=WORDS[mode], sm=slowMul(), m=mouth();
+  const list=[['drop', 10]];
+  if(h || L>=3) list.push(['aim', h?5:3]);
+  if(h ? L>=2 : L>=5) list.push(['fan', h?4:2]);
+  if(h ? L>=2 : L>=3) list.push(['rain', h?3:2]);
+  if(h ? L>=3 : L>=6) list.push(['glare', h?3:1.5]);
+  if(h ? L>=3 : L>=4) list.push(['bomb', h?2.5:1.5]);
+  let tot=list.reduce((s,x)=>s+x[1],0), r=Math.random()*tot, kind='drop';
+  for(const [k,wt] of list){ if((r-=wt)<0){ kind=k; break; } }
+  const txt = () => L<2 || Math.random()<.35 ? pick(W.w.filter(t=>t.length<=7)) : pick(W.w);
+  const spd = d.spd*sm;
+  throwAnim();
+  if(kind==='drop'){ makeWord(txt(), m.x, m.y, rand(-d.vx,d.vx), spd*rand(.85,1.1)); play('blah'); return 0; }
+  if(kind==='aim'){
+    const dx=B.x-m.x, t=(B.y-m.y)/spd;
+    makeWord(txt(), m.x, m.y, clamp(dx/t, -140, 140), spd); play('blah'); return 0;
+  }
+  if(kind==='fan'){
+    for(const a of [-1,0,1]) makeWord(pick(W.s.concat(W.w.filter(t=>t.length<=5))), m.x+a*34, m.y+Math.abs(a)*8, a*rand(55,85)*(h?1.2:1), spd*.95);
+    play('blah'); return .25;
+  }
+  if(kind==='rain'){
+    const n = h ? 5 : 4, gap=LW/(n+1), hole=Math.floor(rand(0,n));   // 한 자리는 비워 둠
+    for(let i=0;i<n;i++) if(i!==hole) makeWord(pick(W.s), gap*(i+1)+rand(-12,12), m.y-10-rand(0,30), 0, spd*rand(.9,1.05), 's');
+    G.say=h?'하…':'흥!'; G.sayT=.8; play('blah'); return .4;
+  }
+  if(kind==='glare'){
+    const x = Math.random()<.6 ? clamp(B.x+rand(-30,30), 30, LW-30) : rand(30, LW-30);
+    glares.push({x, w:h?50:44, t:0, warn:warnTime(), fire:.5, hit:false});
+    G.say='째릿 👀'; G.sayT=1; play('warn'); return .5;
+  }
+  // 폭탄 잔소리: 크고 느리게. 떨어지기 전에 화난 표시
+  const bw=makeWord(pick(W.b), m.x+rand(-40,40), m.y-6, 0, spd*.62, 'b');
+  bw.warnT = petId==='owl' ? .6 : 0;
+  G.angry=1.2; play('bomb'); buzz(20); return .6;
+}
+
+/* ---------------- 아이템 ---------------- */
+function spawnItem(kind, x){
+  items.push({kind, x: x ?? rand(30, LW-30), y: GIRL_Y()-10, vy: kind==='cash' ? 120 : 95, t:rand(0,6)});
+}
+function randomItem(){
+  const r=Math.random();
+  const heartP = hearts<maxHearts ? .22 : .08;
+  return r<heartP ? 'heart' : r<heartP+.28 ? 'sorry' : r<heartP+.55 ? 'coffee' : 'rose';
+}
+function collect(it){
+  const I=ITEMS[it.kind];
+  if(it.kind!=='cash'){ itemCnt++; mProg('item',1); }
+  if(it.kind==='cash'){
+    let n=Math.round(5*coinMul()); if(petId==='cat' && Math.random()<.25){ n*=2; float(it.x, it.y-24, '냥! ×2', '#FFE08A', 14); }
+    coinsRun+=n; mProg('coin', n); play('coin'); float(it.x, it.y-10, '+'+n+'원', '#2E9E5B', 15); return;
+  }
+  play('item'); burst(it.x, it.y, I.glow, 14, 150);
+  if(it.kind==='rose'){
+    const n=words.length;
+    for(const w of words) burst(w.x, w.y, '#FF9EC0', 5, 90);
+    words=[]; glares=glares.filter(g=>g.t>=g.warn);
+    addScore(10*n+30); G.sayT=1.1; G.say='어머 💐'; calmT=Math.max(calmT,1.2);
+    toast('💐 꽃다발! 잔소리가 사라졌어요', 1100);
+  }
+  if(it.kind==='sorry'){ sorryT=itemDur('sorry'); B.say='미안해 🙏'; B.sayT=1.2; toast('🙏 미안해! 잠깐 무적', 1000); }
+  if(it.kind==='heart'){
+    if(hearts<maxHearts){ hearts++; play('heart'); toast('💗 하트 +1', 900); hpPop(); }
+    else { float(it.x, it.y-10, '+'+addScore(100), '#FF5C8A', 16); }
+  }
+  if(it.kind==='coffee'){ coffeeT=itemDur('coffee'); toast(mode==='hard' ? '☕ 커피 타 드렸어요! 잔소리 느려짐' : '☕ 달달한 라떼! 잔소리 느려짐', 1100); }
+}
+
+/* ---------------- 효과 ---------------- */
+let toastQ=[], toastOn=false, toastTimer=0;
+function toast(t, ms=1200){ if(toastQ.length>=2) toastQ.shift(); toastQ.push([t,ms]); if(!toastOn) nextToast(); }
+function nextToast(){
+  const el=$('toast');
+  if(!toastQ.length){ toastOn=false; el.classList.remove('show'); return; }
+  toastOn=true; const [t,ms]=toastQ.shift();
+  el.textContent=t; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ el.classList.remove('show'); toastTimer=setTimeout(nextToast, 200); }, ms);
+}
+const clearToast = () => { toastQ.length=0; clearTimeout(toastTimer); nextToast(); };
+function float(x, y, text, color='#fff', size=16){ floats.push({x, y, text, color, size, t:0}); }
+function burst(x, y, color, n=12, sp=160){
+  for(let i=0;i<n;i++){ const a=rand(0,Math.PI*2), v=rand(sp*.3,sp); fx.push({x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, life:rand(.4,.8), t:0, color, r:rand(2,4)}); }
+}
+function hpPop(){ const el=$('hHp'); el.classList.remove('ouch'); void el.offsetWidth; el.classList.add('ouch'); }
+
+/* ---------------- 입력 ---------------- */
+const keys={};
+const running = () => state==='play';
+let drag=null;   // {id, sx, bx}: 손가락을 댄 곳과 그때 남자친구 위치 (밀어서 움직이기)
+addEventListener('keydown', e=>{
+  if(['ArrowLeft','ArrowRight','Space'].includes(e.code) && running()) e.preventDefault();
+  keys[e.code]=true;
+  if(e.repeat) return;
+  if(e.code==='Space' && running() && !paused) trySkill();
+  if((e.code==='KeyP'||e.code==='Escape') && running()) setPaused(!paused);
+  if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
+  if(e.code==='Escape'){
+    if(!$('closetOv').hidden) closeCloset(); else if(!$('rankOv').hidden) closeRank();
+    else if(!$('shopOv').hidden) closeShop(); else if(!$('missionOv').hidden) closeMissions();
+  }
+  if(e.code==='Enter' && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='BUTTON'){
+    if(state==='menu' && !$('menuOv').hidden) start(); else if(state==='over' && !$('overOv').hidden) start();
+  }
+});
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; drag=null; if(running()) setPaused(true); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running()) setPaused(true); });
+cv.addEventListener('pointerdown', e=>{
+  if(!running() || paused) return;
+  drag={id:e.pointerId, sx:e.clientX, bx:B.x};
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e=>{
+  if(!drag || drag.id!==e.pointerId || !running() || paused) return;
+  const tx = clamp(drag.bx + (e.clientX-drag.sx)/K*1.3, 18, LW-18);
+  B.vx = (tx-B.x)*20; B.x = tx;
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>cv.addEventListener(ev, e=>{ if(drag && drag.id===e.pointerId) drag=null; }));
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+$('skillBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); trySkill(); });
+$('skillBtn').addEventListener('click', e=>{ if(e.detail===0) trySkill(); });
+function steerDir(){
+  let d=0;
+  if(keys.ArrowLeft||keys.KeyA) d-=1;
+  if(keys.ArrowRight||keys.KeyD) d+=1;
+  return d;
+}
+// 필살기: 여자친구는 애교, 아내는 설거지. 화면의 잔소리를 지우고 3초 동안 조용해짐
+function trySkill(){
+  if(gauge<100 || state!=='play' || paused) return;
+  gauge=0; skillCnt++; mProg('skill',1);
+  const n=words.length;
+  for(const w of words) burst(w.x, w.y, mode==='hard' ? '#8FD3F5' : '#FF9EC0', 6, 110);
+  words=[]; glares=[];
+  addScore(15*n+50); calmT=3.2; shakeT=.15;
+  G.say=pick(WORDS[mode].calm); G.sayT=1.8;
+  B.say = mode==='hard' ? '설거지 다 했어요! 🧽' : '자기야~ 💕'; B.sayT=1.4;
+  play('skill'); buzz(40); toast(M().skillIc+' '+M().skill+'! 잠깐 조용해요', 1100);
+  for(let i=0;i<10;i++) burst(rand(40,LW-40), rand(GIRL_Y(), LH-80), mode==='hard' ? '#BDE6FA' : '#FFC2D6', 3, 60);
+}
+
+/* ---------------- 진행 ---------------- */
+const invuln = () => hitT>0 || sorryT>0;
+function boyBox(){ const s=hitShrink(); return {l:B.x-12*s, r:B.x+12*s, t:B.y-26*s, b:B.y+24}; }
+function update(dt){
+  elapsed+=dt; tutT+=dt;
+  const nl = 1+Math.floor(elapsed/LV_SEC);
+  if(nl>level){
+    level=nl; play('level'); toast(level+'단계 — 잔소리가 '+(mode==='hard'?'거세져요!':'빨라져요!'), 1100);
+    if(calmT<=0){ G.say=pick(WORDS[mode].lines); G.sayT=1.6; }
+  }
+  scoreF += dt*(10+2*(level-1))*scoreMul*M().scoreMul;
+  hitT=Math.max(0,hitT-dt); sorryT=Math.max(0,sorryT-dt); coffeeT=Math.max(0,coffeeT-dt); calmT=Math.max(0,calmT-dt);
+  shakeT=Math.max(0,shakeT-dt); G.mouthT=Math.max(0,G.mouthT-dt); G.armT=Math.max(0,G.armT-dt); G.sayT=Math.max(0,G.sayT-dt); B.sayT=Math.max(0,B.sayT-dt);
+  G.angry=Math.max(0,G.angry-dt);
+  comboT-=dt; if(comboT<=0) combo=0;
+  cleanT+=dt; if(cleanT>bestClean){ bestClean=cleanT; }
+
+  // 남자친구 움직이기 (키보드)
+  const dir=steerDir();
+  if(dir){ B.vx = dir*moveSpd(); B.x=clamp(B.x+B.vx*dt, 18, LW-18); }
+  else if(!drag) B.vx*=Math.pow(.001, dt);
+  B.step += Math.min(1, Math.abs(B.vx)/200)*dt*14;
+
+  // 여자친구는 위에서 왔다 갔다
+  const gs = 60+level*6;
+  if(Math.abs(G.tx-G.x)<4) G.tx = Math.random()<.45 ? clamp(B.x+rand(-60,60), 50, LW-50) : rand(50, LW-50);
+  G.x += Math.sign(G.tx-G.x)*Math.min(Math.abs(G.tx-G.x), gs*dt);
+
+  // 잔소리 던지기
+  if(calmT<=0){
+    spawnT-=dt;
+    if(spawnT<=0){ const extra=pattern(); spawnT = diff().gap*rand(.85,1.2) + extra; }
+  }
+
+  // 잔소리 움직이기 · 부딪힘 · 아슬아슬
+  const bb=boyBox(), sm=slowMul();
+  for(const w of words){
+    w.t+=dt;
+    if(w.warnT>0){ w.warnT-=dt; continue; }
+    w.x+=w.vx*dt*sm; w.y+=w.vy*dt*(coffeeT>0?.5:1);
+    if(w.x<w.w/2+2){ w.x=w.w/2+2; w.vx=Math.abs(w.vx); }
+    if(w.x>LW-w.w/2-2){ w.x=LW-w.w/2-2; w.vx=-Math.abs(w.vx); }
+    const l=w.x-w.w/2+4, r=w.x+w.w/2-4, t=w.y-w.h/2+4, b=w.y+w.h/2-4;
+    if(r>bb.l && l<bb.r && b>bb.t && t<bb.b){ if(!invuln()) { hit(w); w.dead=true; } continue; }
+    if(!w.nm && w.y>B.y){
+      w.nm=true;
+      const gap = Math.max(bb.l-r, l-bb.r);
+      if(gap>=0 && gap<16 && t<bb.b) nearMiss(w);
+    }
+    if(w.y-w.h/2>LH+4){ w.dead=true; dodgeCnt++; mProg('dodge',1); gauge=Math.min(100, gauge+.6*skillMul()); }
+  }
+  words=words.filter(w=>!w.dead);
+
+  // 째려보기: 경고 줄 → 레이저
+  for(const g of glares){
+    g.t+=dt;
+    if(g.t>=g.warn && !g.fired){ g.fired=true; play('beam'); shakeT=.12; }
+    if(g.fired && g.t<g.warn+g.fire && !g.hit && Math.abs(B.x-g.x) < g.w/2+8*hitShrink() && !invuln()){ g.hit=true; hit({text:'째릿 👀'}); }
+  }
+  glares=glares.filter(g=>g.t<g.warn+g.fire);
+
+  // 아이템
+  nextItemAt-=dt*(1+.08*ups.luck); nextCashAt-=dt;
+  if(nextItemAt<=0){ spawnItem(randomItem()); nextItemAt=rand(8,12); }
+  if(nextCashAt<=0){ spawnItem('cash'); nextCashAt=rand(3,5.5); }
+  for(const it of items){
+    it.t+=dt; it.y+=it.vy*dt;
+    const x=it.x+Math.sin(it.t*3)*10;
+    if(Math.abs(x-B.x)<26 && Math.abs(it.y-B.y)<34){ it.dead=true; collect({...it, x}); }
+    if(it.y>LH+20) it.dead=true;
+  }
+  items=items.filter(i=>!i.dead);
+
+  // 필살기 게이지는 시간에 따라서도 조금씩
+  gauge=Math.min(100, gauge+dt*.8*skillMul());
+  updatePet(dt);
+
+  // 효과
+  for(const p of fx){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=200*dt; }
+  fx=fx.filter(p=>p.t<p.life);
+  for(const f of floats){ f.t+=dt; f.y-=40*dt; }
+  floats=floats.filter(f=>f.t<.9);
+
+  if(tutT>1 && tutT-dt<=1) toast(isTouch ? '👆 화면을 좌우로 문질러 피해요!' : '← → 로 잔소리를 피해요!', 1600);
+}
+function nearMiss(w){
+  nearCnt++; combo++; comboT=2.5; mProg('near',1);
+  gauge=Math.min(100, gauge+12*skillMul());
+  const pts=addScore(20*(1+Math.min(combo,10)*.1));
+  float(w.x, B.y-40, combo>=3 ? '아슬! ×'+combo : '아슬!', '#FF5C8A', 15+Math.min(combo,6));
+  play('near');
+  void pts;
+}
+function hit(w){
+  hearts--; hitsTaken++; hitT = 1.4 + (boyId==='gentle'?.5:0); shakeT=.3; cleanT=0;
+  lastWord=w.text; combo=0;
+  play('hit'); buzz(80); hpPop();
+  burst(B.x, B.y-10, '#FF6B6B', 16, 180);
+  B.say=pick(SORRY[mode]); B.sayT=1.3;
+  G.angry=1;
+  if(hearts<=0){
+    if(petId==='angel' && !angelUsed){ angelUsed=true; hearts=1; hitT=2.5; toast('👼 천사가 한 번 봐줬어요!', 1300); play('heart'); return; }
+    finish('hp');
+  }
+}
+function updatePet(dt){
+  if(petId==='none') return;
+  const side = B.x>LW-60 ? -1 : B.x<60 ? 1 : -1;
+  const tx=B.x+side*36, ty=B.y+14+Math.sin(elapsed*5)*3;
+  pet.x+=(tx-pet.x)*Math.min(1,dt*6); pet.y+=(ty-pet.y)*Math.min(1,dt*6);
+  petT+=dt;
+  if(petId==='dog' && petT>=12){
+    // 남자친구에게 가장 가까운(아래쪽) 잔소리 하나를 먹음
+    const cand=words.filter(w=>w.y>LH*.35).sort((a,b)=>b.y-a.y)[0];
+    if(cand){ petT=0; burst(cand.x, cand.y, '#F6C177', 10, 120); float(cand.x, cand.y, '냠!', '#fff', 16); cand.dead=true; words=words.filter(w=>!w.dead); play('nom'); }
+  }
+  if(petId==='bunny' && petT>=18){ petT=0; spawnItem(randomItem(), clamp(B.x+rand(-60,60), 30, LW-30)); float(pet.x, pet.y-20, '심부름!', '#fff', 14); }
+}
+
+/* ---------------- 그리기 ---------------- */
+function rr(g,x,y,w,h,r){ g.beginPath(); g.roundRect(x,y,w,h,r); }
+function ell(g,x,y,rx,ry){ g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); }
+// 남자친구: (0,0)이 몸 가운데. o.face: 'calm' | 'scared' | 'dizzy' | 'happy'
+function drawBoy(g, b, o={}){
+  const step=o.step||0, sw=Math.sin(step)*4;
+  g.fillStyle='rgba(0,0,0,.15)'; ell(g,0,27,15,4); g.fill();
+  g.fillStyle='#3D4A66'; rr(g,-9,10+Math.max(0,sw)*.3,7,16-Math.max(0,sw)*.4,3); g.fill(); rr(g,2,10+Math.max(0,-sw)*.3,7,16-Math.max(0,-sw)*.4,3); g.fill();
+  g.fillStyle='#2A2A2A'; rr(g,-10,23,9,4,2); g.fill(); rr(g,1,23,9,4,2); g.fill();
+  // 팔
+  g.fillStyle=b.shirt; g.save(); g.translate(-12,-2); g.rotate(.25+(o.arms?-.9:0)+sw*.03); rr(g,-3,0,6,15,3); g.fill(); g.fillStyle='#FFD9BE'; ell(g,0,16,3.5,3.5); g.fill(); g.restore();
+  g.fillStyle=b.shirt; g.save(); g.translate(12,-2); g.rotate(-.25-(o.arms?-.9:0)-sw*.03); rr(g,-3,0,6,15,3); g.fill(); g.fillStyle='#FFD9BE'; ell(g,0,16,3.5,3.5); g.fill(); g.restore();
+  // 몸
+  g.fillStyle=b.shirt; rr(g,-12,-6,24,20,7); g.fill();
+  if(b.id==='cook'){ g.fillStyle='#F28B82'; rr(g,-8,-3,16,17,3); g.fill(); g.fillStyle='#fff'; rr(g,-4,2,8,5,2); g.fill(); }
+  if(b.id==='perfect'){ g.fillStyle='#fff'; g.beginPath(); g.moveTo(-5,-6); g.lineTo(0,2); g.lineTo(5,-6); g.fill(); g.fillStyle='#E8463F'; g.beginPath(); g.moveTo(0,-4); g.lineTo(-2,4); g.lineTo(0,8); g.lineTo(2,4); g.fill(); }
+  if(b.id==='romantic'){ g.font='9px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('❤',0,3); }
+  if(b.id==='runner'){ g.fillStyle='rgba(255,255,255,.8)'; g.fillRect(-12,1,24,3); }
+  // 머리
+  g.fillStyle='#FFD9BE'; ell(g,0,-17,12,12); g.fill();
+  g.fillStyle=b.hair; g.beginPath(); g.arc(0,-19,12.5,Math.PI*1.02,Math.PI*1.98); g.fill();
+  g.beginPath(); g.moveTo(-12,-20); g.quadraticCurveTo(-4,-14,2,-21); g.quadraticCurveTo(6,-15,12,-20); g.lineTo(12,-24); g.lineTo(-12,-24); g.fill();
+  if(b.id==='runner'){ g.fillStyle='#E8463F'; rr(g,-12.5,-25,25,4,2); g.fill(); }
+  if(b.id==='cook'){ g.fillStyle='#fff'; ell(g,0,-31,10,7); g.fill(); rr(g,-8,-30,16,8,2); g.fill(); }
+  if(b.id==='perfect'){ g.fillStyle=b.hair; g.beginPath(); g.moveTo(-12,-24); g.quadraticCurveTo(0,-34,12,-24); g.fill(); }
+  // 얼굴
+  const f=o.face||'calm';
+  g.strokeStyle='#3A2430'; g.fillStyle='#3A2430'; g.lineWidth=1.6; g.lineCap='round';
+  if(f==='dizzy'){
+    for(const ex of [-4.5,4.5]){ g.beginPath(); g.moveTo(ex-2,-17); g.lineTo(ex+2,-13); g.moveTo(ex+2,-17); g.lineTo(ex-2,-13); g.stroke(); }
+    g.beginPath(); g.moveTo(-3,-8); g.quadraticCurveTo(-1.5,-10,0,-8); g.quadraticCurveTo(1.5,-6,3,-8); g.stroke();
+  }else if(f==='happy'){
+    for(const ex of [-4.5,4.5]){ g.beginPath(); g.arc(ex,-14,2.2,Math.PI*1.1,Math.PI*1.9); g.stroke(); }
+    g.beginPath(); g.arc(0,-10,3.5,.1,Math.PI-.1); g.stroke();
+  }else{
+    for(const ex of [-4.5,4.5]){ ell(g,ex,-15,1.6,f==='scared'?2.6:2); g.fill(); }
+    if(f==='scared'){ ell(g,0,-8.5,2,2.4); g.fill(); g.fillStyle='#8FD3F5'; ell(g,10,-20,2,3); g.fill(); }
+    else { g.beginPath(); g.arc(0,-10,2.6,.2,Math.PI-.2); g.stroke(); }
+  }
+  g.fillStyle='rgba(255,130,150,.4)'; ell(g,-8,-11,2.6,1.6); g.fill(); ell(g,8,-11,2.6,1.6); g.fill();
+  if(b.id==='sharp'){ g.strokeStyle='#222'; g.lineWidth=1.2; g.beginPath(); g.arc(-4.5,-15,3.6,0,Math.PI*2); g.moveTo(8.1,-15); g.arc(4.5,-15,3.6,0,Math.PI*2); g.moveTo(-.9,-15); g.lineTo(.9,-15); g.stroke(); }
+}
+// 여자친구/아내: (0,0)이 얼굴 가운데
+function drawGirl(g, md, o={}){
+  const hard=md==='hard', ang=o.angry||0, calm=o.calm;
+  // 머리카락 뒤
+  g.fillStyle=hard ? '#3A2620' : '#6B3F2A';
+  if(hard){ ell(g,0,-12,9,8); g.fill(); }   // 똥머리
+  else { rr(g,-17,-6,34,34,12); g.fill(); }
+  // 몸
+  g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0'; rr(g,-16,16,32,30,10); g.fill();
+  if(hard){ g.fillStyle='#FFFFFF'; rr(g,-10,20,20,26,4); g.fill(); g.fillStyle='#F28B82'; rr(g,-6,26,12,6,2); g.fill(); }
+  else { g.fillStyle='#fff'; g.beginPath(); g.moveTo(-6,16); g.lineTo(0,23); g.lineTo(6,16); g.fill(); }
+  // 팔: 잔소리 던질 때 한 팔을 들어 손가락질
+  const up=(o.arm||0)>0;
+  g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0';
+  g.save(); g.translate(-15,20); g.rotate(up?.4:.2); rr(g,-3,0,6,16,3); g.fill(); g.fillStyle='#FFDCC4'; ell(g,0,17,3.5,3.5); g.fill(); g.restore();
+  g.save(); g.translate(15,20); g.rotate(up?-2.4:-.2); g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0'; rr(g,-3,0,6,16,3); g.fill(); g.fillStyle='#FFDCC4'; ell(g,0,17,3.5,3.5); g.fill();
+  if(hard && !up){ g.fillStyle='#B0B7C3'; rr(g,-1,18,3,14,1); g.fill(); ell(g,.5,33,5,3.5); g.fill(); }   // 국자
+  g.restore();
+  // 얼굴
+  g.fillStyle='#FFDCC4'; ell(g,0,0,14,14); g.fill();
+  g.fillStyle=hard ? '#3A2620' : '#6B3F2A';
+  g.beginPath(); g.arc(0,-2,14.5,Math.PI*1.05,Math.PI*1.95); g.fill();
+  g.beginPath(); g.moveTo(-14,-3); g.quadraticCurveTo(-6,0,0,-8); g.quadraticCurveTo(6,0,14,-3); g.lineTo(14,-8); g.lineTo(-14,-8); g.fill();
+  if(hard){ g.fillStyle='#E8463F'; rr(g,-14,-12,28,3.5,2); g.fill(); }
+  else { g.fillStyle='#FF6F9C'; g.beginPath(); g.moveTo(9,-12); g.lineTo(15,-17); g.lineTo(15,-7); g.fill(); g.beginPath(); g.moveTo(9,-12); g.lineTo(3,-17); g.lineTo(3,-7); g.fill(); ell(g,9,-12,2.4,2.4); g.fill(); }
+  // 눈썹·눈·입
+  g.strokeStyle='#3A2430'; g.fillStyle='#3A2430'; g.lineWidth=1.6; g.lineCap='round';
+  if(calm){
+    g.fillStyle='#FF5C8A'; g.font='9px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('♥',-5,1); g.fillText('♥',5,1);
+    g.strokeStyle='#3A2430'; g.beginPath(); g.arc(0,6,3,.2,Math.PI-.2); g.stroke();
+    g.fillStyle='rgba(255,100,130,.55)'; ell(g,-9,5,3.5,2); g.fill(); ell(g,9,5,3.5,2); g.fill();
+    return;
+  }
+  const mad = hard || ang>0;
+  g.beginPath();
+  if(mad){ g.moveTo(-8,-6); g.lineTo(-2,-3.5); g.moveTo(8,-6); g.lineTo(2,-3.5); }
+  else { g.moveTo(-8,-4.5); g.lineTo(-3,-5); g.moveTo(8,-4.5); g.lineTo(3,-5); }
+  g.stroke();
+  ell(g,-5,0,1.8,2.2); g.fill(); ell(g,5,0,1.8,2.2); g.fill();
+  if((o.mouth||0)>0){ g.fillStyle='#A8324F'; ell(g,0,7,3.6,3.2); g.fill(); }
+  else if(mad){ g.beginPath(); g.moveTo(-3,8); g.quadraticCurveTo(0,5.5,3,8); g.stroke(); }
+  else { g.beginPath(); g.moveTo(-3,7); g.lineTo(3,7); g.stroke(); }
+  g.fillStyle='rgba(255,120,140,.45)'; ell(g,-9,4,3,1.8); g.fill(); ell(g,9,4,3,1.8); g.fill();
+  if(ang>0 || hard && level>=4){ g.font='14px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('💢', 15, -14); }
+}
+function drawBg(){
+  const hard=mode==='hard' && state!=='menu';
+  const floorY=LH-34;
+  if(!hard){
+    // 데이트 카페: 분홍 벽, 창문, 하트 전구
+    const gr=ctx.createLinearGradient(0,0,0,LH); gr.addColorStop(0,'#FFE3EC'); gr.addColorStop(1,'#FCD3E1');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,LW,LH);
+    ctx.fillStyle='rgba(255,255,255,.5)';
+    for(const wx of [40, 250]){ rr(ctx,wx,LH*.35,70,90,10); ctx.fill(); }
+    ctx.strokeStyle='rgba(232,85,138,.25)'; ctx.lineWidth=2;
+    for(const wx of [40, 250]){ ctx.beginPath(); ctx.moveTo(wx+35,LH*.35); ctx.lineTo(wx+35,LH*.35+90); ctx.moveTo(wx,LH*.35+45); ctx.lineTo(wx+70,LH*.35+45); ctx.stroke(); }
+    ctx.fillStyle='#E9C3A6'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.fillStyle='rgba(0,0,0,.05)'; for(let x=0;x<LW;x+=30) ctx.fillRect(x,floorY,1,LH-floorY);
+  }else{
+    // 거실: 줄무늬 벽지, 소파, TV, 빨래 바구니. 단계가 오를수록 붉어짐
+    ctx.fillStyle='#F3E9DC'; ctx.fillRect(0,0,LW,LH);
+    ctx.fillStyle='rgba(180,150,120,.12)'; for(let x=0;x<LW;x+=24) ctx.fillRect(x,0,10,floorY);
+    ctx.fillStyle='rgba(255,255,255,.55)'; rr(ctx,250,LH*.33,74,64,6); ctx.fill();
+    ctx.fillStyle='#3D3D48'; rr(ctx,30,floorY-70,90,52,5); ctx.fill(); ctx.fillStyle='#5A6B8C'; rr(ctx,35,floorY-66,80,44,3); ctx.fill();
+    ctx.fillStyle='#8A6E5A'; ctx.fillRect(60,floorY-18,30,18);
+    ctx.fillStyle='#C9A27E'; rr(ctx,236,floorY-44,110,34,10); ctx.fill(); rr(ctx,228,floorY-30,126,28,10); ctx.fill();
+    ctx.fillStyle='#C89B72'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.fillStyle='rgba(0,0,0,.06)'; for(let y=floorY+8;y<LH;y+=10) ctx.fillRect(0,y,LW,1);
+  }
+}
+// 여자친구가 서 있는 곳: 보통은 카페 2층 난간(아래에 하트 전구), 어려움은 부엌 조리대
+function drawLedge(){
+  const y=GIRL_Y()+50, hard=mode==='hard' && state!=='menu';
+  if(!hard){
+    ctx.fillStyle='rgba(255,255,255,.75)'; for(let x=6;x<LW;x+=18) ctx.fillRect(x,y,4,20);
+    ctx.fillStyle='#F2A7BF'; rr(ctx,0,y-4,LW,7,3); ctx.fill(); rr(ctx,0,y+18,LW,6,3); ctx.fill();
+    ctx.strokeStyle='rgba(120,80,90,.25)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,y+24);
+    for(let x=0;x<=LW;x+=20) ctx.lineTo(x, y+30+Math.sin(x/20)*5); ctx.stroke();
+    ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const tt=performance.now()/600;
+    for(let x=20;x<LW;x+=40){ ctx.globalAlpha=.55+.45*Math.sin(tt+x); ctx.fillText(x%80?'💡':'💗', x, y+36+Math.sin(x/20)*5); }
+    ctx.globalAlpha=1;
+  }else{
+    ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,y-2,LW,8);
+    ctx.fillStyle='#B98E6A'; ctx.fillRect(0,y+6,LW,18);
+    ctx.fillStyle='rgba(0,0,0,.12)'; for(let x=40;x<LW;x+=60){ ctx.fillRect(x,y+6,1.5,18); ctx.fillRect(x-14,y+13,8,2); }
+    ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText('🍳', 24, y); ctx.fillText('🧂', LW-26, y);
+  }
+}
+function drawWord(w){
+  ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.rot+Math.sin(w.t*4)*.03);
+  const hard=mode==='hard', b=w.kind==='b';
+  if(w.warnT>0){ ctx.globalAlpha=.4+.4*Math.sin(w.t*30); }
+  ctx.fillStyle = b ? (hard?'#D93A3A':'#E8558A') : hard ? '#FFF4E5' : '#FFFFFF';
+  ctx.strokeStyle = b ? 'rgba(0,0,0,.2)' : hard ? '#E8603C' : '#F48FB1';
+  ctx.lineWidth = 2;
+  rr(ctx,-w.w/2,-w.h/2,w.w,w.h,Math.min(w.h/2.2,20)); ctx.fill(); ctx.stroke();
+  // 말풍선 꼬리 (위쪽, 여자친구 쪽)
+  ctx.beginPath(); ctx.moveTo(-5,-w.h/2+1); ctx.lineTo(0,-w.h/2-6); ctx.lineTo(5,-w.h/2+1); ctx.fill();
+  ctx.fillStyle = b ? '#fff' : hard ? '#5A2A12' : '#6B2B45';
+  ctx.font=FONT(w.sz); ctx.textAlign='center'; ctx.textBaseline='middle';
+  w.lines.forEach((l,i)=>ctx.fillText(l, 0, 1+(i-(w.lines.length-1)/2)*24));
+  ctx.restore();
+}
+function sayBubble(x, y, text, up){
+  ctx.font=FONT(13); const w=ctx.measureText(text).width+16, h=22;
+  const bx=clamp(x, w/2+4, LW-w/2-4);
+  ctx.fillStyle='rgba(255,255,255,.95)'; ctx.strokeStyle='rgba(58,36,48,.3)'; ctx.lineWidth=1;
+  rr(ctx, bx-w/2, y-h/2, w, h, 10); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-4, up ? y+h/2 : y-h/2); ctx.lineTo(x, up ? y+h/2+6 : y-h/2-6); ctx.lineTo(x+4, up ? y+h/2 : y-h/2); ctx.fill();
+  ctx.fillStyle='#3A2430'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text, bx, y+1);
+}
+function draw(){
+  ctx.setTransform(DPR*K,0,0,DPR*K,0,0);
+  ctx.save();
+  if(shakeT>0) ctx.translate(rand(-3,3)*shakeT*8, rand(-3,3)*shakeT*8);
+  drawBg();
+  if(!B){ ctx.restore(); return; }
+  // 째려보기
+  for(const g of glares){
+    if(g.t<g.warn){
+      const a=.18+.14*Math.sin(g.t*22);
+      ctx.fillStyle=`rgba(232,70,63,${a})`; ctx.fillRect(g.x-g.w/2, GIRL_Y()+30, g.w, LH);
+      ctx.strokeStyle='rgba(232,70,63,.6)'; ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeRect(g.x-g.w/2, GIRL_Y()+30, g.w, LH); ctx.setLineDash([]);
+      ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('👀', g.x, GIRL_Y()+48);
+    }else{
+      const p=(g.t-g.warn)/g.fire;
+      const gr=ctx.createLinearGradient(g.x-g.w/2,0,g.x+g.w/2,0);
+      gr.addColorStop(0,'rgba(255,90,90,0)'); gr.addColorStop(.5,`rgba(255,60,80,${.9*(1-p*.6)})`); gr.addColorStop(1,'rgba(255,90,90,0)');
+      ctx.fillStyle=gr; ctx.fillRect(g.x-g.w/2, GIRL_Y()+20, g.w, LH);
+      ctx.fillStyle=`rgba(255,255,255,${.8*(1-p)})`; ctx.fillRect(g.x-3, GIRL_Y()+20, 6, LH);
+    }
+  }
+  // 여자친구
+  ctx.save(); ctx.translate(G.x, GIRL_Y()); ctx.scale(1.25,1.25);
+  drawGirl(ctx, state==='menu' ? 'normal' : mode, {mouth:G.mouthT, arm:G.armT, angry:G.angry, calm:calmT>0});
+  ctx.restore();
+  drawLedge();
+  if(G.sayT>0) sayBubble(G.x+40, GIRL_Y()-30, G.say, true);
+  // 아이템
+  for(const it of items){
+    const I=ITEMS[it.kind], x=it.x+Math.sin(it.t*3)*10;
+    ctx.save(); ctx.translate(x, it.y);
+    ctx.shadowColor=I.glow; ctx.shadowBlur=14; ctx.fillStyle='rgba(255,255,255,.92)'; ell(ctx,0,0,15,15); ctx.fill(); ctx.shadowBlur=0;
+    ctx.font='19px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(I.icon, 0, 1);
+    ctx.restore();
+  }
+  // 잔소리
+  for(const w of words) drawWord(w);
+  // 펫
+  if(state!=='menu' && petId!=='none'){
+    ctx.fillStyle='rgba(0,0,0,.15)'; ell(ctx,pet.x,LH-36,10,3); ctx.fill();
+    ctx.save(); ctx.fillStyle='rgba(255,255,255,.85)'; ctx.strokeStyle='rgba(58,36,48,.25)'; ctx.lineWidth=1.5; ell(ctx,pet.x,pet.y,14,14); ctx.fill(); ctx.stroke();
+    ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(PET().icon, pet.x, pet.y); ctx.restore();
+  }
+  // 남자친구
+  ctx.save(); ctx.translate(B.x, B.y);
+  if(hitT>0 && Math.floor(hitT*12)%2===0) ctx.globalAlpha=.45;
+  const face = state==='over' ? 'dizzy' : hitT>.8 ? 'dizzy' : calmT>0 ? 'happy' : (words.some(w=>w.y>B.y-90 && Math.abs(w.x-B.x)<60) || glares.length) ? 'scared' : 'calm';
+  drawBoy(ctx, B.b, {step:B.step, face, arms:calmT>0});
+  ctx.restore();
+  if(sorryT>0){
+    ctx.strokeStyle=`rgba(255,209,102,${.6+.3*Math.sin(elapsed*10)})`; ctx.lineWidth=3; ell(ctx,B.x,B.y,26,34); ctx.stroke();
+    ctx.fillStyle='rgba(255,209,102,.15)'; ctx.fill();
+  }
+  if(B.sayT>0) sayBubble(B.x, B.y-50, B.say, true);
+  // 효과
+  for(const p of fx){ ctx.globalAlpha=1-p.t/p.life; ctx.fillStyle=p.color; ell(ctx,p.x,p.y,p.r,p.r); ctx.fill(); }
+  ctx.globalAlpha=1;
+  for(const f of floats){
+    ctx.globalAlpha=1-f.t/.9; ctx.font=FONT(f.size); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(58,36,48,.55)'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle=f.color; ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha=1;
+  // 아내 모드: 단계가 오를수록 화면 가장자리가 붉게
+  if(mode==='hard' && state==='play'){
+    const a=Math.min(.28, .03*level);
+    const gr=ctx.createRadialGradient(LW/2,LH/2,LH*.35,LW/2,LH/2,LH*.75);
+    gr.addColorStop(0,'rgba(232,70,63,0)'); gr.addColorStop(1,`rgba(232,70,63,${a})`);
+    ctx.fillStyle=gr; ctx.fillRect(0,0,LW,LH);
+  }
+  if(coffeeT>0){ ctx.fillStyle='rgba(192,138,92,.08)'; ctx.fillRect(0,0,LW,LH); }
+  ctx.restore();
+}
+let hudN=0;
+function hud(){
+  $('hScore').textContent=Math.floor(scoreF).toLocaleString('ko-KR');
+  $('hTime').textContent=fmtTime(elapsed);
+  $('hLv').textContent=level;
+  $('hHp').textContent='❤️'.repeat(Math.max(0,hearts))+'🤍'.repeat(Math.max(0,maxHearts-hearts));
+  $('skillFill').style.transform=`scaleX(${gauge/100})`;
+  $('skillBar').classList.toggle('full', gauge>=100);
+  $('skillBtn').hidden = !(gauge>=100 && state==='play');
+  const it=[];
+  if(sorryT>0) it.push('🙏 '+sorryT.toFixed(1));
+  if(coffeeT>0) it.push('☕ '+coffeeT.toFixed(1));
+  if(calmT>0) it.push(M().skillIc+' '+calmT.toFixed(1));
+  if(combo>=2) it.push('아슬 ×'+combo);
+  const box=$('hItems'); box.hidden=!it.length; box.innerHTML=it.map(t=>`<span>${t}</span>`).join('');
+}
+let last=0;
+function frame(t){
+  const dt=Math.min(.05, (t-last)/1000||0); last=t;
+  if(!paused && running()){
+    update(dt);
+    if(++hudN%3===0 || state!=='play') hud();
+  }else if(state==='menu') idle(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+// 처음 화면: 여자친구가 천천히 왔다 갔다
+function idle(dt){
+  if(!G) return;
+  if(Math.abs(G.tx-G.x)<4) G.tx=rand(60, LW-60);
+  G.x += Math.sign(G.tx-G.x)*Math.min(Math.abs(G.tx-G.x), 40*dt);
+}
+
+/* ---------------- 흐름 ---------------- */
+const OVS=['menuOv','overOv','closetOv','shopOv','missionOv','rankOv','attendOv','pauseOv'];
+function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
+function setPlayingUi(on){
+  $('hud').hidden=!on; $('bars').hidden=!on;
+  document.body.classList.toggle('playing', on);
+  if(!on){ $('skillBtn').hidden=true; $('hItems').hidden=true; }
+}
+function start(){
+  audio(); musicStart(); play('click');
+  showOnly(null); resize(); clearToast(); reset(); applyBoosts(); state='play'; paused=false;
+  $('hMode').textContent=M().name; $('skillIc').textContent=M().skillIc;
+  $('skillBtn').textContent=M().skillIc+' '+M().skill+'!'; $('skillBtn').classList.toggle('hard', mode==='hard');
+  setPlayingUi(true); hud(); cv.focus();
+  G.say = mode==='hard' ? '여보, 잠깐 이리 와 봐' : '자기야, 나 할 말 있어'; G.sayT=1.6;
+  track('game_start', {mode, boy:boyId, pet:petId, boosts:usedBoosts.join(',')});
+}
+function restart(){
+  if(!running()) return;
+  track('game_quit', {mode, sec:Math.round(elapsed), restart:1});
+  wallet+=coinsRun; saveWallet();
+  paused=false; $('pauseOv').hidden=true; state='menu';
+  start(); toast('다시 시작!', 900);
+}
+function setPaused(p){
+  if(!running()) return;
+  paused=p; $('pauseOv').hidden=!p;
+  for(const k in keys) keys[k]=false; drag=null;
+  if(p) $('resumeBtn').focus(); else cv.focus();
+}
+$('resumeBtn').addEventListener('click', ()=>setPaused(false));
+$('restartBtn').addEventListener('click', restart);
+$('quitBtn').addEventListener('click', ()=>{ paused=false; $('pauseOv').hidden=true; track('game_quit', {mode, sec:Math.round(elapsed)}); finish('quit'); });
+
+let lastRun=null;
+function finish(reason){
+  if(state==='over') return;
+  state='over';
+  const score=Math.floor(scoreF), sec=elapsed;
+  const runCoins = coinsRun + Math.floor(sec/5);   // 버틴 시간 5초마다 용돈 1원
+  wallet+=runCoins; saveWallet();
+  const isBest = score>bestScore[mode] && reason!=='quit';
+  if(isBest){ bestScore[mode]=score; store.set('best', bestScore); }
+  if(reason!=='quit' && sec>bestSecBy[mode]){ bestSecBy[mode]=sec; store.set('bestSecBy', bestSecBy); }
+  const newly=BOYS.filter(b=>b.at>secStart && b.at<=sec);
+  if(sec>bestSec){ bestSec=sec; store.set('bestSec', bestSec); }
+  if(reason!=='quit'){ mProg('play',1); mProg('surv', Math.floor(sec)); mProg('clean', Math.floor(bestClean)); if(mode==='hard') mProg('hard', Math.floor(sec)); }
+  const now=new Date();
+  lastRun={mode, score, sec:+sec.toFixed(1), boy:boyId, pet:petId, near:nearCnt, dodge:dodgeCnt, coins:runCoins, word:lastWord, date:`${now.getMonth()+1}/${now.getDate()}`};
+  if(reason!=='quit' && score>0){
+    runs.best.push(lastRun); runs.best.sort((a,b)=>b.score-a.score);
+    // 난이도마다 10개씩만 남김
+    const cnt={}; runs.best=runs.best.filter(r=>(cnt[r.mode]=(cnt[r.mode]||0)+1)<=10);
+    runs.recent.unshift(lastRun); runs.recent=runs.recent.slice(0,20);
+    store.set('runsBest', runs.best); store.set('runsRecent', runs.recent);
+  }
+  track('game_over', {reason, mode, score, time_sec:Math.round(sec), level, boy:boyId, pet:petId, near_miss:nearCnt, hits:hitsTaken, items:itemCnt, skills:skillCnt});
+  if(reason!=='quit') play('over');
+
+  setTimeout(()=>{
+    setPlayingUi(false);
+    $('overTitle').textContent = reason==='quit' ? '오늘은 여기까지' : pick(OVER_TITLE[mode]);
+    const lw=$('lastWord'); lw.hidden=!lastWord || reason==='quit';
+    lw.innerHTML=`<small>${mode==='hard'?'아내':'여자친구'}의 마지막 한마디</small>“${esc(lastWord)}”`;
+    $('rTime').textContent=fmtTimeKo(sec);
+    $('rScore').textContent=score.toLocaleString('ko-KR');
+    $('rNear').textContent=nearCnt;
+    $('rDodge').textContent=dodgeCnt;
+    $('rItems').textContent=itemCnt;
+    $('rCoins').textContent='+'+runCoins;
+    $('rWallet').textContent='보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
+    $('newBest').hidden=!isBest;
+    $('newBest').textContent='🎉 '+M().name+' 모드 내 최고 기록!';
+    const ul=$('rUnlock'); ul.hidden=!newly.length; ul.textContent='🔓 새 남자친구 해금: '+newly.map(b=>b.name).join(', ')+' — 옷장에서 골라 보세요';
+    shareMsg(''); lastGlobalRank=0; lastWeekRank=0;
+    showOnly('overOv'); $('againBtn').focus();
+    offerGlobal(reason);
+  }, reason==='quit' ? 0 : 700);
+}
+function boyCanvas(b, w=84, h=112){
+  const cvs=document.createElement('canvas'); cvs.width=w; cvs.height=h;
+  const g=cvs.getContext('2d'), s=Math.min(w/36, h/72);
+  g.setTransform(s,0,0,s,w/2,h/2+4*s); drawBoy(g, b, {face:'happy'});
+  return cvs;
+}
+function setMode(m){
+  mode=m; store.set('mode', m);
+  for(const b of document.querySelectorAll('.mode')){ const on=b.dataset.mode===m; b.setAttribute('aria-checked', String(on)); b.tabIndex=on?0:-1; }
+  updateMenuBest();
+}
+document.querySelectorAll('.mode').forEach(b=>{
+  b.addEventListener('click', ()=>{ setMode(b.dataset.mode); play('click'); });
+  b.addEventListener('keydown', e=>{
+    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+    e.preventDefault(); setMode(mode==='hard'?'normal':'hard'); $(mode==='hard'?'modeHard':'modeNormal').focus();
+  });
+});
+function updateMenuBest(){
+  const mb=$('menuBest'), bs=bestScore[mode], bt=bestSecBy[mode];
+  mb.hidden=!bs && !wallet;
+  mb.textContent=[bs ? M().name+' 최고 '+bs.toLocaleString('ko-KR')+'점' : '', bt ? fmtTimeKo(bt) : '', '💵 '+wallet.toLocaleString('ko-KR')+'원'].filter(Boolean).join(' · ');
+}
+function showMenu(){
+  state='menu'; setPlayingUi(false); showOnly('menuOv');
+  if(!B) reset();
+  if(!unlocked(BOY())) boyId='basic';
+  B.b=BOY(); B.x=LW/2; words=[]; items=[]; glares=[]; fx=[]; floats=[]; calmT=0; hitT=0; sorryT=0; G.sayT=0; B.sayT=0;
+  const cc=$('curBoy'); cc.innerHTML=''; cc.append(boyCanvas(BOY()), document.createTextNode(BOY().name+(petId!=='none' ? ' + '+PET().icon+' '+PET().name : '')));
+  const bl=$('boostLine'); bl.hidden=!boosts.length; bl.textContent='다음 판 부스트: '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join(' ');
+  setMode(mode);
+  $('missionBtn').innerHTML='📋 미션 ('+mDone()+'/3)'+(mClaimable() ? '<span class="dot"></span>' : '');
+  if(attendDue()) openAttend();
+}
+
+/* ---------------- 출석 보상 ---------------- */
+const ATTEND=[20,30,40,50,60,80,150];
+let attend = store.get('attend', {last:'', streak:0});
+const attendDue = () => attend.last !== dayKey();
+function nextStreak(){
+  const y=new Date(); y.setDate(y.getDate()-1);
+  const yKey=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+  return attend.last===yKey && attend.streak<ATTEND.length ? attend.streak+1 : 1;
+}
+function openAttend(){
+  const n=nextStreak();
+  showOnly('attendOv');
+  $('attendText').textContent = n>1 ? n+'일째 이어서 왔어요! 오늘 용돈을 받아 가세요.' : '오늘의 출석 용돈이에요. 내일도 오면 더 많이 줘요!';
+  $('attendDays').innerHTML = ATTEND.map((c,i)=>`<div class="aday${i+1<n?' got':''}${i+1===n?' today':''}">${i+1}일<b>💵${c}</b>${i+1<n?'✓':''}</div>`).join('');
+  $('attendOk').textContent='💵 '+ATTEND[n-1]+'원 받기';
+  $('attendOk').focus();
+}
+$('attendOk').addEventListener('click', ()=>{
+  if(!attendDue()){ backToMenu(); return; }
+  const n=nextStreak(), c=ATTEND[n-1];
+  attend={last:dayKey(), streak:n}; store.set('attend', attend);
+  wallet+=c; saveWallet(); play('coin'); buzz(30); track('daily_attend', {streak:n, reward:c});
+  toast('💵 +'+c+'원', 1000); backToMenu();
+});
+$('goBtn').addEventListener('click', start);
+$('againBtn').addEventListener('click', start);
+$('overMenu').addEventListener('click', ()=>{ showMenu(); $('goBtn').focus(); });
+const backToMenu = () => { showMenu(); $('goBtn').focus(); };
+
+/* ---------------- 옷장 (남자친구 · 펫) ---------------- */
+function openCloset(){ showOnly('closetOv'); setClosetTab('boy'); const on=$('boys').querySelector('[aria-checked="true"]'); if(on) on.focus(); }
+function closeCloset(){ backToMenu(); }
+function setClosetTab(t){
+  $('tabBoy').setAttribute('aria-selected', String(t==='boy')); $('tabPet').setAttribute('aria-selected', String(t==='pet'));
+  $('boys').hidden=$('boyInfo').hidden = t!=='boy'; $('pets').hidden=$('petWallet').hidden = t!=='pet';
+  if(t==='boy') buildBoys(); else renderPets();
+}
+function buildBoys(){
+  const box=$('boys'); box.innerHTML='';
+  for(const b of BOYS){
+    const open=unlocked(b);
+    const el=document.createElement('button'); el.className='gcar'; el.setAttribute('role','radio'); el.dataset.id=b.id; el.disabled=!open;
+    el.append(boyCanvas(b));
+    el.insertAdjacentHTML('beforeend', `<b>${open ? b.name : '🔒 '+b.name}</b><small>${open ? b.desc : '한 판에 '+fmtTimeKo(b.at)+' 버티면 해금'}</small>`);
+    el.addEventListener('click', ()=>setBoy(b.id));
+    box.append(el);
+  }
+  setBoy(boyId, true);
+}
+function setBoy(id, quiet){
+  boyId=id; store.set('boy', id); if(!quiet) play('click');
+  $('boyInfo').textContent=BOY().name+' · '+BOY().long;
+  for(const b of $('boys').children){ const on=b.dataset.id===id; b.setAttribute('aria-checked', String(on)); b.tabIndex=on?0:-1; }
+}
+function renderPets(){
+  $('petWallet').textContent='보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
+  const box=$('pets'); box.innerHTML='';
+  for(const p of PETS){
+    const d=document.createElement('div'); d.className='shopItem';
+    d.innerHTML=`<span class="ic">${p.icon||'🚫'}</span><b>${p.name}</b><small>${p.desc}</small>`;
+    const b=document.createElement('button'); b.className='buy';
+    if(petOwned.includes(p.id)){
+      b.textContent = petId===p.id ? '데리고 가는 중' : '데리고 가기'; b.disabled = petId===p.id;
+      b.addEventListener('click', ()=>{ petId=p.id; savePets(); play('click'); renderPets(); });
+    }else{
+      b.textContent='💵 '+p.price+' 구매'; b.disabled = wallet<p.price;
+      b.addEventListener('click', ()=>{ if(wallet<p.price) return; wallet-=p.price; petOwned.push(p.id); petId=p.id; saveWallet(); savePets(); track('shop_buy', {kind:'pet', item_id:p.id, price:p.price}); play('coin'); toast(p.name+' 구매 완료'); renderPets(); });
+    }
+    d.append(b); box.append(d);
+  }
+}
+$('closetBtn').addEventListener('click', openCloset);
+$('closetOk').addEventListener('click', closeCloset);
+$('tabBoy').addEventListener('click', ()=>setClosetTab('boy'));
+$('tabPet').addEventListener('click', ()=>setClosetTab('pet'));
+$('boys').addEventListener('keydown', e=>{
+  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+  e.preventDefault();
+  const open=BOYS.filter(unlocked), i=open.findIndex(b=>b.id===boyId), n=open[(i+(e.key==='ArrowLeft'||e.key==='ArrowUp'?-1:1)+open.length)%open.length];
+  setBoy(n.id); $('boys').querySelector(`[data-id="${n.id}"]`).focus();
+});
+
+/* ---------------- 상점 ---------------- */
+let shopTab='boost';
+function renderShop(){
+  $('shopWallet').textContent='보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
+  $('shopHint').textContent = shopTab==='boost' ? '다음 한 판에만 적용돼요 · 시작할 때 사용' : '한 번 사면 계속 적용돼요';
+  $('tabBoost').setAttribute('aria-selected', String(shopTab==='boost')); $('tabUp').setAttribute('aria-selected', String(shopTab==='up'));
+  const box=$('shopList'); box.innerHTML='';
+  const card=(icon,name,desc,extra,label,can,onBuy)=>{
+    const d=document.createElement('div'); d.className='shopItem';
+    d.innerHTML=`<span class="ic">${icon}</span><b>${name}</b><small>${desc}</small>${extra}`;
+    const b=document.createElement('button'); b.className='buy'; b.textContent=label; b.disabled=!can; b.addEventListener('click',onBuy);
+    d.append(b); box.append(d);
+  };
+  if(shopTab==='boost') for(const it of BOOSTS){
+    const own=boosts.includes(it.id);
+    card(it.icon, it.name, it.desc, '', own ? '구매함' : '💵 '+it.price, !own && wallet>=it.price, ()=>{
+      wallet-=it.price; boosts.push(it.id); track('shop_buy', {kind:'boost', item_id:it.id, price:it.price}); saveShop(); play('coin'); toast(it.name+' 구매 완료'); renderShop();
+    });
+  }
+  else for(const it of UPS){
+    const lv=ups[it.id], max=lv>=UP_PRICE.length, price=UP_PRICE[lv];
+    card(it.icon, it.name, (lv ? '지금: '+it.per(lv) : '아직 없음')+(max ? '' : '<br>다음: '+it.per(lv+1)), `<span class="dots">${'●'.repeat(lv)}${'○'.repeat(UP_PRICE.length-lv)}</span>`,
+      max ? '최대' : '💵 '+price, !max && wallet>=price, ()=>{
+      wallet-=price; ups[it.id]++; track('shop_buy', {kind:'upgrade', item_id:it.id, level:ups[it.id], price}); saveShop(); play('item'); toast(it.name+' '+ups[it.id]+'단계!'); renderShop();
+    });
+  }
+}
+function openShop(){ showOnly('shopOv'); renderShop(); $('shopOk').focus(); }
+function closeShop(){ backToMenu(); }
+$('shopBtn').addEventListener('click', openShop);
+$('shopOk').addEventListener('click', closeShop);
+$('tabBoost').addEventListener('click', ()=>{ shopTab='boost'; renderShop(); });
+$('tabUp').addEventListener('click', ()=>{ shopTab='up'; renderShop(); });
+
+/* ---------------- 미션 화면 ---------------- */
+let mTimer=0;
+function renderMissions(){
+  const d=ensureDaily(), box=$('missionList'); box.innerHTML='';
+  const row=(title,sub,pct,label,can,onClaim)=>{
+    const r=document.createElement('div'); r.className='mrow';
+    r.innerHTML=`<b>${title}</b><small>${sub}</small><div class="mbar"><i style="width:${Math.round(Math.min(1,pct)*100)}%"></i></div>`;
+    const b=document.createElement('button'); b.className='buy'; b.textContent=label; b.disabled=!can; b.addEventListener('click',onClaim);
+    r.append(b); box.append(r);
+  };
+  for(const id of d.ids){
+    const m=MISSION(id), p=d.prog[id]||0, done=p>=m.goal, got=d.claimed[id];
+    row(m.name+' '+m.goal+m.unit, p+' / '+m.goal+' · 보상 💵 '+m.reward, p/m.goal,
+      got ? '받음' : done ? '받기' : '진행 중', done && !got, ()=>{ track('daily_mission_claim', {mission:id, reward:m.reward}); wallet+=m.reward; d.claimed[id]=true; saveDaily(); saveWallet(); play('coin'); toast('💵 +'+m.reward+'원'); renderMissions(); });
+  }
+  const all=d.ids.every(id=>d.claimed[id]);
+  row('전체 완료 보너스', '세 미션 보상을 모두 받으면 · 보상 💵 '+M_BONUS, d.ids.filter(id=>d.claimed[id]).length/3,
+    d.bonus ? '받음' : all ? '받기' : '잠김', all && !d.bonus, ()=>{ track('daily_mission_claim', {mission:'all_bonus', reward:M_BONUS}); wallet+=M_BONUS; d.bonus=true; saveDaily(); saveWallet(); play('win'); toast('💵 +'+M_BONUS+'원'); renderMissions(); });
+  tickMissionTimer();
+}
+function tickMissionTimer(){
+  const now=new Date(), next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1), sec=Math.max(0,Math.floor((next-now)/1000));
+  const p=n=>String(n).padStart(2,'0');
+  $('missionTimer').textContent='다음 미션까지 '+p(sec/3600|0)+':'+p((sec/60|0)%60)+':'+p(sec%60);
+  if(daily && daily.date!==dayKey()){ ensureDaily(); renderMissions(); }
+}
+function openMissions(){ showOnly('missionOv'); renderMissions(); clearInterval(mTimer); mTimer=setInterval(tickMissionTimer,1000); $('missionOk').focus(); }
+function closeMissions(){ clearInterval(mTimer); backToMenu(); }
+$('missionBtn').addEventListener('click', openMissions);
+$('missionOk').addEventListener('click', closeMissions);
+
+/* ---------------- 기록판 ---------------- */
+// 서버 순위는 난이도마다 따로: 여자친구는 mode 없이, 아내는 mode=hard
+const SCORE_API='/api/games/jansori/scores';
+let myScoreIds=store.get('myscores', []);
+let rankTab='best', rankMode='normal';
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function fetchGlobal(m, period=''){
+  const q=[m==='hard'?'mode=hard':'', period?'period='+period:''].filter(Boolean).join('&');
+  const r=await fetch(SCORE_API+(q?'?'+q:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores;
+}
+function renderRank(){
+  ['best','recent','week','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  $('rmNormal').setAttribute('aria-selected', String(rankMode==='normal')); $('rmHard').setAttribute('aria-selected', String(rankMode==='hard'));
+  const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
+  const online = rankTab==='global' || rankTab==='week';
+  if(!online){
+    const list=runs[rankTab].filter(r=>r.mode===rankMode).slice(0,10);
+    if(!list.length) return msg('아직 '+MODES[rankMode].name+' 모드 기록이 없어요. 한 판 버텨 보세요!');
+    box.innerHTML='';
+    list.forEach((r,i)=>{
+      const b=BOYS.find(x=>x.id===r.boy), pe=PETS.find(x=>x.id===r.pet);
+      const md = rankTab==='best' ? (['🥇','🥈','🥉'][i]||(i+1)) : '·';
+      box.insertAdjacentHTML('beforeend', `<div class="rk"><span class="md">${md}</span><b>${r.score.toLocaleString('ko-KR')}점</b><small>${r.date}</small><small>${fmtTimeKo(r.sec)} · ${b?esc(b.name):''}${pe&&pe.icon?' '+pe.icon:''} · 아슬아슬 ${r.near}</small><small>💵 +${r.coins}</small></div>`);
+    });
+    return;
+  }
+  if(!ONLINE) return msg('전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.');
+  msg('불러오는 중…');
+  const tab=rankTab, m=rankMode;
+  fetchGlobal(m, tab==='week'?'week':'').then(list=>{
+    if(rankTab!==tab || rankMode!==m) return;
+    if(!list.length) return msg(tab==='week' ? '이번 주 '+MODES[m].name+' 모드에는 아직 기록이 없어요. 1위가 되어 보세요!' : '아직 아무도 '+MODES[m].name+' 모드 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
+    box.innerHTML='';
+    list.forEach((r,i)=>{
+      const b=BOYS.find(x=>x.id===r.char), d=new Date(r.date);
+      box.insertAdjacentHTML('beforeend', `<div class="rk${myScoreIds.includes(r.id)?' me':''}"><span class="md">${['🥇','🥈','🥉'][i]||(i+1)}</span><b>${esc(r.name)}</b><small>${r.score.toLocaleString('ko-KR')}점</small><small>${fmtTimeKo(r.stage)} 버팀${b?' · '+esc(b.name):''}</small><small>${d.getMonth()+1}/${d.getDate()}</small></div>`);
+    });
+  }).catch(()=>{ if(rankTab===tab && rankMode===m) msg('순위를 불러오지 못했어요.'); });
+}
+function openRank(){ showOnly('rankOv'); rankTab='best'; rankMode=mode; renderRank(); $('rankOk').focus(); }
+function closeRank(){ backToMenu(); }
+$('rankBtn').addEventListener('click', openRank);
+$('rankOk').addEventListener('click', closeRank);
+$('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
+$('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
+$('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
+$('rmNormal').addEventListener('click', ()=>{ rankMode='normal'; renderRank(); });
+$('rmHard').addEventListener('click', ()=>{ rankMode='hard'; renderRank(); });
+
+/* ---------------- 전체 순위 올리기 ---------------- */
+// 서버에는 버틴 시간(초)을 stage로 보냄
+let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
+async function offerGlobal(reason){
+  const box=$('gsub'); box.hidden=true;
+  if(!ONLINE || reason==='quit' || !lastRun || lastRun.score<=0) return;
+  const run={score:lastRun.score, from:1, to:Math.min(999, Math.max(1, Math.floor(lastRun.sec))), time:lastRun.sec, char:lastRun.boy, ...(lastRun.mode==='hard' ? {mode:'hard'} : {})};
+  gsubRun=run;
+  let all, week; try{ [all, week]=await Promise.all([fetchGlobal(lastRun.mode), fetchGlobal(lastRun.mode, 'week')]); }catch(e){ return; }
+  if(gsubRun!==run || state!=='over') return;
+  const pos=all.filter(r=>r.score>=run.score).length+1, wpos=week.filter(r=>r.score>=run.score).length+1;
+  if(pos>20 && wpos>20) return;
+  const mn=MODES[lastRun.mode].name;
+  $('gsubTitle').textContent = pos<=20 ? '🏆 '+mn+' 모드 전체 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 '+mn+' 모드 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
+  try{ $('gsubName').value=localStorage.getItem(KEY+'nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}
+  $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
+  box.hidden=false;
+}
+$('gsubBtn').addEventListener('click', async ()=>{
+  const name=$('gsubName').value.trim(), run=gsubRun;
+  if(!run) return;
+  if(name.length<2){ $('gsubMsg').textContent='닉네임은 2~10자로 적어주세요.'; return; }
+  $('gsubBtn').disabled=true; $('gsubMsg').textContent='올리는 중…';
+  try{
+    const r=await fetch(SCORE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,...run})});
+    const d=await r.json();
+    if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
+    try{ localStorage.setItem(KEY+'nick', name); }catch(e){}   // 공용 댓글창이 이 키(<slug>-side-nick)를 읽음
+    myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); store.set('myscores', myScoreIds);
+    if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
+    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
+    track('leaderboard_submit', {mode:run.mode||'normal', rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
+    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
+      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    $('gsubName').disabled=true; gsubRun=null; play('win');
+  }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
+});
+$('gsubName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gsubBtn').click(); });
+
+/* ---------------- 공유 ---------------- */
+const SHARE_URL='https://swimpyonote.com/games/jansori/';
+function shareMsg(m){ const el=$('shareMsg'); el.textContent=m; el.hidden=!m; }
+$('shareBtn').addEventListener('click', async ()=>{
+  if(!lastRun) return;
+  const mn=MODES[lastRun.mode];
+  let text='💢 잔소리 피하기 '+mn.icon+mn.name+' 모드에서 '+fmtTimeKo(lastRun.sec)+' 버텼어요! ('+lastRun.score.toLocaleString('ko-KR')+'점)';
+  if(lastRun.word) text+='\n마지막 한마디: “'+lastRun.word+'”';
+  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) text+='\n🏆 이번 주 '+lastWeekRank+'위!';
+  text+='\n나보다 오래 버틸 수 있어?';
+  if(navigator.share){
+    try{ await navigator.share({title:'잔소리 피하기', text, url:SHARE_URL}); track('share', {method:'web_share', mode:lastRun.mode}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  const full=text+'\n'+SHARE_URL;
+  try{ await navigator.clipboard.writeText(full); track('share', {method:'clipboard', mode:lastRun.mode}); shareMsg('복사했어요! 붙여넣어 보내 보세요.'); }
+  catch(e){ window.prompt('아래 문구를 복사해서 보내 주세요.', full); }
+});
+
+/* ---------------- 시작 ---------------- */
+resize(); reset(); showMenu();
+requestAnimationFrame(frame);
+window.__jansori = { get state(){ return state; }, get score(){ return Math.floor(scoreF); }, get sec(){ return elapsed; }, get hearts(){ return hearts; }, get words(){ return words.length; }, get mode(){ return mode; } };   // 테스트용 (읽기 전용)
+})();
+</script>
+</body>
+</html>

@@ -2851,13 +2851,16 @@
     try{
       if(!sel.options.length){
         const games = await (await fetch('/games/games.json', { cache: 'no-cache' })).json();
-        sel.innerHTML = games.map(g => `<option value="${escapeHtml(g.slug)}" data-unit="${escapeHtml(g.stageUnit || '')}">${escapeHtml(g.title)}</option>`).join('');
+        // 난이도별 순위가 따로 있는 게임(modes)은 '<slug>~<mode>' 칸도 따로 골라 볼 수 있게
+        sel.innerHTML = games.map(g => [`<option value="${escapeHtml(g.slug)}" data-unit="${escapeHtml(g.stageUnit || '')}">${escapeHtml(g.title)}${g.modes ? ' · ' + escapeHtml((g.modeNames || {})[''] || '기본') : ''}</option>`]
+          .concat((g.modes || []).map(m => `<option value="${escapeHtml(g.slug + '~' + m)}" data-unit="${escapeHtml(g.stageUnit || '')}">${escapeHtml(g.title)} · ${escapeHtml((g.modeNames || {})[m] || m)}</option>`)).join('')).join('');
       }
       const slug = sel.value;
       if(!slug){ el.innerHTML = '게임이 없어요.'; return; }
       // games.json의 stageUnit: 비어 있으면 'N단계', 'km10'이면 stage를 100m 단위 거리로 보고 'N.Nkm'
       const km10 = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.unit === 'km10';
       const count = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.unit === 'count';   // 'count'면 stage를 건수로 보고 'N건'
+      const sec = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.unit === 'sec';   // 'sec'이면 stage를 버틴 시간(초)으로 보고 'N초'
       const data = await (await fetch('/api/admin/games/' + encodeURIComponent(slug) + '/scores')).json();
       if(!data.ok){ el.innerHTML = escapeHtml(data.message || '불러오지 못했어요.'); return; }
       if(!data.scores.length){
@@ -2870,7 +2873,7 @@
             <span class="admin-type">${i + 1}위</span>
           </div>
           <div class="admin-item-body"><strong>${escapeHtml(r.name)}</strong> · ${Number(r.score).toLocaleString('ko-KR')}점</div>
-          <div class="admin-item-meta">${km10 ? (r.stage / 10).toFixed(1) + 'km' : count ? r.stage + '건' : (r.from && r.from !== r.stage ? r.from + '→' : '') + r.stage + '단계'} · ${escapeHtml(r.char || '')} · ${formatDate(r.date)} · IP ${escapeHtml(r.ip || '-')}</div>
+          <div class="admin-item-meta">${km10 ? (r.stage / 10).toFixed(1) + 'km' : count ? r.stage + '건' : sec ? r.stage + '초' : (r.from && r.from !== r.stage ? r.from + '→' : '') + r.stage + '단계'} · ${escapeHtml(r.char || '')} · ${formatDate(r.date)} · IP ${escapeHtml(r.ip || '-')}</div>
           <div class="admin-item-actions">
             <button class="btn-ghost" onclick="adminDeleteScore('${escapeHtml(slug)}','${escapeHtml(r.id)}')">삭제</button>
           </div>

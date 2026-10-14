@@ -2028,11 +2028,19 @@ function saveScores(all) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SCORES_FILE, JSON.stringify(all, null, 2), 'utf8');
 }
-function isKnownGame(slug) {
+function findGame(slug) {
   try {
     const games = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'games', 'games.json'), 'utf8'));
-    return games.some(g => g.slug === slug);
-  } catch (e) { return false; }
+    return games.find(g => g.slug === slug) || null;
+  } catch (e) { return null; }
+}
+function isKnownGame(slug) { return !!findGame(slug); }
+// 난이도마다 순위를 따로 두는 게임: games.json의 modes(예: ["hard"])에 있는 mode로 오면
+// '<slug>~<mode>' 칸에 따로 저장함. mode가 없으면 기본 난이도로 '<slug>' 칸을 씀. 모르는 mode면 null
+function scoreKey(slug, mode) {
+  if (!mode) return slug;
+  const g = findGame(slug);
+  return g && Array.isArray(g.modes) && g.modes.includes(mode) ? slug + '~' + mode : null;
 }
 // 말이 안 되게 높은 기록 거르기. 게임마다 기준이 달라서 slug별로 두고, 없으면 왁뿌 기준을 씀.
 const SCORE_CHECKS = {
@@ -2046,6 +2054,9 @@ const SCORE_CHECKS = {
   // 터보로 달려도 한 건에 2초는 걸림. 한 건 점수는 따끈한·조심조심 주문과 단골 보너스까지 합쳐도 900점 남짓
   // (길 코인·시계 점수는 1초에 60점 넘기 어려움)
   baedal: ({ score, from, to, time }) => from === 1 && to <= 1 + time / 1.8 && score <= 1300 * to + 60 * time + 1000,
+  // 잔소리 피하기: to는 버틴 시간(초). 점수는 1초에 기본 10점에 단계마다 늘고(5분 버텨도 1초에 100점 안쪽),
+  // 아슬아슬·아이템·애교를 다 합쳐도 아내 모드(1.5배)에서 1초에 250점을 넘기 어려움
+  jansori: ({ score, from, to, time }) => from === 1 && to <= time + 2 && score <= 250 * time + 3000,
 };
 function scoreLooksValid(slug, r) {
   return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);
@@ -2066,9 +2077,11 @@ function weekList(all, slug) {
 app.get('/api/games/:slug/scores', (req, res) => {
   const { slug } = req.params;
   if (!isKnownGame(slug)) return res.status(404).json({ ok: false, message: '없는 게임이에요.' });
+  const key = scoreKey(slug, req.query.mode);
+  if (!key) return res.status(400).json({ ok: false, message: '없는 난이도예요.' });
   const all = loadScores();
   const week = req.query.period === 'week';
-  const list = (week ? weekList(all, slug) : (all[slug] || [])).slice(0, SCORE_SHOW).map(publicScore);
+  const list = (week ? weekList(all, key) : (all[key] || [])).slice(0, SCORE_SHOW).map(publicScore);
   res.json({ ok: true, scores: list, ...(week ? { week: weekKey() } : {}) });
 });
 
@@ -2085,21 +2098,23 @@ app.post('/api/games/:slug/scores', scoreLimiter, (req, res) => {
       || !Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > 999) {
     return res.status(400).json({ ok: false, message: '기록 형식이 올바르지 않아요.' });
   }
-  if (!scoreLooksValid(slug, { score, from, to, time })) {
+  const key = scoreKey(slug, body.mode);
+  if (!key) return res.status(400).json({ ok: false, message: '없는 난이도예요.' });
+  if (!scoreLooksValid(slug, { score, from, to, time, mode: body.mode })) {
     return res.status(400).json({ ok: false, message: '기록을 확인할 수 없어요.' });
   }
   const all = loadScores();
-  const list = all[slug] || [];
+  const list = all[key] || [];
   const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, score, stage: to, from, char, time: Math.round(time),
     date: new Date().toISOString(), ip: req.ip };
   const byScore = (a, b) => b.score - a.score || a.date.localeCompare(b.date);
   list.push(rec);
   list.sort(byScore);
-  all[slug] = list.slice(0, SCORE_KEEP);
-  const wl = weekList(all, slug).concat(rec).sort(byScore).slice(0, SCORE_KEEP);
-  all[slug + '@week'] = { week: weekKey(), list: wl };
+  all[key] = list.slice(0, SCORE_KEEP);
+  const wl = weekList(all, key).concat(rec).sort(byScore).slice(0, SCORE_KEEP);
+  all[key + '@week'] = { week: weekKey(), list: wl };
   saveScores(all);
-  const rank = all[slug].indexOf(rec) + 1;   // 보관 범위 밖이면 0
+  const rank = all[key].indexOf(rec) + 1;   // 보관 범위 밖이면 0
   const weekRank = wl.indexOf(rec) + 1;
   res.json({ ok: true, rank, weekRank, id: rec.id, show: SCORE_SHOW });
 });
