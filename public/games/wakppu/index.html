@@ -635,21 +635,29 @@ function addPlat(type, x, top, opts={}){
 let startX=0;
 // 패턴 안 발판 개수: 단계가 높을수록 범위가 넓어짐
 const cnt = (a,b) => { const ch=BCFG.chaos, lo=Math.max(1,a-Math.round(ch)), hi=b+Math.round(2*ch); return lo+(Math.random()*(hi-lo+1)|0); };
+// 2단 점프로 날 수 있는 가로 거리: 끝까지 누른 점프 → 꼭대기에서 2단 점프 → dh만큼 아래(음수면 위)에 착지
+function reachX(spd, dh){
+  const up = -(JUMP+JUMP2)/GRAV, h = (JUMP*JUMP + JUMP2*JUMP2)/(2*GRAV);
+  return spd*(up + Math.sqrt(2*Math.max(0, h+dh)/GRAV));
+}
 function place(cur,type,gap,dTop,opts={}){
-  const touch = gap<=4;
-  gap *= BCFG.gap;
-  if(!touch){   // 단계가 높을수록 간격·높이를 들쭉날쭉하게 (붙어 있는 발판 줄은 그대로)
+  const touch = gap<=4, prev = cur.prev;
+  // 먼 간격은 단계 속도에 맞춰 넓힘 (움직이는·미끄러운·컨베이어 발판 주변과 낮게 뛰는 구간은 제외)
+  const far = gap>=65 && !opts.move && !opts.calm && !(prev && (prev.move || prev.slip || prev.conv));
+  gap *= BCFG.gap * (far ? 1 + BCFG.spd*.7 : 1);
+  if(!touch && !opts.calm){   // 단계가 높을수록 간격·높이를 들쭉날쭉하게 (붙어 있는 발판 줄은 그대로)
     const ch=BCFG.chaos;
-    gap = Math.min(300, gap*(1+rnd(-.6,.6)*ch));
     let j = rnd(-80,80)*ch;
     if(dTop+j < -195) j = Math.max(j, Math.min(0, -195-dTop));   // 2단 점프로 오를 수 있는 높이 유지
     dTop += j;
+    gap = gap*(1+rnd(-.6,.6)*ch);
   }
+  if(!touch) gap = Math.min(gap, .78*reachX(SPEED*(1+BCFG.spd), dTop));   // 이 단계 속도로 2단 점프하면 닿는 거리 안
   cur.top = Math.max(-60, Math.min(250, cur.top + dTop));
   const t = type==='slab' ? 0 : TPL[type].t;
   const sh = opts.move && opts.move.ax ? opts.move.amp : 0;
   const pl = addPlat(type, cur.x+gap+t+sh, cur.top, Object.assign({idx:++cur.idx}, opts));
-  cur.x = pl.x + pl.tp.w + pl.tp.t + sh; cur.last = type;
+  cur.x = pl.x + pl.tp.w + pl.tp.t + sh; cur.last = type; cur.prev = pl;
   return pl;
 }
 const anyT = c => { let t; do{ t=pick(SMALL); } while(t===c.last); return t; };
@@ -666,6 +674,14 @@ const PATTERNS = {
       else if(g==='short') place(c, anyT(c), rnd(28,55), rnd(-30,30));
       else place(c, anyT(c), rnd(75,115+d*20), rnd(-35,35));
     }
+  },
+  lowHops(c,d){   // 가시 초코볼 천장: 한 번 점프(발 높이 ~137)는 안 닿고, 2단 점프로 높이 뜨면 부딪혀요
+    const a = place(c, flatT(c), rnd(50,80), rnd(-15,15)), row=[];
+    for(let i=0,n=cnt(3,4);i<n;i++) row.push(place(c, flatT(c), rnd(55,85+d*15), rnd(-8,8), {calm:true}));   // 넓적한 발판: 정밀함보다 참는 게 핵심
+    for(const p of [a,...row]) p.lowRow=true;   // 이 구간엔 다른 장애물을 두지 않음
+    const top = Math.min(...[a,...row].map(p=>p.y+p.oMin)), x0 = a.x+a.tp.w, x1 = row.at(-1).x+row.at(-1).tp.w;
+    for(let x=x0; x<=x1; x+=72) hazards.push({type:'spike', ceil:true, x, y0:top-230, amp:4, spd:1.5, ph:rnd(0,TAU), r:13});
+    place(c, flatT(c), rnd(40,70), rnd(-15,15), {calm:true});
   },
   hops(c,d){ const n=cnt(4,6); for(let i=0;i<n;i++) place(c, anyT(c), rnd(32,72), rnd(-25,25)); },
   chain(c,d){ const n=cnt(3,4); place(c,flatT(c),rnd(50,80),rnd(-30,30)); for(let i=1;i<n;i++) place(c,flatT(c),rnd(0,4),0); },
@@ -747,7 +763,7 @@ const PATTERNS = {
   }
 };
 const PNAME = {bigGap:'2단 점프로 건너요', tower:'2단 점프로 올라가요', movingH:'움직이는 발판!', elevator:'엘리베이터 타고 올라가요',
-  crumbleRow:'금방 무너져요, 빨리 건너요!', blinkRow:'깜빡이는 발판, 타이밍!', trampoline:'젤리를 밟으면 높이 튀어요', candles:'촛불은 뜨거워요, 넘어가요',
+  crumbleRow:'금방 무너져요, 빨리 건너요!', lowHops:'가시 조심! 한 번씩 낮게 뛰어요', blinkRow:'깜빡이는 발판, 타이밍!', trampoline:'젤리를 밟으면 높이 튀어요', candles:'촛불은 뜨거워요, 넘어가요',
   iceRow:'미끄러워요, 조심!', conveyor:'롤케이크가 밀어내요!', wheel:'빙글빙글 도는 발판!', sinkRow:'밟으면 가라앉아요, 빨리!'};
 /* ---------------- 단계 ---------------- */
 // 1→20단계까지 점점 어려워지고, 그 뒤로는 20단계 난이도로 계속
@@ -758,7 +774,7 @@ function stageCfg(s){
 }
 // 패턴이 처음 등장하는 단계
 const UNLOCK = {mixed:0, stairsUp:0, stairsDown:0, stones:0, hops:0, chain:0, zigzag:0, drop:0, movingH:0,
-  elevator:1, trampoline:1, iceRow:2, crumbleRow:2, conveyor:3, bigGap:3, tower:4, blinkRow:4, candles:5, sinkRow:5, wheel:6};
+  elevator:1, trampoline:1, iceRow:2, crumbleRow:2, conveyor:3, bigGap:3, tower:4, blinkRow:4, candles:5, sinkRow:5, wheel:6, lowHops:5};
 const UP = ['tower','stairsUp','zigzag','elevator','trampoline'];
 let level=1, CFG=stageCfg(1), BCFG=CFG, builtLevel=0, courseCur=null, goals={};
 let savedStage=1; try{ const v=+localStorage.getItem('wakppu-side-stage'); if(v>1) savedStage=Math.floor(v); }catch(e){}
@@ -768,7 +784,7 @@ function buildStage(n, cur){
   const C = BCFG = stageCfg(n), start = plats.length;
   const ok = k => UNLOCK[k] <= n;
   const easy=['mixed','stairsUp','stones','trampoline','mixed','hops'].filter(ok);
-  const hard=['bigGap','tower','zigzag','drop','stones','mixed','chain','hops','movingH','elevator','crumbleRow','blinkRow','trampoline','candles','mixed','movingH','crumbleRow','iceRow','conveyor','wheel','sinkRow'].filter(ok);
+  const hard=['bigGap','tower','zigzag','drop','stones','mixed','chain','hops','movingH','elevator','crumbleRow','blinkRow','trampoline','candles','mixed','movingH','crumbleRow','iceRow','conveyor','wheel','sinkRow','lowHops','lowHops'].filter(ok);
   const queue = newPatsOf(n).sort(()=>Math.random()-.5);   // 새로 해금된 패턴은 꼭 한 번 등장
   const SEG=C.seg; let prev='';
   const cpAt = new Set(Array.from({length:C.cpN}, (_,i)=>Math.round((i+1)*SEG/(C.cpN+1))-1));   // 체크포인트를 코스에 고르게
@@ -802,7 +818,7 @@ const plainPlat = p => p.kind==='normal' && !p.tp.noShell && !p.bounce && !p.con
 // 단계 코스(plats[from..])에 촛불·굴러가는 사탕·가시 초코볼 배치
 function addHazards(n, from){
   const t = stageCfg(n).chaos, list = plats.slice(from), must = new Set(newHazOf(n));
-  const cand = list.slice(1).filter(p => plainPlat(p) && p.tp.w>=120);   // 패턴 첫 착지 발판은 비움
+  const cand = list.slice(1).filter(p => plainPlat(p) && !p.lowRow && p.tp.w>=120);   // 패턴 첫 착지 발판은 비움
   if(n>=HAZ.candy){
     const wide = cand.filter(p=>p.tp.w>=150);
     for(const p of wide) if(Math.random() < .1+.1*t){ p.candy=true; }
@@ -818,13 +834,13 @@ function addHazards(n, from){
   if(n>=HAZ.spike){
     const gaps=[];
     for(let i=0;i<list.length-1;i++){
-      const a=list[i], b=list[i+1]; if(a.move || b.move) continue;
+      const a=list[i], b=list[i+1]; if(a.move || b.move || a.lowRow) continue;
       const x0=a.x+a.tp.w+a.tp.t, x1=b.x-b.tp.t, aTop=a.y+a.oMin, bTop=b.y+b.oMin;
-      if(x1-x0>=90 && x1-x0<=200 && aTop-bTop<80) gaps.push({x:(x0+x1)/2, y:Math.min(aTop,bTop)-70});
+      if(x1-x0>=90 && x1-x0<=360 && aTop-bTop<80) gaps.push({x:(x0+x1)/2, y:Math.min(aTop,bTop)-70});
     }
     const sp = g => hazards.push({type:'spike', x:g.x, y0:g.y, amp:30, spd:1.4+t, ph:rnd(0,TAU), r:13});
     let any=false;
-    for(const g of gaps) if(Math.random() < .1+.15*t){ sp(g); any=true; }
+    for(const g of gaps) if(Math.random() < .07+.12*t){ sp(g); any=true; }   // 간격이 넓어져 후보가 늘어난 만큼 확률은 낮춤
     if(must.has('spike') && !any && gaps.length) sp(pick(gaps));
   }
 }
@@ -1106,7 +1122,7 @@ function addJellies(from, n){
     const goldAt = bigAt<0 && gap>100 && Math.random()<.06 ? Math.round(m/2) : -1;
     for(let k=1;k<m;k++){
       const u=k/m, big=k===bigAt;
-      if(hazards.some(h=>h.type==='spike' && Math.abs(h.x-(x0+gap*u))<34)) continue;
+      if(hazards.some(h=>h.type==='spike' && !h.ceil && Math.abs(h.x-(x0+gap*u))<34)) continue;   // 천장 가시 밑 젤리는 그대로
       const gold = !big && k===goldAt;   // 금화는 아치 꼭대기 위
       jellies.push({pl:null, x:x0+gap*u, y:(1-u)*(1-u)*y0+2*u*(1-u)*c+u*u*y1-(big?40:gold?30:0), big, coin: gold ? 5 : Math.random()<.08+.01*ups.coin ? 1 : 0});
     }
