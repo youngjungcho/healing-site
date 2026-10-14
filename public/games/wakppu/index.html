@@ -72,7 +72,7 @@ button{font:inherit}
 .char[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .char:disabled{opacity:.45;cursor:default}
 .char:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-.shopTabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.shopTabs{display:flex;gap:6px}
 .mlist{display:flex;flex-direction:column;gap:8px;width:min(100%,460px)}
 .gsub{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;border:1.5px dashed var(--accent);border-radius:14px;max-width:360px}
 .gsub b{font-family:"Jua",sans-serif;font-weight:400;font-size:16px;color:var(--ink)}
@@ -215,7 +215,6 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="shopTabs" role="tablist">
         <button class="tab" role="tab" id="tabBest" aria-selected="true">최고 기록</button>
         <button class="tab" role="tab" id="tabRecent" aria-selected="false">최근 기록</button>
-        <button class="tab" role="tab" id="tabWeek" aria-selected="false">이번 주</button>
         <button class="tab" role="tab" id="tabGlobal" aria-selected="false">전체 순위</button>
       </div>
       <div class="mlist" id="rankList"></div>
@@ -577,7 +576,7 @@ function tn(t,f,f2,dur,vol,type='sine'){
   o.connect(g).connect(master); o.start(t); o.stop(t+dur+.03);
 }
 const SND = {
-  bling(v){ const t=AC.currentTime; tn(t,1400,2100,.07,.05*v,'triangle'); },
+  bling(v,st=0){ const t=AC.currentTime, f=1400*2**(st/12); tn(t,f,f*1.5,.07,.05*v,'triangle'); },   // st: 콤보 따라 올라가는 음
   bigJelly(){ const t=AC.currentTime; [988,1318,1760].forEach((f,i)=>tn(t+i*.05,f,null,.12,.09,'triangle')); },
   shell(v){ const t=AC.currentTime; let o=0; for(let i=0;i<5;i++){ nz(t+o,1800+Math.random()*3500,.03+Math.random()*.05,.6*v); o+=.008+Math.random()*.02; } },
   butter(v){ SND.shell(v*.8); const t=AC.currentTime; nz(t,900,.14,.45*v,.7,'lowpass'); tn(t,170,70,.16,.25*v); },
@@ -607,8 +606,13 @@ const SND = {
   check(){ const t=AC.currentTime; [784,988,1318].forEach((f,i)=>tn(t+i*.08,f,null,.18,.12,'triangle')); },
   win(){ const t=AC.currentTime; [523,659,784,1046,1318].forEach((f,i)=>tn(t+i*.1,f,null,.3,.13,'triangle')); }
 };
-function play(n,v=1){ if(!AC||muted) return; try{ SND[n](v); }catch(e){} }
+function play(n,v=1,a){ if(!AC||muted) return; try{ SND[n](v,a); }catch(e){} }
 const buzz = ms => { try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+// 손맛: 화면 흔들림(동작 줄이기 설정이면 끔)과 멈칫(히트스톱)
+const calm = matchMedia('(prefers-reduced-motion: reduce)');
+let shakeA=0, stopT=0;
+function shake(a){ if(!calm.matches) shakeA=Math.max(shakeA,a); }
+function hitStop(t){ stopT=Math.max(stopT,t); }
 
 /* ---------------- 코스 ---------------- */
 const SHELLS = ['#47E85A','#FF6FB5','#5CC8FF','#A98CFF','#FFD84A','#FF9A4D','#3FE0C5'];
@@ -747,9 +751,10 @@ const PNAME = {bigGap:'2단 점프로 건너요', tower:'2단 점프로 올라�
   iceRow:'미끄러워요, 조심!', conveyor:'롤케이크가 밀어내요!', wheel:'빙글빙글 도는 발판!', sinkRow:'밟으면 가라앉아요, 빨리!'};
 /* ---------------- 단계 ---------------- */
 // 1→20단계까지 점점 어려워지고, 그 뒤로는 20단계 난이도로 계속
+// 1단계는 짧고 쉬운 몸풀기, 2단계부터 기존 5단계 난이도에서 20단계까지 올라감
 function stageCfg(s){
-  const t=Math.min(1, .21 + .79*(s-1)/19);   // 1단계가 기존 5단계 난이도에서 시작
-  return {seg:Math.round(6+16*t), easyN:Math.round(4-3*t), gap:.85+.3*t, spd:1.4*t, cpN:Math.round(3-2*t), dAdd:.3*t, chaos:t};
+  const t = s<=1 ? 0 : Math.min(1, .21 + .79*(s-2)/18);
+  return {seg:s<=1 ? 5 : Math.round(6+16*t), easyN:Math.round(4-3*t), gap:.85+.3*t, spd:1.4*t, cpN:Math.round(3-2*t), dAdd:.3*t, chaos:t};
 }
 // 패턴이 처음 등장하는 단계
 const UNLOCK = {mixed:0, stairsUp:0, stairsDown:0, stones:0, hops:0, chain:0, zigzag:0, drop:0, movingH:0,
@@ -808,7 +813,7 @@ function addHazards(n, from){
   for(const p of cand){
     if(p.candy) continue;
     if(prev && list.indexOf(p)===list.indexOf(prev)+1){ prev=null; continue; }   // 연속 두 발판엔 안 세움
-    if(Math.random() < .1+.15*t){ p.candle = p.tp.w*rnd(.4,.6); prev=p; }
+    if(n>1 && Math.random() < .1+.15*t){ p.candle = p.tp.w*rnd(.4,.6); prev=p; }   // 1단계엔 촛불 없음
   }
   if(n>=HAZ.spike){
     const gaps=[];
@@ -860,6 +865,7 @@ let jellyMark=0, jellies=[], pops=[], score=0, bestScore=0, beatBest=false;
 const COMBO_T=1.5;
 const comboWin = () => petId==='unicorn' ? 2.5 : COMBO_T;
 let combo=0, comboT=0, bestCombo=0;
+const SCALE=[0,2,4,5,7,9,11,12];   // 젤리 소리 음계(도레미파솔라시도), 콤보마다 한 음씩
 try{ bestCombo=+localStorage.getItem('wakppu-side-combo')||0; }catch(e){}
 const comboMult = c => c>=100 ? 5 : c>=50 ? 4 : c>=25 ? 3 : c>=10 ? 2 : 1;
 function breakCombo(){ if(combo>=10 && state==='play') toast('콤보 끊김'); combo=0; comboT=0; }
@@ -1075,7 +1081,7 @@ function bankCoins(){
 }
 function smash(x,y,col){
   addCoins(1); mProg('smash',1);
-  const v=addScore(50); pops.push({x, y:y-20, txt:'+'+v, life:.7, big:true}); play('smash'); buzz(20);
+  const v=addScore(50); pops.push({x, y:y-20, txt:'+'+v, life:.7, big:true}); play('smash'); buzz(20); shake(5); hitStop(.04);
   for(let k=0;k<16;k++) dust.push({x,y,vx:rnd(-160,160),vy:rnd(-260,-60),life:rnd(.3,.7),col,s:rnd(2,4)});
 }
 const jellyPts = big => (10 + 2*(Math.min(level,20)-1)) * (big ? 10 : 1);
@@ -1096,10 +1102,10 @@ function addJellies(from, n){
     const x0=pl.x+tp.w+tp.t, x1=nx.x-nx.tp.t, gap=x1-x0;
     if(gap<40) continue;
     const y0=pl.y+pl.oMin-24, y1=nx.y+nx.oMin-24, peak=Math.min(y0,y1)-Math.min(110,50+gap*.3), c=2*peak-(y0+y1)/2;
-    const n=Math.max(2,Math.round(gap/34)), bigAt = gap>120 && Math.random()<.12 ? Math.round(n/2) : -1;
-    const goldAt = bigAt<0 && gap>100 && Math.random()<.06 ? Math.round(n/2) : -1;
-    for(let k=1;k<n;k++){
-      const u=k/n, big=k===bigAt;
+    const easy=n<=1, m=Math.max(2,Math.round(gap/34)), bigAt = (easy ? gap>70 && Math.random()<.55 : gap>120 && Math.random()<.12) ? Math.round(m/2) : -1;   // 1단계는 큰 젤리를 넉넉히
+    const goldAt = bigAt<0 && gap>100 && Math.random()<.06 ? Math.round(m/2) : -1;
+    for(let k=1;k<m;k++){
+      const u=k/m, big=k===bigAt;
       if(hazards.some(h=>h.type==='spike' && Math.abs(h.x-(x0+gap*u))<34)) continue;
       const gold = !big && k===goldAt;   // 금화는 아치 꼭대기 위
       jellies.push({pl:null, x:x0+gap*u, y:(1-u)*(1-u)*y0+2*u*(1-u)*c+u*u*y1-(big?40:gold?30:0), big, coin: gold ? 5 : Math.random()<.08+.01*ups.coin ? 1 : 0});
@@ -1144,7 +1150,7 @@ function collectJellies(){
       const pts=addScore(jellyPts(j.big)*m*(charId==='sweet' ? 1.3 : 1)*(fever>0 ? 2 : 1)*(1+.05*ups.jelly));
       pops.push({x, y, txt:'+'+pts, life:.7, big:j.big});
       for(let k=0;k<(j.big?12:4);k++) dust.push({x,y,vx:rnd(-90,90),vy:rnd(-140,-20),life:rnd(.2,.45),col:j.big?'#FFD23F':'#FF8FC4',s:rnd(1.5,3)});
-      j.big ? play('bigJelly') : play('bling');
+      j.big ? play('bigJelly') : play('bling', 1, SCALE[(combo-1)%SCALE.length]);
     }
   }
   if(score>bestScore){
@@ -1259,7 +1265,7 @@ let hp=HP_MAX, flashT=0, warnT=0, dieT=0, startLevel=1, runJellies=0, runCombo=0
 const hpDrain = () => 1.2 + 1.2*Math.min(1,(level-1)/19);
 function damage(n){
   if(petId==='turtle') n=Math.ceil(n/2);
-  hp=Math.max(0,hp-n); flashT=.35;
+  hp=Math.max(0,hp-n); flashT=.35; shake(9); hitStop(.08);
   if(hp<=0) gameOver();
 }
 function heal(n, x, y){ hp=Math.min(hpMax,hp+n); if(x!=null) pops.push({x, y, txt:'+'+n+' ♥', life:.8, big:true}); }
@@ -1289,7 +1295,7 @@ function recordRun(){
 }
 function showResult(){
   track('game_over', {stage:level, start_stage:startLevel, score, time_sec:Math.round(elapsed), max_combo:runCombo, character:charId, pet:petId});
-  lastGlobalRank=0; lastWeekRank=0; shareMsg('');
+  lastGlobalRank=0; shareMsg('');
   const rank = recordRun();
   $('rRank').hidden = !rank; $('rRank').textContent = ' 기록판 '+rank+'위!';
   state='over';
@@ -1304,7 +1310,7 @@ function showResult(){
 }
 function reset(){
   bankCoins();
-  buildCourse(); shards=[]; dust=[]; coreFalls=[];
+  buildCourse(); shards=[]; dust=[]; coreFalls=[]; shakeA=0; stopT=0;
   stageFalls0=0; elapsed=0; stageT0=0; shardCount=0; falls=0; maxIdx=0; seen=new Set(); pops=[]; score=0; beatBest=false; combo=0; fever=0; feverG=0;
   hp=hpMax; flashT=0; warnT=0; runJellies=0; runCombo=0; bestAtStart=bestScore;
   checkpoint=plats[0]; spawnAt(checkpoint);
@@ -1516,6 +1522,7 @@ function physics(dt){
 function onLand(pl, impact){
   if(pl.idx>maxIdx) maxIdx=pl.idx;
   const force = Math.min(1.6, .55 + impact/700);
+  if(impact>850) shake(Math.min(6, 1.5+(impact-850)/100));   // 높은 데서 세게 착지
   const radius = (20 + Math.min(48, impact*.055))*P.sc*feverMul();
   if(!pl.tp.noShell){
     const n = crush(pl, P.x, P.y, radius, force, true);
@@ -1561,7 +1568,7 @@ function updatePlats(dt){
       } else if(P.ground===pl){
         pl.crT += dt;
         if(pl.crT > .5){
-          crush(pl, pl.x+pl.tp.w/2, pl.y, 9999, 1.1, false); play('crumble'); buzz(30);
+          crush(pl, pl.x+pl.tp.w/2, pl.y, 9999, 1.1, false); play('crumble'); buzz(30); if(pl.x+pl.tp.w>camX && pl.x<camX+VW) shake(6);
           coreFalls.push({img:coreImg(pl.tp,pl.v), w:pl.tp.w, h:pl.tp.h, x:pl.x+pl.tp.w/2, y:pl.y+pl.tp.h/2, vx:rnd(-30,30), vy:-60, a:0, av:rnd(-1.5,1.5), life:3});
           pl.gone=true; pl.backAt=clock+1.6; P.ground=null;
         }
@@ -1780,7 +1787,8 @@ function drawSlime(){
 function render(){
   ctx.setTransform(DPR*K,0,0,DPR*K,0,0);
   drawBg();
-  ctx.save(); ctx.translate(-camX,-camY);
+  const sx=shakeA ? (Math.random()*2-1)*shakeA : 0, sy=shakeA ? (Math.random()*2-1)*shakeA : 0;
+  ctx.save(); ctx.translate(-camX+sx,-camY+sy);
   for(const pl of plats){ if(pl.x+pl.tp.w+20 < camX || pl.x-20 > camX+VW || pl.y > camY+VH+20 || pl.y+pl.tp.h < camY-80) continue; drawPlat(pl); }
   for(const f of coreFalls){ ctx.save(); ctx.globalAlpha=Math.min(1,f.life); ctx.translate(f.x,f.y); ctx.rotate(f.a); ctx.drawImage(f.img,-f.w/2,-f.h/2,f.w,f.h); ctx.restore(); }
   for(const s of shards) if(s.x>camX-60 && s.x<camX+VW+60) drawShard(s);
@@ -1889,15 +1897,14 @@ let rankTab='best';
 const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
 const SCORE_API = '/api/games/wakppu/scores';
 let myScoreIds=[]; try{ myScoreIds=JSON.parse(localStorage.getItem('wakppu-side-myscores')||'[]'); }catch(e){}
-// period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
-async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
-let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
+async function fetchGlobal(){ const r=await fetch(SCORE_API,{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+let gsubRun=null, lastGlobalRank=0;
 /* ---------------- 결과 공유 ---------------- */
 const SHARE_URL='https://swimpyonote.com/games/wakppu/';
 function shareText(){
   let t='🍬 왁뿌 점프맵에서 '+score.toLocaleString('ko-KR')+'점! '+level+'단계까지 갔어요';
   if(runCombo>=10) t+=' (최고 콤보 '+runCombo+')';
-  if(lastGlobalRank) t+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) t+='\n🏆 이번 주 '+lastWeekRank+'위!';
+  if(lastGlobalRank) t+='\n🏆 전체 순위 '+lastGlobalRank+'위!';
   return t+'\n나를 이겨 볼 사람?';
 }
 function shareMsg(m){ const el=$('shareMsg'); el.textContent=m; el.hidden=!m; }
@@ -1915,12 +1922,11 @@ async function offerGlobal(){
   const box=$('gsub'); box.hidden=true;
   if(!ONLINE || score<=0) return;
   const run={score, from:startLevel, to:level, time:+elapsed.toFixed(1), char:charId}; gsubRun=run;
-  let list, week; try{ [list, week]=await Promise.all([fetchGlobal(), fetchGlobal('week')]); }catch(e){ return; }
+  let list; try{ list=await fetchGlobal(); }catch(e){ return; }
   if(gsubRun!==run || state!=='over') return;
   const pos = list.filter(r=>r.score>=run.score).length + 1;
-  const wpos = week.filter(r=>r.score>=run.score).length + 1;
-  if(pos>20 && wpos>20) return;   // 전체나 이번 주 둘 중 하나라도 20위 안이면 올릴 수 있게
-  $('gsubTitle').textContent = pos<=20 ? '🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
+  if(pos>20) return;
+  $('gsubTitle').textContent='🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요';
   try{ $('gsubName').value=localStorage.getItem('wakppu-side-nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}   // 비어 있으면 쉼표 공용 닉네임(댓글)으로
   $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
   box.hidden=false;
@@ -1936,10 +1942,8 @@ $('gsubBtn').addEventListener('click', async ()=>{
     if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
     try{ localStorage.setItem('wakppu-side-nick',name); myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); localStorage.setItem('wakppu-side-myscores',JSON.stringify(myScoreIds)); }catch(e){}
     if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
-    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
-    track('leaderboard_submit', {rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
-    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
-      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    track('leaderboard_submit', {rank:d.rank||0, score:run.score});
+    $('gsubMsg').textContent = d.rank && d.rank<=d.show ? '전체 순위 '+d.rank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
     $('gsubName').disabled=true; gsubRun=null; play('win');
   }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
 });
@@ -1947,11 +1951,10 @@ $('gsubName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gsubBtn').
 async function renderGlobal(box){
   if(!ONLINE){ box.innerHTML='<small style="color:var(--soft);text-align:center">전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.</small>'; return; }
   box.innerHTML='<small style="color:var(--soft);text-align:center">불러오는 중…</small>';
-  const tab=rankTab;
-  let list; try{ list=await fetchGlobal(tab==='week'?'week':''); }catch(e){ box.innerHTML='<small style="color:var(--soft);text-align:center">순위를 불러오지 못했어요.</small>'; return; }
-  if(rankTab!==tab) return;
+  let list; try{ list=await fetchGlobal(); }catch(e){ box.innerHTML='<small style="color:var(--soft);text-align:center">순위를 불러오지 못했어요.</small>'; return; }
+  if(rankTab!=='global') return;
   box.innerHTML='';
-  if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">'+(tab==='week' ? '이번 주에는 아직 기록이 없어요. 이번 주 1위가 되어 보세요!' : '아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!')+'</small>'; return; }
+  if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!</small>'; return; }
   const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   list.forEach((r,i)=>{
     const ch=CHARS.find(c=>c.id===r.char), d=new Date(r.date);
@@ -1962,9 +1965,9 @@ async function renderGlobal(box){
   });
 }
 function renderRank(){
-  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent')); $('tabWeek').setAttribute('aria-selected',String(rankTab==='week')); $('tabGlobal').setAttribute('aria-selected',String(rankTab==='global'));
+  $('tabBest').setAttribute('aria-selected',String(rankTab==='best')); $('tabRecent').setAttribute('aria-selected',String(rankTab==='recent')); $('tabGlobal').setAttribute('aria-selected',String(rankTab==='global'));
   const box=$('rankList');
-  if(rankTab==='global' || rankTab==='week'){ renderGlobal(box); return; }
+  if(rankTab==='global'){ renderGlobal(box); return; }
   const list = runs[rankTab]; box.innerHTML='';
   if(!list.length){ box.innerHTML='<small style="color:var(--soft);text-align:center">아직 기록이 없어요. 한 판 달려 보세요!</small>'; return; }
   list.forEach((r,i)=>{
@@ -1984,7 +1987,6 @@ $('goRank').addEventListener('click', openRank);
 $('rankOk').addEventListener('click', closeRank);
 $('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
 $('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
-$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
 $('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
 let mTimer=0;
 function renderMissions(){
@@ -2091,10 +2093,12 @@ let last=performance.now();
 function loop(t){
   const dt=Math.min(.033,(t-last)/1000); last=t; clock+=dt;
   document.body.classList.toggle('playing', state==='play' || state==='dying');
+  if(stopT>0){ stopT-=dt; render(); hud(); requestAnimationFrame(loop); return; }   // 멈칫: 그리기만
   updatePlats(dt);
   if(state==='play'){ elapsed+=dt; updateItems(dt); updateHp(dt); if(state==='play'){ physics(dt); collectJellies(); } }
   else if(state==='dying' && (dieT-=dt)<=0) showResult();
   if(flashT>0) flashT-=dt;
+  shakeA = shakeA>.2 ? shakeA*Math.pow(.0015,dt) : 0;
   updateFx(dt);
   const target = P.x - VW*.38;
   camX += (target-camX)*Math.min(1,dt*6);
