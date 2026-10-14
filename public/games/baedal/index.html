@@ -114,6 +114,13 @@ button{font:inherit}
 .shopItem b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
 .shopItem small{color:var(--soft);font-size:12px;line-height:1.35;flex:1}
 .shopItem .dots{color:var(--accent);font-size:11px;letter-spacing:2px}
+.shopItem .two{display:flex;gap:4px;flex-wrap:wrap}
+.buy.alt{background:var(--tray);color:var(--ink);border:1.5px solid var(--line)}
+.plaza{display:grid;grid-template-columns:repeat(3,64px);gap:6px;padding:10px;background:#E8DFC9;border-radius:18px;border:3px solid #CDBF9F}
+.slot{width:64px;height:64px;border-radius:12px;border:2px dashed rgba(120,100,70,.4);background:rgba(255,255,255,.4);font-size:34px;line-height:1;cursor:pointer;padding:0;color:#33302A}
+.slot.filled{border-style:solid;border-color:rgba(120,100,70,.25)}
+.slot[aria-pressed="true"]{border:3px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.slot:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .mlist{display:flex;flex-direction:column;gap:8px;width:min(100%,440px)}
 .mrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;background:var(--tray);border:1.5px solid var(--line);border-radius:14px;padding:8px 12px;text-align:left}
 .mrow b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px}
@@ -197,6 +204,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="go2" id="shopBtn">🛒 상점</button>
         <button class="go2" id="missionBtn">📋 미션</button>
         <button class="go2" id="rankBtn">🏆 기록판</button>
+        <button class="go2" id="decoBtn">🏡 꾸미기</button>
       </div>
     </div>
 
@@ -234,6 +242,16 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <div class="best" id="petWallet" hidden></div>
       <div class="shopList" id="pets" hidden></div>
       <button class="go" id="garageOk">선택 완료</button>
+    </div>
+
+    <div class="overlay" id="decoOv" hidden>
+      <h2>동네 꾸미기</h2>
+      <div class="best" id="decoWallet"></div>
+      <small id="decoInfo" style="color:var(--soft)"></small>
+      <div class="plaza" id="plaza" role="group" aria-label="우리 동네 광장 칸"></div>
+      <div class="btns" id="slotTools"></div>
+      <div class="shopList" id="decoList"></div>
+      <button class="go" id="decoOk">닫기</button>
     </div>
 
     <div class="overlay" id="shopOv" hidden>
@@ -447,6 +465,30 @@ let ups = Object.assign({time:0,speed:0,tip:0,item:0,guard:0}, store.get('ups', 
 let boosts = store.get('boosts', []);
 const saveShop = () => { store.set('ups', ups); store.set('boosts', boosts); saveWallet(); };
 
+/* ---------------- 동네 꾸미기 (광장 3×3 칸에 장식을 놓음) ---------------- */
+// 광장에 놓은 장식의 ♥(인기)를 더한 만큼 배달 팁 +% (최대 30%). glow는 밤에 불이 켜짐
+const DECOS=[
+  {id:'tulip',     icon:'🌷', name:'튤립 꽃밭',      pop:1,  price:30},
+  {id:'sunflower', icon:'🌻', name:'해바라기',       pop:1,  price:40},
+  {id:'bench',     icon:'🪑', name:'벤치',           pop:1,  price:40},
+  {id:'tree',      icon:'🌳', name:'큰 나무',        pop:2,  price:60},
+  {id:'snowman',   icon:'☃️', name:'눈사람',         pop:2,  price:60},
+  {id:'lamp',      icon:'🏮', name:'등불',           pop:2,  price:70,  glow:1},
+  {id:'tent',      icon:'⛺', name:'캠핑 텐트',      pop:3,  price:90},
+  {id:'xmas',      icon:'🎄', name:'반짝 트리',      pop:3,  price:100, glow:1},
+  {id:'icecream',  icon:'🍦', name:'아이스크림 가게', pop:4,  price:130},
+  {id:'fountain',  icon:'⛲', name:'분수',           pop:5,  price:160, glow:1},
+  {id:'carousel',  icon:'🎠', name:'회전목마',       pop:7,  price:240, glow:1},
+  {id:'wheel',     icon:'🎡', name:'대관람차',       pop:9,  price:320, glow:1},
+  {id:'tower',     icon:'🗼', name:'전망탑',         pop:12, price:450, glow:1},
+];
+const DECO = id => DECOS.find(d=>d.id===id);
+let deco=Object.assign({inv:{}, slots:[]}, store.get('deco', {}));
+deco.slots=Array.from({length:9}, (_,i)=>DECO(deco.slots[i]) ? deco.slots[i] : null);
+const saveDeco = () => store.set('deco', deco);
+const decoPop = () => deco.slots.reduce((a,id)=>a+(id?DECO(id).pop:0), 0);
+const decoBonus = () => Math.min(30, decoPop());   // 배달 팁 +%
+
 /* ---------------- 일일 미션 ---------------- */
 // 날짜로 미션 3개를 고르고, 그날 하루 동안 여러 판에 걸쳐 진행도를 쌓음 (max: 한 판 최고값으로 셈)
 const MISSIONS = [
@@ -551,8 +593,9 @@ function genWorld(){
   for(let j=0;j<NB;j++) for(let i=0;i<NB;i++){
     const b={i, j, x:i*CELL+RW, y:j*CELL+RW, w:BS, h:BS, park:false, seed:Math.random()};
     if(parks<3 && Math.random()<.1 && !(i===2&&j===2)){ b.park=true; parks++; }
+    if(i===2 && j===2) b.plaza=true;   // 판이 바뀌어도 그대로인 우리 동네 광장
     blocks.push(b);
-    if(b.park) continue;
+    if(b.park || b.plaza) continue;
     for(let ly=0;ly<2;ly++) for(let lx=0;lx<2;lx++){
       const side = Math.random()<.5 ? (lx?'R':'L') : (ly?'B':'T');
       const L={b, x:b.x+SW+lx*LS, y:b.y+SW+ly*LS, side, kind:Math.random()<.12?'yard':'house', seed:Math.random(), roof:pick(ROOFS)};
@@ -637,7 +680,7 @@ const addScore = n => { const v=n*scoreMul; scoreF+=v; return Math.round(v); };
 function reset(){
   genWorld();
   const c=CAR();
-  P={x:rc(3)+140, y:rc(3)+LANE, a:0, spd:0, vx:0, vy:0, c};
+  P={x:2*CELL+RW+BS/2, y:rc(3)+LANE, a:0, spd:0, vx:0, vy:0, c};   // 광장 바로 아래 길에서 출발
   npcs=[]; items=[]; cones=[]; cats=[]; works=[]; fx=[]; floats=[]; greeters=[];
   scoreF=0; coinsRun=0; cnt=0; star3Cnt=0; perfectCnt=0; streak=0; maxStreak=0; cond=100; elapsed=0; odo=0; odoMark=0; hits=0; accelSec=0;
   timeLeft=60+(carId==='van'?8:0);
@@ -829,7 +872,7 @@ addEventListener('keydown', e=>{
   if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
   if(e.code==='Escape'){
     if(!$('garageOv').hidden) closeGarage(); else if(!$('rankOv').hidden) closeRank();
-    else if(!$('shopOv').hidden) closeShop(); else if(!$('missionOv').hidden) closeMissions();
+    else if(!$('shopOv').hidden) closeShop(); else if(!$('decoOv').hidden) closeDeco(); else if(!$('missionOv').hidden) closeMissions();
   }
   if(e.code==='Enter' && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='BUTTON'){
     if(state==='menu' && !$('menuOv').hidden) start(); else if(state==='over' && !$('overOv').hidden) start();
@@ -1219,7 +1262,7 @@ function arrive(){
   if(order.phase==='pickup'){
     order.phase='deliver'; order.load=0; cond=100; slowHint=false;
     play('pick'); burst(P.x,P.y,'#FFD54A',10,120);
-    toast(order.shop.shop.icon+' '+order.shop.shop.item+' 싣기 완료!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag:''), 1100);
+    toast(order.shop.shop.icon+' '+order.shop.shop.item+' 싣기 완료!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag.split(' ')[0]:''), 1100);
     return;
   }
   // 배달 완료 (묶음이면 이 집만)
@@ -1236,7 +1279,7 @@ function arrive(){
   const kindOk = order.kind==='hot' ? stars>=2 : order.kind==='fragile' ? cond>=70 : false;
   const lv=regLevel(home.name);
   const pts=addScore((100+60*stars)*(.4+.6*cond/100)*(1+.1*Math.min(streak,5))*(carId==='pizza'?1.2:1)*(kindOk?K.mul:1)*(1+.05*lv));
-  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)*(rainT>0?1.3:1)) + 2*lv; if(petId==='dog') tip+=2;
+  let tip=Math.round((2+stars*2)*(1+.1*ups.tip)*(kindOk?K.tip:1)*(rainT>0?1.3:1)*(1+decoBonus()/100)) + 2*lv; if(petId==='dog') tip+=2;
   if(rainT>0) mProg('rain',1);
   addCoins(tip);
   play('deliver'); burst(P.x,P.y,'#FFE27A',16,170); burst(P.x,P.y,'#FFB7D5',10,140);
@@ -1282,6 +1325,8 @@ function greet(home, stars, kindOk){
   else if(stars===2) lines=['고마워요~','잘 받았어요!','맛있게 먹을게요!'];
   else lines=['기다렸어요~ 고마워요','천천히 와도 괜찮아요'];
   if(lv && lv===before && Math.random()<.4) lines=['역시 단골 배달부!','또 만나서 반가워요'];
+  const placed=deco.slots.filter(Boolean);
+  if(lv===before && decoPop()>=8 && placed.length && Math.random()<.18) lines=['광장이 점점 예뻐져요!', '광장 '+DECO(pick(placed)).icon+' 정말 좋아요!', '우리 동네 최고예요!'];
   const text=pick(lines);
   greeters.push({x:home.dx, y:home.dy, icon:home.icon, text, t:0});
   toast(home.icon+' “'+text+'”', 1300);
@@ -1389,6 +1434,26 @@ function drawLot(L, tc, now){
     ctx.fillRect(px-(fx_[0]?7:5), py-(fx_[1]?7:5), fx_[0]?14:10, fx_[1]?14:10);
   }
 }
+// 광장 칸 i의 가운데
+const slotPos = (b, i) => { const c=(BS-2*SW)/3; return [b.x+SW+c*(i%3)+c/2, b.y+SW+c*Math.floor(i/3)+c/2]; };
+function drawPlaza(b, now){
+  const x0=b.x+SW, y0=b.y+SW, S=BS-2*SW;
+  rr(x0-2, y0-2, S+4, S+4, 8); ctx.fillStyle='#E8DFC9'; ctx.fill();
+  ctx.strokeStyle='rgba(150,130,100,.2)'; ctx.lineWidth=1; ctx.beginPath();
+  for(let k=1;k<6;k++){ ctx.moveTo(x0+S*k/6, y0); ctx.lineTo(x0+S*k/6, y0+S); ctx.moveTo(x0, y0+S*k/6); ctx.lineTo(x0+S, y0+S*k/6); }
+  ctx.stroke();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  let any=false;
+  deco.slots.forEach((id,i)=>{
+    const [cx,cy]=slotPos(b, i);
+    if(!id){ ctx.fillStyle='rgba(120,180,110,.45)'; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI*2); ctx.fill(); return; }
+    any=true;
+    ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(cx+2, cy+16, 18, 5, 0, 0, Math.PI*2); ctx.fill();
+    const bob=(id==='carousel'||id==='wheel') ? Math.sin(now*2+i)*1.5 : 0;
+    ctx.font='34px sans-serif'; ctx.fillStyle='#000'; ctx.fillText(DECO(id).icon, cx, cy+bob);
+  });
+  if(!any){ ctx.font='13px Jua, sans-serif'; ctx.fillStyle='#8A7A60'; ctx.fillText('🏡 우리 동네 광장', x0+S/2, y0+S/2-26); }
+}
 function drawPark(b){
   const cx=b.x+BS/2, cy=b.y+BS/2;
   ctx.save(); ctx.translate(cx, cy); if(b.seed>.5) ctx.scale(-1, 1); ctx.translate(-cx, -cy);   // 공원마다 좌우를 바꿔 덜 똑같아 보이게
@@ -1441,6 +1506,7 @@ function draw(){
     rr(b.x, b.y, BS, BS, 14); ctx.fillStyle=tc.walk; ctx.fill();
     rr(b.x+SW-2, b.y+SW-2, BS-2*SW+4, BS-2*SW+4, 8); ctx.fillStyle=tc.ground; ctx.fill();
     if(b.park) drawPark(b);
+    if(b.plaza) drawPlaza(b, now);
   }
   for(const L of lots){
     if(L.x>vx1+20 || L.x+LS<vx0-20 || L.y>vy1+20 || L.y+LS<vy0-20) continue;
@@ -1558,6 +1624,12 @@ function draw(){
       const g=ctx.createRadialGradient(x,y,1,x,y,46); g.addColorStop(0,`rgba(255,220,140,${.45*tc.night})`); g.addColorStop(1,'rgba(255,220,140,0)');
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,46,0,Math.PI*2); ctx.fill();
     }
+    // 광장 장식 불빛
+    for(const b of blocks) if(b.plaza && inView(b.x+BS/2, b.y+BS/2, 140)) deco.slots.forEach((id,i)=>{
+      if(!id || !DECO(id).glow) return;
+      const [x,y]=slotPos(b, i), g=ctx.createRadialGradient(x,y,1,x,y,40); g.addColorStop(0,`rgba(255,210,130,${.5*tc.night})`); g.addColorStop(1,'rgba(255,210,130,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,40,0,Math.PI*2); ctx.fill();
+    });
     // 집 창문
     ctx.fillStyle=`rgba(255,214,120,${.7*tc.night})`;
     for(const L of lots){ if(L.kind==='yard' || !inView(L.x+LS/2,L.y+LS/2,60)) continue; const cx=L.x+LS/2, cy=L.y+LS/2; ctx.fillRect(cx-16,cy-6,8,8); ctx.fillRect(cx+8,cy-6,8,8); if(L.seed>.5) ctx.fillRect(cx-4,cy+10,8,8); }
@@ -1637,7 +1709,7 @@ function drawMinimap(){
   const S=mm.width, k=S/WORLD, tc=themeColors(), now=performance.now()/1000;
   mctx.fillStyle=tc.road; mctx.fillRect(0,0,S,S);
   mctx.fillStyle=tc.ground;
-  for(const b of blocks) mctx.fillRect(b.x*k, b.y*k, BS*k, BS*k);
+  for(const b of blocks){ mctx.fillStyle=b.plaza?'#E8C77A':tc.ground; mctx.fillRect(b.x*k, b.y*k, BS*k, BS*k); }
   mctx.fillStyle='#E8463F';
   for(const w of works) mctx.fillRect(w.x*k-2, w.y*k-2, w.w*k+4, w.h*k+4);
   mctx.fillStyle='rgba(255,255,255,.55)';
@@ -1705,11 +1777,12 @@ function frame(t){
 let idleT=0;
 function idleDrive(dt){
   idleT+=dt; updateNpcs(dt);
-  camX=WORLD/2+Math.cos(idleT*.08)*520; camY=WORLD/2+Math.sin(idleT*.08)*520;
+  // 메뉴 뒤로 우리 광장 주변을 천천히 돌아봄
+  const px=2*CELL+RW+BS/2; camX=px+Math.cos(idleT*.1)*230; camY=px+Math.sin(idleT*.1)*230;
 }
 
 /* ---------------- 흐름 ---------------- */
-const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv'];
+const OVS=['menuOv','overOv','garageOv','shopOv','missionOv','rankOv','pauseOv','decoOv'];
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
   $('hud').hidden=!on; $('bars').hidden=!on; $('pauseBtn').hidden=!on; $('mm').hidden=!on;
@@ -1726,7 +1799,7 @@ function start(){
     const n=store.get('swipeTips', 0);
     if(n<3){ store.set('swipeTips', n+1); setTimeout(()=>{ if(state==='play') toast('👆 화면을 밀면 다음 교차로에서 꺾어요', 2200); }, 1600); }
   }
-  toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag:''), 1400);
+  toast('첫 주문: '+order.shop.shop.icon+' '+order.shop.shop.name+'!'+(KINDS[order.kind].tag?' '+KINDS[order.kind].tag.split(' ')[0]:''), 1400);
   track('game_start', {car:carId, pet:petId, boosts:usedBoosts.join(',')});
 }
 function restart(){
@@ -1799,7 +1872,7 @@ function showMenu(){
   const cc=$('curCar'); cc.innerHTML=''; cc.append(carCanvas(CAR()), document.createTextNode(CAR().name+(petId!=='none' ? ' + '+PET().icon+' '+PET().name : '')));
   const bl=$('boostLine'); bl.hidden=!boosts.length; bl.textContent='다음 판 부스트: '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join(' ');
   const mb=$('menuBest'); mb.hidden=!bestScore && !wallet;
-  mb.textContent=[bestScore ? '최고 '+bestScore.toLocaleString('ko-KR')+'점' : '', bestCnt ? '최다 '+bestCnt+'건' : '', '🪙 '+wallet.toLocaleString('ko-KR')].filter(Boolean).join(' · ');
+  mb.textContent=[bestScore ? '최고 '+bestScore.toLocaleString('ko-KR')+'점' : '', bestCnt ? '최다 '+bestCnt+'건' : '', decoPop() ? '♥'+decoPop() : '', '🪙 '+wallet.toLocaleString('ko-KR')].filter(Boolean).join(' · ');
   $('missionBtn').innerHTML='📋 미션 ('+mDone()+'/3)'+(mClaimable() ? '<span class="dot"></span>' : '');
 }
 $('goBtn').addEventListener('click', start);
@@ -1893,6 +1966,46 @@ $('shopBtn').addEventListener('click', openShop);
 $('shopOk').addEventListener('click', closeShop);
 $('tabBoost').addEventListener('click', ()=>{ shopTab='boost'; renderShop(); });
 $('tabUp').addEventListener('click', ()=>{ shopTab='up'; renderShop(); });
+
+/* ---------------- 꾸미기 화면 ---------------- */
+let decoSel=0;
+function renderDeco(){
+  const pop=decoPop();
+  $('decoWallet').textContent='보유 🪙 '+wallet.toLocaleString('ko-KR');
+  $('decoInfo').textContent='동네 인기 ♥'+pop+' · 배달 팁 +'+decoBonus()+'%'+(pop>30?' (최대)':'')+' · 칸을 골라 장식을 놓아요';
+  const pz=$('plaza'); pz.innerHTML='';
+  deco.slots.forEach((id,i)=>{
+    const b=document.createElement('button'); b.className='slot'+(id?' filled':''); b.textContent=id?DECO(id).icon:'';
+    b.setAttribute('aria-pressed', String(i===decoSel)); b.setAttribute('aria-label', (i+1)+'번 칸'+(id?': '+DECO(id).name:': 비어 있음'));
+    b.addEventListener('click', ()=>{ decoSel=i; play('click'); renderDeco(); });
+    pz.append(b);
+  });
+  const cur=deco.slots[decoSel], tools=$('slotTools'); tools.innerHTML='';
+  if(cur){
+    const b=document.createElement('button'); b.className='go2'; b.textContent=DECO(cur).icon+' 치우기 (보관함으로)';
+    b.addEventListener('click', ()=>{ deco.inv[cur]=(deco.inv[cur]||0)+1; deco.slots[decoSel]=null; saveDeco(); play('click'); renderDeco(); });
+    tools.append(b);
+  }
+  const box=$('decoList'); box.innerHTML='';
+  for(const d of DECOS){
+    const n=deco.inv[d.id]||0, el=document.createElement('div'); el.className='shopItem';
+    el.innerHTML=`<span class="ic">${d.icon}</span><b>${d.name}</b><small>♥${d.pop} · 보관함 ${n}개</small>`;
+    const row=document.createElement('div'); row.className='two';
+    const buy=document.createElement('button'); buy.className='buy'; buy.textContent='🪙 '+d.price; buy.disabled=wallet<d.price;
+    buy.addEventListener('click', ()=>{ if(wallet<d.price) return; wallet-=d.price; deco.inv[d.id]=n+1; saveWallet(); saveDeco(); track('shop_buy', {kind:'deco', item_id:d.id, price:d.price}); play('coin'); toast(d.name+' 구매 완료'); renderDeco(); });
+    const put=document.createElement('button'); put.className='buy alt'; put.textContent=(decoSel+1)+'번 칸에 놓기'; put.disabled=!n || cur===d.id;
+    put.addEventListener('click', ()=>{
+      if(!(deco.inv[d.id]>0)) return;
+      if(cur) deco.inv[cur]=(deco.inv[cur]||0)+1;   // 원래 있던 장식은 보관함으로
+      deco.inv[d.id]--; deco.slots[decoSel]=d.id; saveDeco(); play('item'); renderDeco();
+    });
+    row.append(buy, put); el.append(row); box.append(el);
+  }
+}
+function openDeco(){ showOnly('decoOv'); renderDeco(); $('decoOv').scrollTop=0; $('plaza').children[decoSel].focus({preventScroll:true}); }
+function closeDeco(){ backToMenu(); }
+$('decoBtn').addEventListener('click', openDeco);
+$('decoOk').addEventListener('click', closeDeco);
 
 /* ---------------- 미션 화면 ---------------- */
 let mTimer=0;
