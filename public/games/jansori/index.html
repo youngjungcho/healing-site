@@ -125,6 +125,27 @@ button{font:inherit}
 .mbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .mbar i{display:block;height:100%;background:var(--accent)}
 .mrow .buy{grid-row:1/4;grid-column:2}
+.quiz{position:absolute;left:50%;top:30%;transform:translateX(-50%);width:min(92%,380px);background:var(--tray);color:var(--ink);border:2px solid var(--accent);border-radius:18px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.25);text-align:center}
+.quiz[hidden]{display:none}
+.quiz small{color:var(--soft);font-size:12px}
+.quiz b{font-family:"Jua",sans-serif;font-weight:400;font-size:20px}
+.quizBar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.quizBar i{display:block;height:100%;background:var(--accent);transform-origin:left}
+.qopt{font-family:"Jua",sans-serif;font-size:16px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:9px 10px;cursor:pointer;text-align:left}
+.qopt kbd{font-family:"Jua",sans-serif;color:var(--soft);margin-right:6px}
+.qopt.ok{background:#5CC48A;border-color:#5CC48A;color:#fff}
+.qopt.no{background:#E8463F;border-color:#E8463F;color:#fff}
+.qopt:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.dexBar{width:min(100%,440px);height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.dexBar i{display:block;height:100%;background:var(--accent)}
+.dexMs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(100%,440px)}
+.dexMs .shopItem{align-items:center;text-align:center;padding:6px 4px}
+.dexTop{width:min(100%,440px);font-size:13px;color:var(--soft);line-height:1.6}
+.dexTop b{font-family:"Jua",sans-serif;font-weight:400;color:var(--ink)}
+.dexGrid{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;width:min(100%,460px)}
+.dexGrid span{font-size:12px;background:var(--tray);border:1.5px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--ink)}
+.dexGrid span.no{color:var(--soft);opacity:.6}
+.dexGrid span small{color:#E8463F;margin-left:3px}
 .rk{display:grid;grid-template-columns:32px 1fr auto;gap:0 10px;align-items:center;background:var(--tray);border:1.5px solid var(--line);border-radius:12px;padding:6px 12px;text-align:left}
 .rk.me{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .rk .md{grid-row:1/3;font-family:"Jua",sans-serif;font-size:18px;text-align:center}
@@ -192,7 +213,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="mode" role="radio" id="modeNormal" data-mode="normal"><span class="ic">💕</span><b>보통 · 여자친구</b><small>귀여운 투정이<br>천천히 떨어져요</small></button>
         <button class="mode hardm" role="radio" id="modeHard" data-mode="hard"><span class="ic">🔥</span><b>어려움 · 아내</b><small>빠르고 많고 길어요<br>째려보기 주의!</small></button>
       </div>
-      <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 피하기</span><span><kbd>Space</kbd> 필살기</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
+      <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> 피하기</span><span><kbd>←←</kbd> <kbd>Shift</kbd> 대시</span><span><kbd>Space</kbd> 필살기</span><span><kbd>P</kbd> 멈춤</span><span><kbd>R</kbd> 다시</span></div>
       <div class="curcar" id="curBoy"></div>
       <div class="line" id="boostLine" hidden></div>
       <div class="best" id="menuBest" hidden></div>
@@ -202,6 +223,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <button class="go2" id="shopBtn">🛒 상점</button>
         <button class="go2" id="missionBtn">📋 미션</button>
         <button class="go2" id="rankBtn">🏆 기록판</button>
+        <button class="go2" id="dexBtn">📖 도감</button>
       </div>
     </div>
 
@@ -261,6 +283,27 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
       <button class="go" id="missionOk">닫기</button>
     </div>
 
+    <div class="quiz" id="quiz" hidden role="dialog" aria-label="눈치 퀴즈">
+      <small id="quizTag">❓ 눈치 퀴즈</small>
+      <b id="quizQ"></b>
+      <div class="quizBar"><i id="quizFill"></i></div>
+      <div class="mlist" id="quizOpts" style="width:100%;gap:6px"></div>
+    </div>
+
+    <div class="overlay" id="dexOv" hidden>
+      <h2>📖 잔소리 도감</h2>
+      <div class="tabs small" role="tablist" aria-label="난이도">
+        <button class="tab" role="tab" id="dxNormal" aria-selected="true">💕 여자친구</button>
+        <button class="tab" role="tab" id="dxHard" aria-selected="false">🔥 아내</button>
+      </div>
+      <div class="best" id="dexCount"></div>
+      <div class="dexBar"><i id="dexFill"></i></div>
+      <div class="dexMs" id="dexMs"></div>
+      <div class="dexTop" id="dexTop"></div>
+      <div class="dexGrid" id="dexGrid"></div>
+      <button class="go" id="dexOk">닫기</button>
+    </div>
+
     <div class="overlay" id="rankOv" hidden>
       <h2>기록판</h2>
       <div class="tabs small" role="tablist" aria-label="난이도">
@@ -293,7 +336,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
   </div>
 
   <footer>
-    <span id="footHelp">← → 피하기 · Space 필살기 · P 멈춤 · R 다시</span>
+    <span id="footHelp">← → 피하기 · ←← 대시 · Space 필살기 · P 멈춤 · R 다시</span>
     <span style="display:flex;gap:6px"><a class="mute" id="toHub" href="/games/" hidden>← 쉼표 게임</a><button class="mute" id="musicBtn" aria-pressed="false">음악 끄기</button><button class="mute" id="muteBtn" aria-pressed="false">소리 끄기</button></span>
   </footer>
 </main>
@@ -325,7 +368,7 @@ function track(name, params={}){
 const ONLINE = location.protocol!=='file:' && location.pathname.startsWith('/games/');
 if(ONLINE) $('toHub').hidden=false;
 const isTouch = matchMedia('(pointer: coarse)').matches;
-if(isTouch) $('footHelp').textContent='화면을 좌우로 문질러 피하기 · 필살기 버튼';
+if(isTouch) $('footHelp').textContent='화면을 좌우로 문질러 피하기 · 두 번 톡톡 대시 · 필살기 버튼';
 
 /* ---------------- 난이도 ---------------- */
 // normal = 여자친구, hard = 아내. 기록·순위는 난이도마다 따로
@@ -380,6 +423,9 @@ function play(n){
     case 'over': tone(440,.25,'triangle',.12,330); tone(330,.4,'triangle',.12,220,.22); break;
     case 'ring': for(let i=0;i<3;i++){ tone(1320,.07,'square',.04,null,i*.16); tone(1050,.07,'square',.04,null,i*.16+.08); } break;
     case 'siren': for(let i=0;i<3;i++){ tone(960,.2,'triangle',.07,null,i*.4); tone(720,.2,'triangle',.07,null,i*.4+.2); } break;
+    case 'dash': noise(.15,.25,3000,.7); tone(400,.12,'sine',.06,900); break;
+    case 'quiz': tone(880,.1,'triangle',.1); tone(1175,.1,'triangle',.1,null,.1); tone(1568,.18,'triangle',.1,null,.2); break;
+    case 'wrong': tone(300,.18,'square',.08); tone(220,.3,'square',.08,null,.16); break;
     case 'nom': tone(300,.06,'square',.06,500); tone(500,.06,'square',.06,300,.07); break;
   }
 }
@@ -502,6 +548,8 @@ const MISSIONS = [
   {id:'play',  name:'끝까지 버티기',        goal:3,   unit:'판', reward:30},
   {id:'sweet', name:'다정한 말 받기',       goal:12,  unit:'개', reward:40},
   {id:'event', name:'사건 버텨 내기',       goal:2,   unit:'번', reward:60},
+  {id:'quiz',  name:'눈치 퀴즈 맞히기',     goal:3,   unit:'번', reward:50},
+  {id:'dash',  name:'대시로 피하기',        goal:15,  unit:'번', reward:40},
 ];
 const M_BONUS=100;
 const dayKey = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -531,6 +579,13 @@ function mProg(id, n){
 }
 const mDone = () => { const d=ensureDaily(); return d.ids.filter(id=>(d.prog[id]||0)>=MISSION(id).goal).length; };
 const mClaimable = () => { const d=ensureDaily(); return d.ids.some(id=>(d.prog[id]||0)>=MISSION(id).goal && !d.claimed[id]) || (d.ids.every(id=>d.claimed[id]) && !d.bonus); };
+
+/* ---------------- 잔소리 도감 ---------------- */
+// dex[mode][말] = [들은 횟수, 맞은 횟수]. 판이 끝날 때 저장
+let dex = Object.assign({normal:{}, hard:{}}, store.get('dex', {}));
+let dexClaim = Object.assign({normal:[], hard:[]}, store.get('dexClaim', {}));
+const saveDex = () => store.set('dex', dex);
+const DEX_MS = [[.25,100],[.5,200],[.75,300],[1,500]];   // [모은 비율, 보상]
 
 /* ---------------- 잔소리 ---------------- */
 // s: 짧은 말(우수수 쏟아질 때), w: 보통 잔소리(길수록 2단계부터), b: 폭탄 잔소리(크고 넓음)
@@ -589,6 +644,43 @@ const EVENTS = {
      rain:['걸레','먼지','빨래','쓰레기','행주','청소기','휴지','락스']},
   ],
 };
+// 눈치 퀴즈: [질문, 보기 3개, 정답 번호]. 보기는 섞어서 보여 줌
+const QUIZ = {
+  normal:[
+    ['나 살쪘어?', ['아니, 딱 좋아!','응, 조금?','그런가…?'], 0],
+    ['뭐 먹고 싶어?', ['아무거나','파스타 어때? 너 좋아하잖아','난 국밥'], 1],
+    ['나랑 일 중에 뭐가 중요해?', ['일이지…','둘 다 비슷해','당연히 너지'], 2],
+    ['이 옷이 나아, 저 옷이 나아?', ['아무거나','둘 다 예뻐서 못 고르겠어','왼쪽?'], 1],
+    ['나 화난 거 같아?', ['아니?','내가 뭐 서운하게 했어? 미안해','몰라'], 1],
+    ['어제 왜 연락 안 했어?', ['잤어','미안, 다음엔 꼭 할게','바빴어'], 1],
+    ['저 여자 예쁘다, 그치?', ['응, 예쁘네','누구? 난 너만 보이는데','보통?'], 1],
+    ['우리 처음 만난 날 기억해?', ['당연하지, 그날 비 왔잖아','언제였더라…','작년쯤?'], 0],
+    ['나 오늘 어때?', ['평소랑 같은데','오늘 진짜 예쁘다','피곤해 보여'], 1],
+    ['자기야, 나 사랑해?', ['응','세상에서 제일 사랑해','갑자기?'], 1],
+    ['나 머리 자른 거 알아?', ['응! 완전 잘 어울려','잘랐어?','짧아졌네'], 0],
+    ['주말에 뭐 할까?', ['집에서 쉬자','네가 가고 싶던 전시 가자','친구랑 약속 있어'], 1],
+  ],
+  hard:[
+    ['내가 몇 번을 말했어?', ['세 번?','미안, 지금 바로 할게','몰라…'], 1],
+    ['어머님 생신 언제야?', ['다음 주 토요일!','음력이었나?','달력 볼게'], 0],
+    ['이번 달 카드값 이게 뭐야?', ['내가 아껴 쓸게','생활비가 올라서…','당신도 썼잖아'], 0],
+    ['오늘 저녁 뭐 먹을래?', ['아무거나','내가 차릴게!','배달 시켜'], 1],
+    ['설거지 했어?', ['지금 할게!','이따가','당신이 하면 안 돼?'], 0],
+    ['결혼기념일 언제야?', ['다음 달 12일! 예약해 놨어','이번 달이었나?','그걸 챙겨?'], 0],
+    ['내 말 듣고 있어?', ['응? 뭐라고?','듣고 있지, 계속 말해','휴대폰 보느라'], 1],
+    ['나 요즘 늙어 보여?', ['처음 만났을 때랑 똑같아','좀?','다 늙지 뭐'], 0],
+    ['양말 어디다 벗었어?', ['빨래통에 넣었지!','거실?','기억 안 나'], 0],
+    ['나랑 결혼한 거 후회해?', ['다시 태어나도 당신이야','가끔?','갑자기 왜?'], 0],
+    ['오늘 몇 시에 들어와?', ['7시! 일찍 갈게','몰라 봐서','회식이야'], 0],
+    ['장모님한테 전화했어?', ['어제 했지! 안부 전했어','해야 돼?','당신이 해'], 0],
+  ],
+};
+// 장소: 4단계(1분)마다 바뀜
+const SCENES = { normal:['☕ 카페','🎬 영화관','🎡 놀이공원'], hard:['🛋️ 거실','🍳 부엌','🛒 마트'] };
+const sceneIdx = () => state==='menu' || !level ? 0 : Math.min(2, Math.floor((level-1)/4));
+const DEX_ALL = m => [...new Set([...WORDS[m].w, ...WORDS[m].b, ...EVENTS[m].flatMap(e=>[...e.words, ...(e.second ? e.second.words : [])])])];
+const dexSeen = m => DEX_ALL(m).filter(t=>dex[m][t]).length;
+const dexClaimable = () => ['normal','hard'].some(m=>DEX_MS.some(([r],i)=>dexSeen(m)>=Math.ceil(DEX_ALL(m).length*r) && !dexClaim[m].includes(i)));
 // 같은 말이 연달아 나오지 않게 최근에 나온 말은 잠깐 빼고 고름
 const recentWords=[];
 function pickFresh(list){
@@ -607,7 +699,8 @@ const ITEMS = {
 
 // 캔버스 글씨는 웹폰트 조각(글자 범위별)이 아직 안 받아져 있으면 기본 글꼴로 그려지고 폭도 틀어짐 → 잔소리 글자를 미리 받아 둠
 try{ document.fonts.load('16px Jua', Object.values(WORDS).flatMap(W=>[...W.s,...W.w,...W.b,...W.lines,...W.calm]).concat(...Object.values(SORRY), ...Object.values(SWEET), ...Object.values(SULK),
-    ...Object.values(EVENTS).flat().flatMap(e=>[e.name, e.intro, ...e.words, ...(e.rain||[]), ...(e.second ? [e.second.say, ...e.second.words] : [])])).join('')+'아슬냠심부름원미안해설거지다했어요자기야'); }catch(e){}
+    ...Object.values(EVENTS).flat().flatMap(e=>[e.name, e.intro, ...e.words, ...(e.rain||[]), ...(e.second ? [e.second.say, ...e.second.words] : [])]),
+    ...Object.values(QUIZ).flat().flatMap(q=>[q[0], ...q[1]]), ...Object.values(SCENES).flat()).join('')+'으로 이동틀렸어대답안해정답눈치퀴즈'+'아슬냠심부름원미안해설거지다했어요자기야'); }catch(e){}
 
 /* ---------------- 화면 ---------------- */
 const stage=$('stage'), cv=$('cv'), ctx=cv.getContext('2d');
@@ -631,7 +724,9 @@ let paused=false;
 let B=null, G=null, words=[], items=[], glares=[], fx=[], floats=[];
 let elapsed, level, scoreF, hearts, maxHearts, hitT, sorryT, coffeeT, calmT, gauge, nearCnt, dodgeCnt, itemCnt, coinsRun, combo, comboT;
 let spawnT, nextItemAt, nextCashAt, petT, pet, angelUsed, scoreMul, usedBoosts, lastWord, cleanT, bestClean, hitsTaken, shakeT, secStart, skillCnt, tutT;
-let G2=null, ev=null, nextEvAt, lastEvId='', evCnt, sweetCnt, sulkT;   // G2: 사건 때 오는 두 번째 잔소리꾼
+let G2=null, ev=null, nextEvAt, lastEvId='', evCnt, sweetCnt, sulkT;
+let quiz=null, nextQuizAt, quizOk, quizCnt, saidLog=[];      // 눈치 퀴즈 · saidLog: 방금 던진 잔소리(기억력 문제용)
+let dashT=0, dashCd=0, dashInv=0, dashDir=1, dashCnt=0, lastDir=1, lastKey={code:'', t:0}, lastTap=0, ghosts=[];   // G2: 사건 때 오는 두 번째 잔소리꾼
 let bestScore = Object.assign({normal:0, hard:0}, store.get('best', {}));
 let bestSecBy = Object.assign({normal:0, hard:0}, store.get('bestSecBy', {}));
 let runs = {best: store.get('runsBest', []), recent: store.get('runsRecent', [])};
@@ -673,6 +768,8 @@ function reset(){
   spawnT=1.2; nextItemAt=rand(7,10); nextCashAt=rand(3,5); petT=0; angelUsed=false; scoreMul=1; usedBoosts=[]; lastWord=''; cleanT=0; bestClean=0; tutT=0;
   pet={x:B.x-36, y:B.y+10};
   G2=null; ev=null; nextEvAt=40; evCnt=0; sweetCnt=0; sulkT=0;
+  quiz=null; nextQuizAt=26; quizOk=0; quizCnt=0; saidLog=[]; $('quiz').hidden=true;
+  dashT=0; dashCd=0; dashInv=0; dashCnt=0; ghosts=[];
   secStart=bestSec;
   if(boyId==='gentle') sorryT=3;
 }
@@ -701,7 +798,12 @@ function makeWord(text, x, y, vx, vy, kind='w'){
   }
   const w=Math.ceil(Math.max(...lines.map(l=>ctx.measureText(l).width)))+(kind==='b'?26:18), h=kind==='b' ? 18+24*lines.length : 28;
   const wd={text, lines, x:clamp(x, w/2+4, LW-w/2-4), y, vx, vy, w, h, kind, sz, nm:false, rot:rand(-.08,.08)*(kind==='b'?.4:1), t:0};
-  words.push(wd); return wd;
+  words.push(wd);
+  if(kind!=='s' && !text.startsWith('💕')){
+    const d=dex[mode]; (d[text] ||= [0,0])[0]++;
+    if(kind==='w'){ saidLog.push(text); if(saidLog.length>12) saidLog.shift(); }
+  }
+  return wd;
 }
 const mouth = () => ({x:G.x, y:GIRL_Y()+24});
 function makeSweet(x, y, vy){
@@ -812,11 +914,19 @@ addEventListener('keydown', e=>{
   if(['ArrowLeft','ArrowRight','Space'].includes(e.code) && running()) e.preventDefault();
   keys[e.code]=true;
   if(e.repeat) return;
+  if(quiz && !paused && ['Digit1','Digit2','Digit3','Numpad1','Numpad2','Numpad3'].includes(e.code)){ answerQuiz(+e.code.slice(-1)-1); return; }
+  const dk={ArrowLeft:-1, KeyA:-1, ArrowRight:1, KeyD:1}[e.code];
+  if(dk && running()){
+    const now=performance.now();
+    if(lastKey.code===e.code && now-lastKey.t<250) doDash(dk);
+    lastKey={code:e.code, t:now}; lastDir=dk;
+  }
+  if((e.code==='ShiftLeft'||e.code==='ShiftRight') && running()) doDash(steerDir() || lastDir);
   if(e.code==='Space' && running() && !paused) trySkill();
   if((e.code==='KeyP'||e.code==='Escape') && running()) setPaused(!paused);
   if(e.code==='KeyR' && running()){ e.preventDefault(); restart(); }
   if(e.code==='Escape'){
-    if(!$('closetOv').hidden) closeCloset(); else if(!$('rankOv').hidden) closeRank();
+    if(!$('closetOv').hidden) closeCloset(); else if(!$('rankOv').hidden) closeRank(); else if(!$('dexOv').hidden) backToMenu();
     else if(!$('shopOv').hidden) closeShop(); else if(!$('missionOv').hidden) closeMissions();
   }
   if(e.code==='Enter' && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='BUTTON'){
@@ -828,6 +938,10 @@ addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; drag=null; if
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running()) setPaused(true); });
 cv.addEventListener('pointerdown', e=>{
   if(!running() || paused) return;
+  // 두 번 톡톡: 누른 쪽으로 대시
+  const now=performance.now(), r=cv.getBoundingClientRect(), tx=(e.clientX-r.left)/K;
+  if(now-lastTap<300) doDash(tx<B.x ? -1 : 1);
+  lastTap=now;
   drag={id:e.pointerId, sx:e.clientX, bx:B.x};
   try{ cv.setPointerCapture(e.pointerId); }catch(_){}
   e.preventDefault();
@@ -849,7 +963,7 @@ function steerDir(){
 }
 // 필살기: 여자친구는 애교, 아내는 설거지. 화면의 잔소리를 지우고 3초 동안 조용해짐
 function trySkill(){
-  if(gauge<100 || state!=='play' || paused) return;
+  if(gauge<100 || state!=='play' || paused || quiz) return;
   gauge=0; skillCnt++; mProg('skill',1);
   const bad=words.filter(w=>!w.sweet), n=bad.length;
   for(const w of bad) burst(w.x, w.y, mode==='hard' ? '#8FD3F5' : '#FF9EC0', 6, 110);
@@ -862,13 +976,22 @@ function trySkill(){
 }
 
 /* ---------------- 진행 ---------------- */
-const invuln = () => hitT>0 || sorryT>0;
+const invuln = () => hitT>0 || sorryT>0 || dashInv>0;
+// 대시: 같은 방향키 두 번(또는 Shift), 휴대폰은 두 번 톡톡. 0.3초 무적, 2.2초마다
+function doDash(dir){
+  if(state!=='play' || paused || quiz || dashCd>0 || !dir) return;
+  dashDir=dir; dashT=.14; dashInv=.3; dashCd=2.2; dashCnt++; mProg('dash',1);
+  play('dash'); buzz(15);
+}
 function boyBox(){ const s=hitShrink(); return {l:B.x-12*s, r:B.x+12*s, t:B.y-26*s, b:B.y+24}; }
 function update(dt){
+  if(quiz){ updateQuiz(dt); return; }   // 퀴즈 중엔 모든 게 멈춤
   elapsed+=dt; tutT+=dt;
   const nl = 1+Math.floor(elapsed/LV_SEC);
   if(nl>level){
+    const sc=sceneIdx();
     level=nl; play('level'); toast(level+'단계 — 잔소리가 '+(mode==='hard'?'거세져요!':'빨라져요!'), 1100);
+    if(sceneIdx()!==sc) toast('📍 '+SCENES[mode][sceneIdx()]+'(으)로 이동!', 1400);
     if(calmT<=0){ G.say=pickFresh(WORDS[mode].lines); G.sayT=1.6; }
   }
   scoreF += dt*(10+2*(level-1))*scoreMul*M().scoreMul;
@@ -879,6 +1002,17 @@ function update(dt){
   comboT-=dt; if(comboT<=0) combo=0;
   cleanT+=dt; if(cleanT>bestClean){ bestClean=cleanT; }
 
+  // 대시
+  dashCd=Math.max(0,dashCd-dt); dashInv=Math.max(0,dashInv-dt);
+  if(dashT>0){
+    const x0=B.x; B.x=clamp(B.x+dashDir*560*dt, 18, LW-18); dashT-=dt;
+    if(drag) drag.bx+=B.x-x0;
+    ghosts.push({x:B.x, t:0});
+  }
+  for(const g of ghosts) g.t+=dt; ghosts=ghosts.filter(g=>g.t<.25);
+  // 눈치 퀴즈: 사건·필살기 중이 아닐 때
+  nextQuizAt-=dt;
+  if(nextQuizAt<=0 && !ev && calmT<=0){ startQuiz(); return; }
   // 남자친구 움직이기 (키보드)
   const dir=steerDir();
   if(dir){ B.vx = dir*moveSpd(); B.x=clamp(B.x+B.vx*dt, 18, LW-18); }
@@ -1012,6 +1146,64 @@ function updateEvent(dt){
     void w; G2.mouthT=.28; G2.armT=.3; play('blah');
   }
 }
+function startQuiz(){
+  const Q=QUIZ[mode], h=mode==='hard';
+  let q, opts, ans;
+  const recent=saidLog.slice(0,-1);
+  if(recent.length>=5 && Math.random()<.35){
+    // 기억력 문제: 방금 던진 잔소리 중 하나 + 안 나온 잔소리 2개
+    const right=pick(recent.slice(-6)), wrong=WORDS[mode].w.filter(t=>!saidLog.includes(t)).sort(()=>Math.random()-.5).slice(0,2);
+    q = h ? '내가 방금 뭐라고 했어?' : '내가 방금 뭐라고 했게?'; opts=[right, ...wrong]; ans=0;
+  }else{
+    const it=pick(Q.filter(x=>x[0]!==(quiz&&quiz.q))); q=it[0]; opts=it[1].slice(); ans=it[2];
+  }
+  const order=[0,1,2].sort(()=>Math.random()-.5);
+  quiz={q, opts:order.map(i=>opts[i]), ans:order.indexOf(ans), t:0, dur:h ? 4 : 5, done:false};
+  quizCnt++; play('quiz'); buzz(30);
+  G.say='잠깐!'; G.sayT=4; G.mouthT=.3; drag=null;
+  $('quizTag').textContent='❓ 눈치 퀴즈 · 1·2·3 또는 눌러서';
+  $('quizQ').textContent='“'+q+'”';
+  const box=$('quizOpts'); box.innerHTML='';
+  quiz.opts.forEach((t,i)=>{
+    const b=document.createElement('button'); b.className='qopt'; b.innerHTML=`<kbd>${i+1}</kbd>${esc(t)}`;
+    b.addEventListener('click', ()=>answerQuiz(i)); box.append(b);
+  });
+  $('quiz').hidden=false;
+  track('quiz_show', {mode, memory:q.includes('방금')?1:0});
+}
+function updateQuiz(dt){
+  if(quiz.done){ quiz.t+=dt; if(quiz.t>=.9) closeQuiz(); return; }
+  quiz.t+=dt; $('quizFill').style.transform=`scaleX(${Math.max(0,1-quiz.t/quiz.dur)})`;
+  if(quiz.t>=quiz.dur) answerQuiz(-1);
+}
+function answerQuiz(i){
+  if(!quiz || quiz.done) return;
+  const ok=i===quiz.ans, btns=$('quizOpts').children;
+  if(btns[quiz.ans]) btns[quiz.ans].classList.add('ok');
+  if(i>=0 && !ok && btns[i]) btns[i].classList.add('no');
+  quiz.done=true; quiz.t=0; quiz.ok=ok;
+  if(ok){
+    quizOk++; mProg('quiz',1); play('heart');
+    $('quizTag').textContent='⭕ 정답! '+(hearts<maxHearts ? '하트 +1' : '4초 무적')+' · +'+Math.round(200*scoreMul*M().scoreMul)+'점';
+  }else{
+    play('wrong'); buzz(60);
+    $('quizTag').textContent = i<0 ? '⏰ 대답 안 해?! 삐졌어요' : '❌ 틀렸어! 삐졌어요';
+  }
+  track('quiz_answer', {mode, ok:ok?1:0, timeout:i<0?1:0});
+}
+function closeQuiz(){
+  const ok=quiz.ok; $('quiz').hidden=true; quiz=null; nextQuizAt=rand(35,50); cv.focus();
+  if(ok){
+    addScore(200);
+    if(hearts<maxHearts){ hearts++; hpPop(); } else sorryT=Math.max(sorryT,4);
+    G.say=pick(WORDS[mode].calm); G.sayT=1.6; calmT=Math.max(calmT,1.5);
+  }else{
+    sulkT=5; G.say=pickFresh(SULK[mode]); G.sayT=1.6; G.angry=2;
+    // 틀리면 폭탄 잔소리 하나가 남자친구 쪽으로
+    const bw=makeWord(pickFresh(WORDS[mode].b), clamp(B.x+rand(-30,30), 60, LW-60), mouth().y-6, 0, diff().spd*.62, 'b'); bw.warnT=.4;
+    G.angry=2; play('bomb');
+  }
+}
 function nearMiss(w){
   nearCnt++; combo++; comboT=2.5; mProg('near',1);
   gauge=Math.min(100, gauge+12*skillMul());
@@ -1023,6 +1215,7 @@ function nearMiss(w){
 function hit(w){
   hearts--; hitsTaken++; hitT = 1.4 + (boyId==='gentle'?.5:0); shakeT=.3; cleanT=0;
   lastWord=w.text; combo=0;
+  if(dex[mode][w.text]) dex[mode][w.text][1]++;
   play('hit'); buzz(80); hpPop();
   burst(B.x, B.y-10, '#FF6B6B', 16, 180);
   B.say=pickFresh(SORRY[mode]); B.sayT=1.3;
@@ -1139,8 +1332,9 @@ function drawGirl(g, md, o={}){
   if(!P.plain && (ang>0 || hard && level>=4)){ g.font='14px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('💢', 15, -14); }
 }
 function drawBg(){
-  const hard=mode==='hard' && state!=='menu';
+  const hard=mode==='hard' && state!=='menu', sc=sceneIdx();
   const floorY=LH-34;
+  if(sc>0){ drawScene(hard ? (sc===1 ? 'kitchen' : 'mart') : (sc===1 ? 'cinema' : 'park'), floorY); return; }
   if(!hard){
     // 데이트 카페: 분홍 벽, 창문, 하트 전구
     const gr=ctx.createLinearGradient(0,0,0,LH); gr.addColorStop(0,'#FFE3EC'); gr.addColorStop(1,'#FCD3E1');
@@ -1161,6 +1355,61 @@ function drawBg(){
     ctx.fillStyle='#C9A27E'; rr(ctx,236,floorY-44,110,34,10); ctx.fill(); rr(ctx,228,floorY-30,126,28,10); ctx.fill();
     ctx.fillStyle='#C89B72'; ctx.fillRect(0,floorY,LW,LH-floorY);
     ctx.fillStyle='rgba(0,0,0,.06)'; for(let y=floorY+8;y<LH;y+=10) ctx.fillRect(0,y,LW,1);
+  }
+}
+// 1분마다 바뀌는 장소들 (여자친구: 영화관·놀이공원, 아내: 부엌·마트)
+function drawScene(id, floorY){
+  const t=performance.now()/1000;
+  if(id==='cinema'){
+    const gr=ctx.createLinearGradient(0,0,0,LH); gr.addColorStop(0,'#3B2A4A'); gr.addColorStop(1,'#22182E');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,LW,LH);
+    const sy=LH*.36; ctx.fillStyle='rgba(220,235,255,'+(.22+.05*Math.sin(t*3))+')'; rr(ctx,40,sy,280,120,6); ctx.fill();
+    ctx.fillStyle='#A8324F'; for(const x of [0, LW-34]){ ctx.fillRect(x,0,34,floorY); }
+    ctx.fillStyle='rgba(0,0,0,.18)'; for(let y=0;y<floorY;y+=14){ ctx.fillRect(10,y,3,10); ctx.fillRect(LW-24,y,3,10); }
+    ctx.fillStyle='#7A2340'; for(let x=14;x<LW;x+=38){ rr(ctx,x,floorY-30,30,26,7); ctx.fill(); }
+    ctx.fillStyle='#2A1E35'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🍿', LW-56, floorY-36);
+  }
+  if(id==='park'){
+    const gr=ctx.createLinearGradient(0,0,0,LH); gr.addColorStop(0,'#9FD8F5'); gr.addColorStop(1,'#E8F7FF');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,LW,LH);
+    const cx=LW*.68, cy=LH*.5, R=Math.min(95, LH*.17);
+    ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+    ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(cx-30,floorY); ctx.lineTo(cx,cy); ctx.lineTo(cx+30,floorY); ctx.stroke();
+    const cols=['#FF8FB3','#FFD166','#7FD0F0','#9A8CE0','#5CC48A','#F4A261'];
+    for(let i=0;i<6;i++){ const a=t*.3+i*Math.PI/3, x=cx+Math.cos(a)*R, y=cy+Math.sin(a)*R;
+      ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y); ctx.stroke();
+      ctx.fillStyle=cols[i]; rr(ctx,x-8,y,16,13,4); ctx.fill(); }
+    ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🎈', 40, LH*.42+Math.sin(t*2)*6); ctx.fillText('🎈', 70, LH*.5+Math.sin(t*2+1)*6); ctx.fillText('🎠', 70, floorY-14);
+    ctx.fillStyle='#8FD18A'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.fillStyle='#fff'; for(let x=4;x<LW;x+=16) ctx.fillRect(x,floorY-12,4,12); ctx.fillRect(0,floorY-9,LW,3);
+  }
+  if(id==='kitchen'){
+    ctx.fillStyle='#EAF4F1'; ctx.fillRect(0,0,LW,LH);
+    ctx.strokeStyle='rgba(120,160,150,.25)'; ctx.lineWidth=1;
+    for(let x=0;x<=LW;x+=24){ ctx.beginPath(); ctx.moveTo(x,LH*.3); ctx.lineTo(x,floorY); ctx.stroke(); }
+    for(let y=LH*.3;y<floorY;y+=24){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(LW,y); ctx.stroke(); }
+    ctx.fillStyle='#C9A27E'; ctx.fillRect(0,LH*.3,LW*.6,38); ctx.fillStyle='rgba(0,0,0,.12)'; for(let x=54;x<LW*.6;x+=54) ctx.fillRect(x,LH*.3,2,38);
+    ctx.fillStyle='#DDE3E8'; rr(ctx,LW-86,LH*.42,70,floorY-LH*.42,6); ctx.fill(); ctx.fillStyle='#B8C2CA'; ctx.fillRect(LW-86,LH*.42+60,70,3); ctx.fillRect(LW-26,LH*.42+20,4,26);
+    ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,floorY-40,LW-96,40); ctx.fillStyle='#B98E6A'; ctx.fillRect(0,floorY-34,LW-96,34);
+    ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText('🍲', 40, floorY-40); ctx.fillText('🍽️', 140, floorY-40);
+    ctx.fillStyle='#D8D2C4'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.fillStyle='rgba(0,0,0,.06)'; for(let x=0;x<LW;x+=20) for(let y=floorY;y<LH;y+=20) if(((x+y)/20)%2===0) ctx.fillRect(x,y,20,20);
+  }
+  if(id==='mart'){
+    ctx.fillStyle='#F4F1E8'; ctx.fillRect(0,0,LW,LH);
+    const cols=['#F28B82','#FDD663','#81C995','#8AB4F8','#F6AEA9','#C58AF9','#FCAD70'];
+    for(let r=0;r<3;r++){
+      const y=LH*.3+r*((floorY-LH*.3)/3);
+      ctx.fillStyle='#B0A898'; ctx.fillRect(0,y+34,LW,5);
+      for(let x=6,i=r*3;x<LW-14;x+=22,i++){ ctx.fillStyle=cols[i%cols.length]; rr(ctx,x,y+34-(16+(i*7)%12),18,16+(i*7)%12,3); ctx.fill(); }
+    }
+    ctx.fillStyle='#E8463F'; rr(ctx,LW/2-40,LH*.25,80,22,6); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font=FONT(14); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('오늘 할인!', LW/2, LH*.25+11);
+    ctx.fillStyle='#CFCFCF'; ctx.fillRect(0,floorY,LW,LH-floorY);
+    ctx.fillStyle='rgba(0,0,0,.05)'; for(let x=0;x<LW;x+=30) ctx.fillRect(x,floorY,1,LH-floorY);
+    ctx.font='22px sans-serif'; ctx.textBaseline='bottom'; ctx.fillText('🛒', LW-40, floorY+2);
   }
 }
 // 여자친구가 서 있는 곳: 보통은 카페 2층 난간(아래에 하트 전구), 어려움은 부엌 조리대
@@ -1255,6 +1504,8 @@ function draw(){
     ctx.save(); ctx.fillStyle='rgba(255,255,255,.85)'; ctx.strokeStyle='rgba(58,36,48,.25)'; ctx.lineWidth=1.5; ell(ctx,pet.x,pet.y,14,14); ctx.fill(); ctx.stroke();
     ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(PET().icon, pet.x, pet.y); ctx.restore();
   }
+  // 대시 잔상
+  for(const g of ghosts){ ctx.save(); ctx.globalAlpha=.35*(1-g.t/.25); ctx.translate(g.x, B.y); drawBoy(ctx, B.b, {face:'scared'}); ctx.restore(); }
   // 남자친구
   ctx.save(); ctx.translate(B.x, B.y);
   if(hitT>0 && Math.floor(hitT*12)%2===0) ctx.globalAlpha=.45;
@@ -1299,6 +1550,7 @@ function hud(){
   const it=[];
   if(ev) it.push('🚨 '+Math.ceil(ev.def.dur-ev.t)+'초');
   if(sulkT>0) it.push('😤 삐짐');
+  if(dashCd>0) it.push('💨 '+dashCd.toFixed(1));
   if(sorryT>0) it.push('🙏 '+sorryT.toFixed(1));
   if(coffeeT>0) it.push('☕ '+coffeeT.toFixed(1));
   if(calmT>0) it.push(M().skillIc+' '+calmT.toFixed(1));
@@ -1323,12 +1575,12 @@ function idle(dt){
 }
 
 /* ---------------- 흐름 ---------------- */
-const OVS=['menuOv','overOv','closetOv','shopOv','missionOv','rankOv','attendOv','pauseOv'];
+const OVS=['menuOv','overOv','closetOv','shopOv','missionOv','rankOv','attendOv','pauseOv','dexOv'];
 function showOnly(id){ OVS.forEach(o=>$(o).hidden = o!==id); }
 function setPlayingUi(on){
   $('hud').hidden=!on; $('bars').hidden=!on;
   document.body.classList.toggle('playing', on);
-  if(!on){ $('skillBtn').hidden=true; $('hItems').hidden=true; }
+  if(!on){ $('skillBtn').hidden=true; $('hItems').hidden=true; $('quiz').hidden=true; }
 }
 function start(){
   audio(); musicStart(); play('click');
@@ -1342,7 +1594,7 @@ function start(){
 function restart(){
   if(!running()) return;
   track('game_quit', {mode, sec:Math.round(elapsed), restart:1});
-  wallet+=coinsRun; saveWallet();
+  wallet+=coinsRun; saveWallet(); saveDex();
   paused=false; $('pauseOv').hidden=true; state='menu';
   start(); toast('다시 시작!', 900);
 }
@@ -1362,7 +1614,8 @@ function finish(reason){
   state='over';
   const score=Math.floor(scoreF), sec=elapsed;
   const runCoins = coinsRun + Math.floor(sec/5);   // 버틴 시간 5초마다 용돈 1원
-  wallet+=runCoins; saveWallet();
+  wallet+=runCoins; saveWallet(); saveDex();
+  quiz=null;
   const isBest = score>bestScore[mode] && reason!=='quit';
   if(isBest){ bestScore[mode]=score; store.set('best', bestScore); }
   if(reason!=='quit' && sec>bestSecBy[mode]){ bestSecBy[mode]=sec; store.set('bestSecBy', bestSecBy); }
@@ -1370,7 +1623,7 @@ function finish(reason){
   if(sec>bestSec){ bestSec=sec; store.set('bestSec', bestSec); }
   if(reason!=='quit'){ mProg('play',1); mProg('surv', Math.floor(sec)); mProg('clean', Math.floor(bestClean)); if(mode==='hard') mProg('hard', Math.floor(sec)); }
   const now=new Date();
-  lastRun={mode, score, sec:+sec.toFixed(1), boy:boyId, pet:petId, near:nearCnt, dodge:dodgeCnt, sweet:sweetCnt, events:evCnt, coins:runCoins, word:lastWord, date:`${now.getMonth()+1}/${now.getDate()}`};
+  lastRun={mode, score, sec:+sec.toFixed(1), boy:boyId, pet:petId, near:nearCnt, dodge:dodgeCnt, sweet:sweetCnt, events:evCnt, quiz:quizOk, coins:runCoins, word:lastWord, date:`${now.getMonth()+1}/${now.getDate()}`};
   if(reason!=='quit' && score>0){
     runs.best.push(lastRun); runs.best.sort((a,b)=>b.score-a.score);
     // 난이도마다 10개씩만 남김
@@ -1378,7 +1631,7 @@ function finish(reason){
     runs.recent.unshift(lastRun); runs.recent=runs.recent.slice(0,20);
     store.set('runsBest', runs.best); store.set('runsRecent', runs.recent);
   }
-  track('game_over', {reason, mode, score, time_sec:Math.round(sec), level, boy:boyId, pet:petId, near_miss:nearCnt, hits:hitsTaken, items:itemCnt, skills:skillCnt, sweets:sweetCnt, events:evCnt});
+  track('game_over', {reason, mode, score, time_sec:Math.round(sec), level, boy:boyId, pet:petId, near_miss:nearCnt, hits:hitsTaken, items:itemCnt, skills:skillCnt, sweets:sweetCnt, events:evCnt, quiz_ok:quizOk, quiz_cnt:quizCnt, dashes:dashCnt});
   if(reason!=='quit') play('over');
 
   setTimeout(()=>{
@@ -1392,7 +1645,7 @@ function finish(reason){
     $('rDodge').textContent=dodgeCnt;
     $('rSweet').textContent=sweetCnt;
     $('rCoins').textContent='+'+runCoins;
-    $('rWallet').textContent=(evCnt ? '🚨 사건 해결 '+evCnt+'번 · ' : '')+'보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
+    $('rWallet').textContent=[evCnt ? '🚨 사건 해결 '+evCnt+'번' : '', quizCnt ? '❓ 눈치 '+quizOk+'/'+quizCnt : '', '보유 💵 '+wallet.toLocaleString('ko-KR')+'원'].filter(Boolean).join(' · ');
     $('newBest').hidden=!isBest;
     $('newBest').textContent='🎉 '+M().name+' 모드 내 최고 기록!';
     const ul=$('rUnlock'); ul.hidden=!newly.length; ul.textContent='🔓 새 남자친구 해금: '+newly.map(b=>b.name).join(', ')+' — 옷장에서 골라 보세요';
@@ -1428,11 +1681,12 @@ function showMenu(){
   state='menu'; setPlayingUi(false); showOnly('menuOv');
   if(!B) reset();
   if(!unlocked(BOY())) boyId='basic';
-  B.b=BOY(); B.x=LW/2; G2=null; ev=null; words=[]; items=[]; glares=[]; fx=[]; floats=[]; calmT=0; hitT=0; sorryT=0; G.sayT=0; B.sayT=0;
+  B.b=BOY(); B.x=LW/2; G2=null; ev=null; quiz=null; ghosts=[]; words=[]; items=[]; glares=[]; fx=[]; floats=[]; calmT=0; hitT=0; sorryT=0; G.sayT=0; B.sayT=0;
   const cc=$('curBoy'); cc.innerHTML=''; cc.append(boyCanvas(BOY()), document.createTextNode(BOY().name+(petId!=='none' ? ' + '+PET().icon+' '+PET().name : '')));
   const bl=$('boostLine'); bl.hidden=!boosts.length; bl.textContent='다음 판 부스트: '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join(' ');
   setMode(mode);
   $('missionBtn').innerHTML='📋 미션 ('+mDone()+'/3)'+(mClaimable() ? '<span class="dot"></span>' : '');
+  $('dexBtn').innerHTML='📖 도감'+(dexClaimable() ? '<span class="dot"></span>' : '');
   if(attendDue()) openAttend();
 }
 
@@ -1582,6 +1836,35 @@ function openMissions(){ showOnly('missionOv'); renderMissions(); clearInterval(
 function closeMissions(){ clearInterval(mTimer); backToMenu(); }
 $('missionBtn').addEventListener('click', openMissions);
 $('missionOk').addEventListener('click', closeMissions);
+
+/* ---------------- 잔소리 도감 화면 ---------------- */
+let dexMode='normal';
+function renderDex(){
+  $('dxNormal').setAttribute('aria-selected', String(dexMode==='normal')); $('dxHard').setAttribute('aria-selected', String(dexMode==='hard'));
+  const all=DEX_ALL(dexMode), d=dex[dexMode], seen=dexSeen(dexMode);
+  $('dexCount').textContent=MODES[dexMode].name+'에게 들은 잔소리 '+seen+' / '+all.length;
+  $('dexFill').style.width=Math.round(seen/all.length*100)+'%';
+  const ms=$('dexMs'); ms.innerHTML='';
+  DEX_MS.forEach(([r,c],i)=>{
+    const need=Math.ceil(all.length*r), got=dexClaim[dexMode].includes(i), can=seen>=need && !got;
+    const el=document.createElement('div'); el.className='shopItem';
+    el.innerHTML=`<b>${Math.round(r*100)}%</b><small>${need}개</small>`;
+    const b=document.createElement('button'); b.className='buy'; b.textContent=got ? '받음' : '💵'+c; b.disabled=!can;
+    b.addEventListener('click', ()=>{ dexClaim[dexMode].push(i); store.set('dexClaim', dexClaim); wallet+=c; saveWallet(); play('coin'); toast('💵 +'+c+'원'); track('dex_claim', {mode:dexMode, pct:r*100, reward:c}); renderDex(); });
+    el.append(b); ms.append(el);
+  });
+  const top=Object.entries(d).filter(([,v])=>v[1]>0).sort((a,b)=>b[1][1]-a[1][1]).slice(0,3);
+  $('dexTop').innerHTML = top.length ? '😵 가장 많이 맞은 잔소리<br>'+top.map(([t,v],i)=>`${['🥇','🥈','🥉'][i]} <b>${esc(t)}</b> · ${v[1]}번`).join('<br>') : '아직 맞은 잔소리가 없어요. 대단해요!';
+  // 들은 말은 맞은 횟수와 함께 보여 주고, 못 들은 말은 개수만
+  const g=$('dexGrid'); g.innerHTML='';
+  for(const t of all){ const v=d[t]; if(v) g.insertAdjacentHTML('beforeend', `<span>${esc(t)}${v[1] ? `<small>×${v[1]}</small>` : ''}</span>`); }
+  if(seen<all.length) g.insertAdjacentHTML('beforeend', `<span class="no">❓ 아직 못 들은 잔소리 ${all.length-seen}개</span>`);
+}
+function openDex(){ showOnly('dexOv'); dexMode=mode; renderDex(); $('dexOv').scrollTop=0; $('dexOk').focus({preventScroll:true}); }
+$('dexBtn').addEventListener('click', openDex);
+$('dexOk').addEventListener('click', ()=>backToMenu());
+$('dxNormal').addEventListener('click', ()=>{ dexMode='normal'; renderDex(); });
+$('dxHard').addEventListener('click', ()=>{ dexMode='hard'; renderDex(); });
 
 /* ---------------- 기록판 ---------------- */
 // 서버 순위는 난이도마다 따로: 여자친구는 mode 없이, 아내는 mode=hard
