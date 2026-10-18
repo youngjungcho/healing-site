@@ -187,7 +187,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 
     <div class="overlay" id="menuOv">
       <h2>💢 잔소리 피하기</h2>
-      <p>위에서 쏟아지는 <b>잔소리</b>를 좌우로 피하세요.<br>아슬아슬하게 피하면 필살기 게이지가 차요. 하트 3개를 다 잃으면 끝!</p>
+      <p>위에서 쏟아지는 <b>잔소리</b>를 좌우로 피하세요. 💕 <b>분홍 말풍선</b>은 받아요!<br>아슬아슬하게 피하면 필살기 게이지가 차요. 하트 3개를 다 잃으면 끝!</p>
       <div class="modes" role="radiogroup" aria-label="난이도">
         <button class="mode" role="radio" id="modeNormal" data-mode="normal"><span class="ic">💕</span><b>보통 · 여자친구</b><small>귀여운 투정이<br>천천히 떨어져요</small></button>
         <button class="mode hardm" role="radio" id="modeHard" data-mode="hard"><span class="ic">🔥</span><b>어려움 · 아내</b><small>빠르고 많고 길어요<br>째려보기 주의!</small></button>
@@ -214,7 +214,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
         <div><b id="rScore">0</b>점수</div>
         <div><b id="rNear">0</b>아슬아슬</div>
         <div><b id="rDodge">0</b>피한 잔소리</div>
-        <div><b id="rItems">0</b>아이템</div>
+        <div><b id="rSweet">0</b>다정한 말</div>
         <div><b id="rCoins">0</b>용돈</div>
       </div>
       <div class="line" id="rWallet"></div>
@@ -378,6 +378,8 @@ function play(n){
     case 'check': tone(990,.1,'sine',.1); tone(1480,.2,'sine',.1,null,.09); break;
     case 'click': tone(880,.05,'sine',.08); break;
     case 'over': tone(440,.25,'triangle',.12,330); tone(330,.4,'triangle',.12,220,.22); break;
+    case 'ring': for(let i=0;i<3;i++){ tone(1320,.07,'square',.04,null,i*.16); tone(1050,.07,'square',.04,null,i*.16+.08); } break;
+    case 'siren': for(let i=0;i<3;i++){ tone(960,.2,'triangle',.07,null,i*.4); tone(720,.2,'triangle',.07,null,i*.4+.2); } break;
     case 'nom': tone(300,.06,'square',.06,500); tone(500,.06,'square',.06,300,.07); break;
   }
 }
@@ -498,6 +500,8 @@ const MISSIONS = [
   {id:'clean', name:'하트 안 잃고 버티기',  goal:30,  unit:'초', reward:50, max:true},
   {id:'hard',  name:'아내 모드에서 버티기', goal:40,  unit:'초', reward:60, max:true},
   {id:'play',  name:'끝까지 버티기',        goal:3,   unit:'판', reward:30},
+  {id:'sweet', name:'다정한 말 받기',       goal:12,  unit:'개', reward:40},
+  {id:'event', name:'사건 버텨 내기',       goal:2,   unit:'번', reward:60},
 ];
 const M_BONUS=100;
 const dayKey = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -554,6 +558,37 @@ const OVER_TITLE = {
   normal:["결국 삐졌어요 😢", "오늘 연락 끊겼어요 📵", "읽씹 당했어요 💬", "\"됐어\"를 들었어요 🙊", "프사가 바뀌었어요 🖼️", "혼자 집에 갔어요 🚶‍♀️"],
   hard:["오늘 밤은 소파에서… 🛋️", "용돈 삭감… 💸", "설거지 한 달 확정 🍽️", "장모님께 전화 갔어요 📞", "택배 금지령 📦", "주말 내내 대청소 🧹"],
 };
+// 다정한 말: 받아야 하는 말(분홍 말풍선). 피하면 삐져서 잔소리가 잠깐 빨라짐
+const SWEET = {
+  normal:['사랑해','오늘 멋있다','보고 싶었어','고마워','자기가 최고야','같이 있어 좋아','오늘도 수고했어','귀여워','든든해','잘했어','안아 줘','내 거야','웃는 거 예뻐','자기 덕분이야'],
+  hard:['고마워 여보','수고했어','당신 최고','사랑해','오늘 멋있네','밥 차려 놨어','오늘은 푹 쉬어','맥주 한 캔 해','용돈 올려 줄게','설거지 내가 할게','고생 많았어','당신밖에 없어','오늘 좀 잘생겼네'],
+};
+const SULK = {
+  normal:['왜 피해?!','내 말 무시해?','흥, 됐어','방금 피한 거야?','사랑한다는데?!'],
+  hard:['지금 피했어?','고맙다는데 왜 피해?','칭찬도 싫다 이거지?','어이가 없네'],
+};
+// 사건: 1분쯤마다 벌어짐. dur초를 버티면 보너스. second가 있으면 잔소리꾼이 한 명 더 옴
+const EVENTS = {
+  normal:[
+    {id:'anniv', name:'🎂 기념일 까먹음 사건', dur:18, gapMul:.65, intro:'오늘 무슨 날인지 진짜 몰라?!',
+     words:['오늘 무슨 날이야?','100일이잖아!','선물은?','케이크는?','편지는?','나만 기억해?','작년에도 까먹었지?','달력 안 봐?','장난해?','꽃이라도 사 와']},
+    {id:'couple', name:'👫 친구 커플 등장', dur:18, gapMul:1, intro:'어머, 쟤네 왔다!',
+     words:['봤지?','쟤 남친 좀 봐','너도 좀 배워','부럽다…','우린 언제 가?','나도 저거 사 줘'],
+     second:{look:'friend', say:'안녕~ 우리 오빠는요~', words:['우리 오빠는 매일 꽃 줘','우리 오빠는 운전해 줘','너넨 아직 거기 가?','우리 여행 가는데','오빠가 가방 사 줬어','우린 매일 통화해']}},
+    {id:'phone', name:'📱 휴대폰 검사', dur:15, gapMul:.75, intro:'휴대폰 줘 봐', wobble:true,
+     words:['이 사람 누구야?','왜 지웠어?','비번 뭐야?','이 사진 뭐야?','왜 숨겨?','알림 왜 꺼 놨어?','단톡방 보여 줘','이 이모티콘 뭐야?']},
+  ],
+  hard:[
+    {id:'mil', name:'👵 시어머니 방문', dur:20, gapMul:1, intro:'어머님 오셨어! 빨리 치워!',
+     words:['과일 좀 깎아 와','거실 좀 치워!','어머님 앞에서 누워?','차 좀 내 와','인사 똑바로 해'],
+     second:{look:'mil', say:'아이고 우리 아들~', words:['밥은 잘 챙겨 먹니?','얼굴이 반쪽이네','손주는 언제 보니?','집이 왜 이리 춥니','반찬 좀 싸 왔다','회사는 다닐 만하니?','살 좀 빠졌구나']}},
+    {id:'call', name:'📞 장모님 전화', dur:15, gapMul:.7, intro:'여보, 엄마 전화야! 받아!', shake:true,
+     words:['장모님 전화 왜 안 받아?','안부 전화 좀 해','명절에 언제 와?','엄마가 서운하대','용돈 보내 드렸어?','엄마 생신 알지?','김치 가지러 와래']},
+    {id:'clean', name:'🧹 대청소의 날', dur:18, gapMul:.8, intro:'오늘 대청소야! 일어나!',
+     words:['창틀 닦아!','이불 빨래!','냉장고 정리!','베란다 물청소!','옷장 정리해','책장 먼지!'],
+     rain:['걸레','먼지','빨래','쓰레기','행주','청소기','휴지','락스']},
+  ],
+};
 // 같은 말이 연달아 나오지 않게 최근에 나온 말은 잠깐 빼고 고름
 const recentWords=[];
 function pickFresh(list){
@@ -571,7 +606,8 @@ const ITEMS = {
 };
 
 // 캔버스 글씨는 웹폰트 조각(글자 범위별)이 아직 안 받아져 있으면 기본 글꼴로 그려지고 폭도 틀어짐 → 잔소리 글자를 미리 받아 둠
-try{ document.fonts.load('16px Jua', Object.values(WORDS).flatMap(W=>[...W.s,...W.w,...W.b,...W.lines,...W.calm]).concat(...Object.values(SORRY)).join('')+'아슬냠심부름원미안해설거지다했어요자기야'); }catch(e){}
+try{ document.fonts.load('16px Jua', Object.values(WORDS).flatMap(W=>[...W.s,...W.w,...W.b,...W.lines,...W.calm]).concat(...Object.values(SORRY), ...Object.values(SWEET), ...Object.values(SULK),
+    ...Object.values(EVENTS).flat().flatMap(e=>[e.name, e.intro, ...e.words, ...(e.rain||[]), ...(e.second ? [e.second.say, ...e.second.words] : [])])).join('')+'아슬냠심부름원미안해설거지다했어요자기야'); }catch(e){}
 
 /* ---------------- 화면 ---------------- */
 const stage=$('stage'), cv=$('cv'), ctx=cv.getContext('2d');
@@ -595,6 +631,7 @@ let paused=false;
 let B=null, G=null, words=[], items=[], glares=[], fx=[], floats=[];
 let elapsed, level, scoreF, hearts, maxHearts, hitT, sorryT, coffeeT, calmT, gauge, nearCnt, dodgeCnt, itemCnt, coinsRun, combo, comboT;
 let spawnT, nextItemAt, nextCashAt, petT, pet, angelUsed, scoreMul, usedBoosts, lastWord, cleanT, bestClean, hitsTaken, shakeT, secStart, skillCnt, tutT;
+let G2=null, ev=null, nextEvAt, lastEvId='', evCnt, sweetCnt, sulkT;   // G2: 사건 때 오는 두 번째 잔소리꾼
 let bestScore = Object.assign({normal:0, hard:0}, store.get('best', {}));
 let bestSecBy = Object.assign({normal:0, hard:0}, store.get('bestSecBy', {}));
 let runs = {best: store.get('runsBest', []), recent: store.get('runsRecent', [])};
@@ -635,6 +672,7 @@ function reset(){
   nearCnt=0; dodgeCnt=0; itemCnt=0; coinsRun=0; combo=0; comboT=0; skillCnt=0; hitsTaken=0; shakeT=0;
   spawnT=1.2; nextItemAt=rand(7,10); nextCashAt=rand(3,5); petT=0; angelUsed=false; scoreMul=1; usedBoosts=[]; lastWord=''; cleanT=0; bestClean=0; tutT=0;
   pet={x:B.x-36, y:B.y+10};
+  G2=null; ev=null; nextEvAt=40; evCnt=0; sweetCnt=0; sulkT=0;
   secStart=bestSec;
   if(boyId==='gentle') sorryT=3;
 }
@@ -666,6 +704,11 @@ function makeWord(text, x, y, vx, vy, kind='w'){
   words.push(wd); return wd;
 }
 const mouth = () => ({x:G.x, y:GIRL_Y()+24});
+function makeSweet(x, y, vy){
+  const w=makeWord('💕 '+pickFresh(SWEET[mode]), x, y, rand(-12,12), vy); w.sweet=true; w.rot=0;
+  if(!store.get('sweetTut', false)){ store.set('sweetTut', true); toast('💕 분홍 말풍선은 받아요! 피하면 삐져요', 2200); }
+  return w;
+}
 function throwAnim(){ G.mouthT=.28; G.armT=.3; }
 function pattern(){
   const L=level, h=mode==='hard', d=diff(), W=WORDS[mode], sm=slowMul(), m=mouth();
@@ -677,10 +720,17 @@ function pattern(){
   if(h ? L>=4 : L>=4) list.push(['bomb', h?2.5:1.5]);
   let tot=list.reduce((s,x)=>s+x[1],0), r=Math.random()*tot, kind='drop';
   for(const [k,wt] of list){ if((r-=wt)<0){ kind=k; break; } }
-  const txt = () => L<2 || Math.random()<.35 ? pickFresh(W.w.filter(t=>t.length<=7)) : pickFresh(W.w);
-  const spd = d.spd*sm;
+  const E = ev && ev.def;
+  if(E && E.rain && Math.random()<.45) kind='rain';
+  // 사건 중에는 그 사건 대사가 절반 넘게 섞임
+  const txt = () => E && Math.random()<.6 ? pickFresh(E.words) : L<2 || Math.random()<.35 ? pickFresh(W.w.filter(t=>t.length<=7)) : pickFresh(W.w);
+  const spd = d.spd*sm*(sulkT>0 ? 1.15 : 1);
   throwAnim();
-  if(kind==='drop'){ makeWord(txt(), m.x, m.y, rand(-d.vx,d.vx), spd*rand(.85,1.1)); play('blah'); return 0; }
+  if(kind==='drop'){
+    if(Math.random() < (h ? .11 : .16)*(E ? .6 : 1)){ makeSweet(m.x, m.y, spd*.8); play('blah'); return 0; }
+    const w=makeWord(txt(), m.x, m.y, rand(-d.vx,d.vx), spd*rand(.85,1.1)); if(E && E.wobble) w.wob=true;
+    play('blah'); return 0;
+  }
   if(kind==='aim'){
     const dx=B.x-m.x, t=(B.y-m.y)/spd;
     makeWord(txt(), m.x, m.y, clamp(dx/t, -140, 140), spd); play('blah'); return 0;
@@ -691,7 +741,7 @@ function pattern(){
   }
   if(kind==='rain'){
     const n = h ? 5 : 4, gap=LW/(n+1), hole=Math.floor(rand(0,n));   // 한 자리는 비워 둠
-    for(let i=0;i<n;i++) if(i!==hole) makeWord(pickFresh(W.s), gap*(i+1)+rand(-12,12), m.y-10-rand(0,30), 0, spd*rand(.9,1.05), 's');
+    for(let i=0;i<n;i++) if(i!==hole) makeWord(pickFresh(E && E.rain ? E.rain : W.s), gap*(i+1)+rand(-12,12), m.y-10-rand(0,30), 0, spd*rand(.9,1.05), 's');
     G.say=h?'하…':'흥!'; G.sayT=.8; play('blah'); return .4;
   }
   if(kind==='glare'){
@@ -723,9 +773,9 @@ function collect(it){
   }
   play('item'); burst(it.x, it.y, I.glow, 14, 150);
   if(it.kind==='rose'){
-    const n=words.length;
-    for(const w of words) burst(w.x, w.y, '#FF9EC0', 5, 90);
-    words=[]; glares=glares.filter(g=>g.t>=g.warn);
+    const bad=words.filter(w=>!w.sweet), n=bad.length;
+    for(const w of bad) burst(w.x, w.y, '#FF9EC0', 5, 90);
+    words=words.filter(w=>w.sweet); glares=glares.filter(g=>g.t>=g.warn);
     addScore(10*n+30); G.sayT=1.1; G.say='어머 💐'; calmT=Math.max(calmT,1.2);
     toast('💐 꽃다발! 잔소리가 사라졌어요', 1100);
   }
@@ -801,9 +851,9 @@ function steerDir(){
 function trySkill(){
   if(gauge<100 || state!=='play' || paused) return;
   gauge=0; skillCnt++; mProg('skill',1);
-  const n=words.length;
-  for(const w of words) burst(w.x, w.y, mode==='hard' ? '#8FD3F5' : '#FF9EC0', 6, 110);
-  words=[]; glares=[];
+  const bad=words.filter(w=>!w.sweet), n=bad.length;
+  for(const w of bad) burst(w.x, w.y, mode==='hard' ? '#8FD3F5' : '#FF9EC0', 6, 110);
+  words=words.filter(w=>w.sweet); glares=[];
   addScore(15*n+50); calmT=3.2; shakeT=.15;
   G.say=pick(WORDS[mode].calm); G.sayT=1.8;
   B.say = mode==='hard' ? '설거지 다 했어요! 🧽' : '자기야~ 💕'; B.sayT=1.4;
@@ -822,6 +872,7 @@ function update(dt){
     if(calmT<=0){ G.say=pickFresh(WORDS[mode].lines); G.sayT=1.6; }
   }
   scoreF += dt*(10+2*(level-1))*scoreMul*M().scoreMul;
+  sulkT=Math.max(0,sulkT-dt);
   hitT=Math.max(0,hitT-dt); sorryT=Math.max(0,sorryT-dt); coffeeT=Math.max(0,coffeeT-dt); calmT=Math.max(0,calmT-dt);
   shakeT=Math.max(0,shakeT-dt); G.mouthT=Math.max(0,G.mouthT-dt); G.armT=Math.max(0,G.armT-dt); G.sayT=Math.max(0,G.sayT-dt); B.sayT=Math.max(0,B.sayT-dt);
   G.angry=Math.max(0,G.angry-dt);
@@ -838,14 +889,20 @@ function update(dt){
   const gs = 60+level*6;
   // 남자친구 쪽으로 다가가 던지는 비율 (아내 모드 1~2단계는 덜 따라옴)
   const chase = mode==='hard' && level<=2 ? .25 : .45;
-  if(Math.abs(G.tx-G.x)<4) G.tx = Math.random()<chase ? clamp(B.x+rand(-60,60), 50, LW-50) : rand(50, LW-50);
+  const gHi = G2 ? LW/2-20 : LW-50;   // 두 번째 잔소리꾼이 오면 왼쪽 절반만 씀
+  if(Math.abs(G.tx-G.x)<4 || G.tx>gHi) G.tx = Math.random()<chase ? clamp(B.x+rand(-60,60), 50, gHi) : rand(50, gHi);
   G.x += Math.sign(G.tx-G.x)*Math.min(Math.abs(G.tx-G.x), gs*dt);
 
   // 잔소리 던지기
   if(calmT<=0){
     spawnT-=dt;
-    if(spawnT<=0){ const extra=pattern(); spawnT = diff().gap*rand(.85,1.2) + extra; }
+    if(spawnT<=0){
+      const extra=pattern();
+      const gm=(sulkT>0 ? .8 : 1)*(ev ? ev.def.gapMul : 1)*(G2 && !G2.leaving ? 1.2 : 1);
+      spawnT = diff().gap*rand(.85,1.2)*gm + extra;
+    }
   }
+  updateEvent(dt);
 
   // 잔소리 움직이기 · 부딪힘 · 아슬아슬
   const bb=boyBox(), sm=slowMul();
@@ -853,16 +910,25 @@ function update(dt){
     w.t+=dt;
     if(w.warnT>0){ w.warnT-=dt; continue; }
     w.x+=w.vx*dt*sm; w.y+=w.vy*dt*(coffeeT>0?.5:1);
+    if(w.wob) w.x+=Math.cos(w.t*5)*70*dt;   // 휴대폰 검사: 흔들리며 떨어짐
     if(w.x<w.w/2+2){ w.x=w.w/2+2; w.vx=Math.abs(w.vx); }
     if(w.x>LW-w.w/2-2){ w.x=LW-w.w/2-2; w.vx=-Math.abs(w.vx); }
     const l=w.x-w.w/2+4, r=w.x+w.w/2-4, t=w.y-w.h/2+4, b=w.y+w.h/2-4;
-    if(r>bb.l && l<bb.r && b>bb.t && t<bb.b){ if(!invuln()) { hit(w); w.dead=true; } continue; }
-    if(!w.nm && w.y>B.y){
+    if(r>bb.l && l<bb.r && b>bb.t && t<bb.b){
+      if(w.sweet){ catchSweet(w); w.dead=true; }
+      else if(!invuln()){ hit(w); w.dead=true; }
+      continue;
+    }
+    if(!w.nm && !w.sweet && w.y>B.y){
       w.nm=true;
       const gap = Math.max(bb.l-r, l-bb.r);
       if(gap>=0 && gap<16 && t<bb.b) nearMiss(w);
     }
-    if(w.y-w.h/2>LH+4){ w.dead=true; dodgeCnt++; mProg('dodge',1); gauge=Math.min(100, gauge+.6*skillMul()); }
+    if(w.y-w.h/2>LH+4){
+      w.dead=true;
+      if(w.sweet) missSweet();
+      else { dodgeCnt++; mProg('dodge',1); gauge=Math.min(100, gauge+.6*skillMul()); }
+    }
   }
   words=words.filter(w=>!w.dead);
 
@@ -898,6 +964,54 @@ function update(dt){
 
   if(tutT>1 && tutT-dt<=1) toast(isTouch ? '👆 화면을 좌우로 문질러 피해요!' : '← → 로 잔소리를 피해요!', 1600);
 }
+function catchSweet(w){
+  sweetCnt++; mProg('sweet',1);
+  gauge=Math.min(100, gauge+15*skillMul());
+  float(w.x, B.y-46, '💕 +'+addScore(40), '#FF5C8A', 17);
+  burst(w.x, w.y, '#FF8FB3', 12, 130); play('heart'); buzz(15);
+  if(Math.random()<.4 && B.sayT<=0){ B.say=pick(mode==='hard' ? ['고마워 여보','헤헤','오늘 왜 이래?'] : ['나도 💕','헤헤','자기가 더!']); B.sayT=1; }
+}
+function missSweet(){
+  sulkT=4; combo=0;
+  G.say=pickFresh(SULK[mode]); G.sayT=1.6; G.angry=Math.max(G.angry,1.5);
+  toast('😤 다정한 말을 피했어요! 잔소리가 빨라져요', 1300); play('bomb');
+}
+// 사건: 버티면 보너스. 맞지 않고 버티면 2배
+function startEvent(){
+  const pool=EVENTS[mode].filter(e=>e.id!==lastEvId), def=pick(pool);
+  lastEvId=def.id; ev={def, t:0, hits:hitsTaken, ring:.8};
+  toast(def.name+'! '+def.dur+'초 버티기', 1700); play('siren'); buzz(60);
+  G.say=def.intro; G.sayT=2; G.angry=2;
+  if(def.second) G2={x:LW+40, tx:LW*.75, mouthT:0, armT:0, spawn:1.6, say:def.second.say, sayT:2.2, look:def.second.look, leaving:false};
+  track('event_start', {mode, event:def.id, sec:Math.round(elapsed)});
+}
+function endEvent(){
+  const perfect = hitsTaken===ev.hits;
+  const pts=addScore(perfect ? 600 : 300), c=Math.round((perfect ? 20 : 10)*coinMul());
+  coinsRun+=c; evCnt++; mProg('event',1);
+  toast('🎉 사건 해결! +'+pts+'점 +'+c+'원'+(perfect ? ' (완벽 방어!)' : ''), 1800); play('win');
+  G.angry=0; if(G2){ G2.leaving=true; G2.tx=LW+60; G2.say='그럼 이만~'; G2.sayT=1.2; }
+  track('event_clear', {mode, event:ev.def.id, perfect:perfect?1:0});
+  ev=null; nextEvAt=rand(50,65);
+}
+function updateEvent(dt){
+  if(!ev){ nextEvAt-=dt; if(nextEvAt<=0 && calmT<=0) startEvent(); }
+  else {
+    ev.t+=dt; G.angry=Math.max(G.angry,.3);
+    if(ev.def.shake && (ev.ring-=dt)<=0){ ev.ring=2.6; shakeT=.3; play('ring'); buzz(30); }
+    if(ev.t>=ev.def.dur) endEvent();
+  }
+  if(!G2) return;
+  G2.mouthT=Math.max(0,G2.mouthT-dt); G2.armT=Math.max(0,G2.armT-dt); G2.sayT=Math.max(0,G2.sayT-dt);
+  if(!G2.leaving && Math.abs(G2.tx-G2.x)<4) G2.tx=rand(LW/2+20, LW-50);
+  G2.x += Math.sign(G2.tx-G2.x)*Math.min(Math.abs(G2.tx-G2.x), 80*dt);
+  if(G2.leaving){ if(G2.x>LW+50) G2=null; return; }
+  if(calmT<=0 && G2.x<LW-30 && (G2.spawn-=dt)<=0 && ev){
+    G2.spawn=diff().gap*1.5*rand(.85,1.2);
+    const w=makeWord(pickFresh(ev.def.second.words), G2.x, GIRL_Y()+24, rand(-30,30), diff().spd*slowMul()*.95);
+    void w; G2.mouthT=.28; G2.armT=.3; play('blah');
+  }
+}
 function nearMiss(w){
   nearCnt++; combo++; comboT=2.5; mProg('near',1);
   gauge=Math.min(100, gauge+12*skillMul());
@@ -926,7 +1040,7 @@ function updatePet(dt){
   petT+=dt;
   if(petId==='dog' && petT>=12){
     // 남자친구에게 가장 가까운(아래쪽) 잔소리 하나를 먹음
-    const cand=words.filter(w=>w.y>LH*.35).sort((a,b)=>b.y-a.y)[0];
+    const cand=words.filter(w=>!w.sweet && w.y>LH*.35).sort((a,b)=>b.y-a.y)[0];
     if(cand){ petT=0; burst(cand.x, cand.y, '#F6C177', 10, 120); float(cand.x, cand.y, '냠!', '#fff', 16); cand.dead=true; words=words.filter(w=>!w.dead); play('nom'); }
   }
   if(petId==='bunny' && petT>=18){ petT=0; spawnItem(randomItem(), clamp(B.x+rand(-60,60), 30, LW-30)); float(pet.x, pet.y-20, '심부름!', '#fff', 14); }
@@ -975,30 +1089,34 @@ function drawBoy(g, b, o={}){
   if(b.id==='sharp'){ g.strokeStyle='#222'; g.lineWidth=1.2; g.beginPath(); g.arc(-4.5,-15,3.6,0,Math.PI*2); g.moveTo(8.1,-15); g.arc(4.5,-15,3.6,0,Math.PI*2); g.moveTo(-.9,-15); g.lineTo(.9,-15); g.stroke(); }
 }
 // 여자친구/아내: (0,0)이 얼굴 가운데
+// o.pal: 'friend'(친구 여자친구) · 'mil'(시어머니) 은 색과 소품만 바꿔 그림
 function drawGirl(g, md, o={}){
   const hard=md==='hard', ang=o.angry||0, calm=o.calm;
+  const P = o.pal==='friend' ? {hair:'#C98A3A', cloth:'#7CCFB8', ribbon:'#5DA9E9'} : o.pal==='mil' ? {hair:'#BDB6B0', cloth:'#A58BC9', glasses:true, plain:true} : {};
+  const hairC=P.hair || (hard ? '#3A2620' : '#6B3F2A'), clothC=P.cloth || (hard ? '#7FA8D9' : '#F6A5C0'), apron=hard && !P.plain;
   // 머리카락 뒤
-  g.fillStyle=hard ? '#3A2620' : '#6B3F2A';
+  g.fillStyle=hairC;
   if(hard){ ell(g,0,-12,9,8); g.fill(); }   // 똥머리
   else { rr(g,-17,-6,34,34,12); g.fill(); }
   // 몸
-  g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0'; rr(g,-16,16,32,30,10); g.fill();
-  if(hard){ g.fillStyle='#FFFFFF'; rr(g,-10,20,20,26,4); g.fill(); g.fillStyle='#F28B82'; rr(g,-6,26,12,6,2); g.fill(); }
+  g.fillStyle=clothC; rr(g,-16,16,32,30,10); g.fill();
+  if(P.plain){ g.fillStyle='#fff'; g.fillRect(-1.5,18,3,26); ell(g,0,24,1.5,1.5); }
+  else if(hard){ g.fillStyle='#FFFFFF'; rr(g,-10,20,20,26,4); g.fill(); g.fillStyle='#F28B82'; rr(g,-6,26,12,6,2); g.fill(); }
   else { g.fillStyle='#fff'; g.beginPath(); g.moveTo(-6,16); g.lineTo(0,23); g.lineTo(6,16); g.fill(); }
   // 팔: 잔소리 던질 때 한 팔을 들어 손가락질
   const up=(o.arm||0)>0;
-  g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0';
+  g.fillStyle=clothC;
   g.save(); g.translate(-15,20); g.rotate(up?.4:.2); rr(g,-3,0,6,16,3); g.fill(); g.fillStyle='#FFDCC4'; ell(g,0,17,3.5,3.5); g.fill(); g.restore();
-  g.save(); g.translate(15,20); g.rotate(up?-2.4:-.2); g.fillStyle=hard ? '#7FA8D9' : '#F6A5C0'; rr(g,-3,0,6,16,3); g.fill(); g.fillStyle='#FFDCC4'; ell(g,0,17,3.5,3.5); g.fill();
-  if(hard && !up){ g.fillStyle='#B0B7C3'; rr(g,-1,18,3,14,1); g.fill(); ell(g,.5,33,5,3.5); g.fill(); }   // 국자
+  g.save(); g.translate(15,20); g.rotate(up?-2.4:-.2); g.fillStyle=clothC; rr(g,-3,0,6,16,3); g.fill(); g.fillStyle='#FFDCC4'; ell(g,0,17,3.5,3.5); g.fill();
+  if(apron && !up){ g.fillStyle='#B0B7C3'; rr(g,-1,18,3,14,1); g.fill(); ell(g,.5,33,5,3.5); g.fill(); }   // 국자
   g.restore();
   // 얼굴
   g.fillStyle='#FFDCC4'; ell(g,0,0,14,14); g.fill();
-  g.fillStyle=hard ? '#3A2620' : '#6B3F2A';
+  g.fillStyle=hairC;
   g.beginPath(); g.arc(0,-2,14.5,Math.PI*1.05,Math.PI*1.95); g.fill();
   g.beginPath(); g.moveTo(-14,-3); g.quadraticCurveTo(-6,0,0,-8); g.quadraticCurveTo(6,0,14,-3); g.lineTo(14,-8); g.lineTo(-14,-8); g.fill();
-  if(hard){ g.fillStyle='#E8463F'; rr(g,-14,-12,28,3.5,2); g.fill(); }
-  else { g.fillStyle='#FF6F9C'; g.beginPath(); g.moveTo(9,-12); g.lineTo(15,-17); g.lineTo(15,-7); g.fill(); g.beginPath(); g.moveTo(9,-12); g.lineTo(3,-17); g.lineTo(3,-7); g.fill(); ell(g,9,-12,2.4,2.4); g.fill(); }
+  if(apron){ g.fillStyle='#E8463F'; rr(g,-14,-12,28,3.5,2); g.fill(); }
+  else if(!hard){ g.fillStyle=P.ribbon || '#FF6F9C'; g.beginPath(); g.moveTo(9,-12); g.lineTo(15,-17); g.lineTo(15,-7); g.fill(); g.beginPath(); g.moveTo(9,-12); g.lineTo(3,-17); g.lineTo(3,-7); g.fill(); ell(g,9,-12,2.4,2.4); g.fill(); }
   // 눈썹·눈·입
   g.strokeStyle='#3A2430'; g.fillStyle='#3A2430'; g.lineWidth=1.6; g.lineCap='round';
   if(calm){
@@ -1013,11 +1131,12 @@ function drawGirl(g, md, o={}){
   else { g.moveTo(-8,-4.5); g.lineTo(-3,-5); g.moveTo(8,-4.5); g.lineTo(3,-5); }
   g.stroke();
   ell(g,-5,0,1.8,2.2); g.fill(); ell(g,5,0,1.8,2.2); g.fill();
+  if(P.glasses){ g.save(); g.strokeStyle='#6B5A4A'; g.lineWidth=1.2; g.beginPath(); g.arc(-5,0,4,0,Math.PI*2); g.moveTo(9,0); g.arc(5,0,4,0,Math.PI*2); g.moveTo(-1,0); g.lineTo(1,0); g.stroke(); g.restore(); }
   if((o.mouth||0)>0){ g.fillStyle='#A8324F'; ell(g,0,7,3.6,3.2); g.fill(); }
   else if(mad){ g.beginPath(); g.moveTo(-3,8); g.quadraticCurveTo(0,5.5,3,8); g.stroke(); }
   else { g.beginPath(); g.moveTo(-3,7); g.lineTo(3,7); g.stroke(); }
   g.fillStyle='rgba(255,120,140,.45)'; ell(g,-9,4,3,1.8); g.fill(); ell(g,9,4,3,1.8); g.fill();
-  if(ang>0 || hard && level>=4){ g.font='14px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('💢', 15, -14); }
+  if(!P.plain && (ang>0 || hard && level>=4)){ g.font='14px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('💢', 15, -14); }
 }
 function drawBg(){
   const hard=mode==='hard' && state!=='menu';
@@ -1067,13 +1186,14 @@ function drawWord(w){
   ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.rot+Math.sin(w.t*4)*.03);
   const hard=mode==='hard', b=w.kind==='b';
   if(w.warnT>0){ ctx.globalAlpha=.4+.4*Math.sin(w.t*30); }
-  ctx.fillStyle = b ? (hard?'#D93A3A':'#E8558A') : hard ? '#FFF4E5' : '#FFFFFF';
-  ctx.strokeStyle = b ? 'rgba(0,0,0,.2)' : hard ? '#E8603C' : '#F48FB1';
-  ctx.lineWidth = 2;
-  rr(ctx,-w.w/2,-w.h/2,w.w,w.h,Math.min(w.h/2.2,20)); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = w.sweet ? '#FFE3EE' : b ? (hard?'#D93A3A':'#E8558A') : hard ? '#FFF4E5' : '#FFFFFF';
+  ctx.strokeStyle = w.sweet ? '#FF5C8A' : b ? 'rgba(0,0,0,.2)' : hard ? '#E8603C' : '#F48FB1';
+  ctx.lineWidth = w.sweet ? 3 : 2;
+  if(w.sweet){ ctx.shadowColor='rgba(255,92,138,'+(.6+.3*Math.sin(w.t*8))+')'; ctx.shadowBlur=14; }
+  rr(ctx,-w.w/2,-w.h/2,w.w,w.h,Math.min(w.h/2.2,20)); ctx.fill(); ctx.shadowBlur=0; ctx.stroke();
   // 말풍선 꼬리 (위쪽, 여자친구 쪽)
   ctx.beginPath(); ctx.moveTo(-5,-w.h/2+1); ctx.lineTo(0,-w.h/2-6); ctx.lineTo(5,-w.h/2+1); ctx.fill();
-  ctx.fillStyle = b ? '#fff' : hard ? '#5A2A12' : '#6B2B45';
+  ctx.fillStyle = w.sweet ? '#D6336C' : b ? '#fff' : hard ? '#5A2A12' : '#6B2B45';
   ctx.font=FONT(w.sz); ctx.textAlign='center'; ctx.textBaseline='middle';
   w.lines.forEach((l,i)=>ctx.fillText(l, 0, 1+(i-(w.lines.length-1)/2)*24));
   ctx.restore();
@@ -1111,8 +1231,14 @@ function draw(){
   ctx.save(); ctx.translate(G.x, GIRL_Y()); ctx.scale(1.25,1.25);
   drawGirl(ctx, state==='menu' ? 'normal' : mode, {mouth:G.mouthT, arm:G.armT, angry:G.angry, calm:calmT>0});
   ctx.restore();
+  if(G2){
+    ctx.save(); ctx.translate(G2.x, GIRL_Y()+4); ctx.scale(1.15,1.15);
+    drawGirl(ctx, G2.look==='mil' ? 'hard' : 'normal', {mouth:G2.mouthT, arm:G2.armT, calm:calmT>0, pal:G2.look});
+    ctx.restore();
+  }
   drawLedge();
   if(G.sayT>0) sayBubble(G.x+40, GIRL_Y()-30, G.say, true);
+  if(G2 && G2.sayT>0) sayBubble(G2.x-30, GIRL_Y()-30, G2.say, true);
   // 아이템
   for(const it of items){
     const I=ITEMS[it.kind], x=it.x+Math.sin(it.t*3)*10;
@@ -1156,6 +1282,9 @@ function draw(){
     ctx.fillStyle=gr; ctx.fillRect(0,0,LW,LH);
   }
   if(coffeeT>0){ ctx.fillStyle='rgba(192,138,92,.08)'; ctx.fillRect(0,0,LW,LH); }
+  if(ev && state==='play'){   // 사건 중: 노란 테두리가 깜빡임
+    ctx.strokeStyle=`rgba(255,176,32,${.45+.35*Math.sin(elapsed*8)})`; ctx.lineWidth=6; ctx.strokeRect(3,3,LW-6,LH-6);
+  }
   ctx.restore();
 }
 let hudN=0;
@@ -1168,6 +1297,8 @@ function hud(){
   $('skillBar').classList.toggle('full', gauge>=100);
   $('skillBtn').hidden = !(gauge>=100 && state==='play');
   const it=[];
+  if(ev) it.push('🚨 '+Math.ceil(ev.def.dur-ev.t)+'초');
+  if(sulkT>0) it.push('😤 삐짐');
   if(sorryT>0) it.push('🙏 '+sorryT.toFixed(1));
   if(coffeeT>0) it.push('☕ '+coffeeT.toFixed(1));
   if(calmT>0) it.push(M().skillIc+' '+calmT.toFixed(1));
@@ -1239,7 +1370,7 @@ function finish(reason){
   if(sec>bestSec){ bestSec=sec; store.set('bestSec', bestSec); }
   if(reason!=='quit'){ mProg('play',1); mProg('surv', Math.floor(sec)); mProg('clean', Math.floor(bestClean)); if(mode==='hard') mProg('hard', Math.floor(sec)); }
   const now=new Date();
-  lastRun={mode, score, sec:+sec.toFixed(1), boy:boyId, pet:petId, near:nearCnt, dodge:dodgeCnt, coins:runCoins, word:lastWord, date:`${now.getMonth()+1}/${now.getDate()}`};
+  lastRun={mode, score, sec:+sec.toFixed(1), boy:boyId, pet:petId, near:nearCnt, dodge:dodgeCnt, sweet:sweetCnt, events:evCnt, coins:runCoins, word:lastWord, date:`${now.getMonth()+1}/${now.getDate()}`};
   if(reason!=='quit' && score>0){
     runs.best.push(lastRun); runs.best.sort((a,b)=>b.score-a.score);
     // 난이도마다 10개씩만 남김
@@ -1247,7 +1378,7 @@ function finish(reason){
     runs.recent.unshift(lastRun); runs.recent=runs.recent.slice(0,20);
     store.set('runsBest', runs.best); store.set('runsRecent', runs.recent);
   }
-  track('game_over', {reason, mode, score, time_sec:Math.round(sec), level, boy:boyId, pet:petId, near_miss:nearCnt, hits:hitsTaken, items:itemCnt, skills:skillCnt});
+  track('game_over', {reason, mode, score, time_sec:Math.round(sec), level, boy:boyId, pet:petId, near_miss:nearCnt, hits:hitsTaken, items:itemCnt, skills:skillCnt, sweets:sweetCnt, events:evCnt});
   if(reason!=='quit') play('over');
 
   setTimeout(()=>{
@@ -1259,9 +1390,9 @@ function finish(reason){
     $('rScore').textContent=score.toLocaleString('ko-KR');
     $('rNear').textContent=nearCnt;
     $('rDodge').textContent=dodgeCnt;
-    $('rItems').textContent=itemCnt;
+    $('rSweet').textContent=sweetCnt;
     $('rCoins').textContent='+'+runCoins;
-    $('rWallet').textContent='보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
+    $('rWallet').textContent=(evCnt ? '🚨 사건 해결 '+evCnt+'번 · ' : '')+'보유 💵 '+wallet.toLocaleString('ko-KR')+'원';
     $('newBest').hidden=!isBest;
     $('newBest').textContent='🎉 '+M().name+' 모드 내 최고 기록!';
     const ul=$('rUnlock'); ul.hidden=!newly.length; ul.textContent='🔓 새 남자친구 해금: '+newly.map(b=>b.name).join(', ')+' — 옷장에서 골라 보세요';
@@ -1297,7 +1428,7 @@ function showMenu(){
   state='menu'; setPlayingUi(false); showOnly('menuOv');
   if(!B) reset();
   if(!unlocked(BOY())) boyId='basic';
-  B.b=BOY(); B.x=LW/2; words=[]; items=[]; glares=[]; fx=[]; floats=[]; calmT=0; hitT=0; sorryT=0; G.sayT=0; B.sayT=0;
+  B.b=BOY(); B.x=LW/2; G2=null; ev=null; words=[]; items=[]; glares=[]; fx=[]; floats=[]; calmT=0; hitT=0; sorryT=0; G.sayT=0; B.sayT=0;
   const cc=$('curBoy'); cc.innerHTML=''; cc.append(boyCanvas(BOY()), document.createTextNode(BOY().name+(petId!=='none' ? ' + '+PET().icon+' '+PET().name : '')));
   const bl=$('boostLine'); bl.hidden=!boosts.length; bl.textContent='다음 판 부스트: '+boosts.map(b=>BOOSTS.find(x=>x.id===b).icon).join(' ');
   setMode(mode);
