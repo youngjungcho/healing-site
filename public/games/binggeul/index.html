@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>빙글빙글 달리기 – 원버튼 러너</title>
 <meta name="description" content="쉬지 않고 달리는 작은 친구! 벽을 만나면 타고 올라가고 세상이 빙글 돌아요. 옛날 휴대폰 액정 감성의 원버튼 러너.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="쉼표 게임">
+<meta property="og:title" content="빙글빙글 달리기 — 쉼표 게임">
+<meta property="og:description" content="누르면 점프! 벽을 타면 세상이 빙글. 설치 없이 바로 하는 옛날 휴대폰 감성 원버튼 러너.">
+<meta property="og:image" content="https://swimpyonote.com/games/binggeul/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://swimpyonote.com/games/binggeul/">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -817,7 +826,6 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
-window.__bg = { get run(){ return run; }, get P(){ return P; }, get state(){ return state; }, get paused(){ return paused; }, get next(){ return next; }, startRun, jumpPress, jumpRelease, endRun, die, get wallet(){ return wallet; }, set wallet(v){ wallet=v; }, get owned(){ return owned; }, get runs(){ return runs; }, get lastRun(){ return lastRun; }, set lastRun(v){ lastRun=v; }, renderChars };   //TESTONLY
 
 /* ---------------- 시작 ---------------- */
 showMenu();
