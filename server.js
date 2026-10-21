@@ -2057,6 +2057,9 @@ const SCORE_CHECKS = {
   // 잔소리 피하기: to는 버틴 시간(초). 점수는 1초에 기본 10점에 단계마다 늘고(5분 버텨도 1초에 100점 안쪽),
   // 아슬아슬·아이템·애교를 다 합쳐도 아내 모드(1.5배)에서 1초에 250점을 넘기 어려움
   jansori: ({ score, from, to, time }) => from === 1 && to <= time + 2 && score <= 250 * time + 3000,
+  // 빙글빙글 달리기: to는 달린 거리(100m 단위). 최고 속도가 1초에 26m라서 1초에 0.3(=30m)를 못 넘음.
+  // 점수는 거리 1m에 1점 + 별 하나에 20점이라, 별을 1초에 13개씩 먹어도 1초에 300점 안쪽
+  binggeul: ({ score, from, to, time }) => from === 1 && to <= 1 + time * 0.3 && score <= 300 * time + 1000,
 };
 function scoreLooksValid(slug, r) {
   return (SCORE_CHECKS[slug] || SCORE_CHECKS.wakppu)(r);
