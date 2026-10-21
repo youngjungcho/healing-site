@@ -553,6 +553,7 @@ function drawFar(g){
     g.fillStyle=LCD.far;
   }
 }
+let phoneTf='';
 function draw(){
   if(!run) return;
   const v=speedAt(run.dist), e=ease(Math.min(1, run.rot));
@@ -589,8 +590,12 @@ function draw(){
     ctx.textAlign='left'; ctx.fillText(String(Math.floor(run.dist)).padStart(5,'0')+'m', 10, 10);
     ctx.textAlign='right'; ctx.fillText('★'+run.stars, LW-10, 10);
   }
-  // 화면이 돌 때 휴대폰째로 살짝 흔들림
-  $('phone').style.transform = run.rot>0 ? `rotate(${Math.sin(run.rot*Math.PI)*6}deg)` : '';
+  // 옛날에 폰을 돌리던 것처럼 벽을 탈 때마다 휴대폰째로 90도씩 돌아가고 그대로 이어짐.
+  // 액정 속 세상은 반대로 돌아서, 화면 밖에서 보면 세상은 그대로이고 친구가 벽을 타고 올라감.
+  // 옆으로 누우면 칸 안에 들어오게 줄임(가로세로 비율 0.6)
+  const turns=run.faceIdx+e, deg=-turns*90, side=Math.abs(Math.sin(turns*Math.PI/2));
+  const tf = turns ? `rotate(${deg}deg) scale(${1-.4*side})` : '';
+  if(phoneTf!==tf){ phoneTf=tf; $('phone').style.transform=tf; }
 }
 
 /* ---------------- 진행 ---------------- */
