@@ -616,6 +616,8 @@ function resume(){ if(!paused) return; paused=false; showOnly(null); cv.focus();
 $('resumeBtn').addEventListener('click', resume);
 $('quitBtn').addEventListener('click', ()=>{ paused=false; showMenu(); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) pause(); });
+// 점프 키를 누른 채 창을 벗어나면 keyup이 안 와서 계속 높이 뛰게 되므로 놓고 멈춤
+addEventListener('blur', ()=>{ jumpRelease(); pause(); });
 function showMenu(){
   state='menu'; setPlayingUi(false); showOnly('menuOv');
   newRun(true);
@@ -623,8 +625,11 @@ function showMenu(){
 }
 let onMenu = () => {};
 $('goBtn').addEventListener('click', startRun);
-$('againBtn').addEventListener('click', startRun);
-$('overMenu').addEventListener('click', ()=>backToMenu());
+// 죽자마자 습관처럼 누른 스페이스·탭이 결과 화면(과 순위 올리기)을 건너뛰지 않게 잠깐 버튼을 막음
+let overAt=0;
+const overReady = () => performance.now()-overAt > 450;
+$('againBtn').addEventListener('click', ()=>{ if(overReady()) startRun(); });
+$('overMenu').addEventListener('click', ()=>{ if(overReady()) backToMenu(); });
 
 /* ---------------- 입력 ---------------- */
 const press = e => { if(state!=='play') return; e.preventDefault(); jumpPress(); };
@@ -672,7 +677,7 @@ onRunEnd = () => {
   $('rWallet').textContent='모은 별 ★'+wallet.toLocaleString('ko-KR')
     + (nextC ? (wallet>=nextC.price ? ' · '+josa(nextC.name,'을','를')+' 데려올 수 있어요!' : ' · '+nextC.name+'까지 ★'+(nextC.price-wallet)) : '');
   $('shareMsg').hidden=true;
-  showOnly('overOv'); $('againBtn').focus();
+  overAt=performance.now(); showOnly('overOv'); $('againBtn').focus();
   afterRunEnd();
 };
 let afterRunEnd = () => {};
