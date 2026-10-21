@@ -615,7 +615,7 @@ function showMenu(){
 let onMenu = () => {};
 $('goBtn').addEventListener('click', startRun);
 $('againBtn').addEventListener('click', startRun);
-$('overMenu').addEventListener('click', ()=>{ showMenu(); $('goBtn').focus(); });
+$('overMenu').addEventListener('click', ()=>backToMenu());
 
 /* ---------------- 입력 ---------------- */
 const press = e => { if(state!=='play') return; e.preventDefault(); jumpPress(); };
@@ -630,6 +630,85 @@ addEventListener('keydown', e=>{
 });
 addEventListener('keyup', e=>{ if(e.key===' ' || e.key==='ArrowUp') jumpRelease(); });
 
+/* ---------------- 별 지갑·내 기록 ---------------- */
+let wallet = store.get('stars', 0);
+let runs = store.get('runs', {best:[], recent:[]});   // 각 {score, dist, stars, char, date}
+let bestDist = store.get('bestDist', 0);
+let tutDone = store.get('tutDone', false);
+const dateStr = () => { const d=new Date(); return (d.getMonth()+1)+'/'+d.getDate(); };
+// 받침 있는 이름 뒤엔 '이랑', 없으면 '랑'
+const batchim = s => { const c=s.charCodeAt(s.length-1)-0xAC00; return c>=0 && c<11172 && c%28>0; };
+const josa = (name, a, b) => name + (batchim(name) ? a : b);
+const CAUSE = {hole:'앗, 떨어졌어요!', spike:'따끔!', ceil:'쿵!'};
+
+// 첫 판 안내: 첫 회전이 끝나면 사라지고 다시 안 나옴
+onRunStart = () => { $('tut').hidden = tutDone; };
+onFaceDone = () => { if(!tutDone){ tutDone=true; store.set('tutDone', true); $('tut').hidden=true; } };
+onRunEnd = () => {
+  $('tut').hidden=true;
+  const r=lastRun, prevBest=runs.best.length ? runs.best[0].score : 0;
+  wallet+=r.stars; store.set('stars', wallet);
+  const rec={score:r.score, dist:r.dist, stars:r.stars, char:r.char, date:dateStr()};
+  runs.recent=[rec, ...runs.recent].slice(0,10);
+  runs.best=[...runs.best, rec].sort((a,b)=>b.score-a.score).slice(0,10);
+  store.set('runs', runs);
+  if(r.dist>bestDist){ bestDist=r.dist; store.set('bestDist', bestDist); }
+  track('game_over', {dist:r.dist, score:r.score, cause:r.cause, char:r.char});
+  $('overTitle').textContent=CAUSE[r.cause] || '앗!';
+  $('rDist').textContent=r.dist.toLocaleString('ko-KR')+'m';
+  $('rStars').textContent='★'+r.stars;
+  $('rScore').textContent=r.score.toLocaleString('ko-KR');
+  $('newBest').hidden = !(prevBest>0 && r.score>prevBest);
+  const nextC=CHARS.find(c=>!owned.includes(c.id));
+  $('rWallet').textContent='모은 별 ★'+wallet.toLocaleString('ko-KR')
+    + (nextC ? (wallet>=nextC.price ? ' · '+josa(nextC.name,'을','를')+' 데려올 수 있어요!' : ' · '+nextC.name+'까지 ★'+(nextC.price-wallet)) : '');
+  $('shareMsg').hidden=true;
+  showOnly('overOv'); $('againBtn').focus();
+  afterRunEnd();
+};
+let afterRunEnd = () => {};
+onMenu = () => {
+  const cc=$('curChar'); cc.innerHTML=''; cc.append(charCanvas(CHAR()), document.createTextNode(josa(CHAR().name,'이랑','랑')+' 달려요'));
+  const mb=$('menuBest'), best=runs.best.length ? runs.best[0].score : 0;
+  mb.hidden=!best && !wallet;
+  mb.textContent=[best ? '최고 '+best.toLocaleString('ko-KR')+'점' : '', bestDist ? '최장 '+bestDist.toLocaleString('ko-KR')+'m' : '', '★ '+wallet.toLocaleString('ko-KR')].filter(Boolean).join(' · ');
+};
+const backToMenu = () => { showMenu(); $('goBtn').focus(); };
+
+/* ---------------- 친구들 고르기 ---------------- */
+function renderChars(){
+  $('charWallet').textContent='모은 별 ★'+wallet.toLocaleString('ko-KR');
+  const box=$('chars'); box.innerHTML='';
+  CHARS.forEach(c=>{
+    const have=owned.includes(c.id), b=document.createElement('button');
+    b.className='gchar'+(have?'':' lock'); b.setAttribute('role','radio'); b.setAttribute('aria-checked', String(c.id===charId)); b.dataset.id=c.id;
+    b.append(charCanvas(c, have ? 'happy' : 'calm'));
+    b.insertAdjacentHTML('beforeend', `<b>${c.name}</b><small>${have ? (c.id===charId ? '함께 달리는 중' : '고르기') : '★ '+c.price}</small>`);
+    b.addEventListener('click', ()=>pickChar(c));
+    box.append(b);
+  });
+}
+function pickChar(c){
+  const info=$('charInfo');
+  if(owned.includes(c.id)){
+    charId=c.id; store.set('char', charId); play('click');
+    info.textContent=josa(c.name,'이랑','랑')+' 달려요!';
+  }else if(wallet>=c.price){
+    wallet-=c.price; owned.push(c.id); charId=c.id;
+    store.set('stars', wallet); store.set('owned', owned); store.set('char', charId);
+    play('win'); track('char_unlock', {char:c.id});
+    info.textContent='🎉 '+josa(c.name,'이','가')+' 친구가 됐어요!';
+  }else{
+    play('click');
+    info.textContent='별 '+(c.price-wallet)+'개 더 모으면 '+josa(c.name,'이','가')+' 와요';
+  }
+  renderChars();
+  const on=$('chars').querySelector(`[data-id="${c.id}"]`); if(on) on.focus();
+}
+function openChars(){ showOnly('charOv'); $('charInfo').textContent=''; renderChars(); const on=$('chars').querySelector('[aria-checked="true"]'); if(on) on.focus(); }
+$('charBtn').addEventListener('click', openChars);
+$('charOk').addEventListener('click', backToMenu);
+
 /* ---------------- 루프 ---------------- */
 let last=0;
 function frame(t){
@@ -639,7 +718,7 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
-window.__bg = { get run(){ return run; }, get P(){ return P; }, get state(){ return state; }, get paused(){ return paused; }, get next(){ return next; }, startRun, jumpPress, jumpRelease, endRun, die };   //TESTONLY
+window.__bg = { get run(){ return run; }, get P(){ return P; }, get state(){ return state; }, get paused(){ return paused; }, get next(){ return next; }, startRun, jumpPress, jumpRelease, endRun, die, get wallet(){ return wallet; }, set wallet(v){ wallet=v; }, get owned(){ return owned; }, get runs(){ return runs; }, get lastRun(){ return lastRun; }, set lastRun(v){ lastRun=v; }, renderChars };   //TESTONLY
 
 /* ---------------- 시작 ---------------- */
 showMenu();
