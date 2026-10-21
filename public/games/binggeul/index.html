@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>빙글빙글 달리기</title>
+</head>
+<body>
+<script>
+// ==CORE==
+// 그림·소리와 무관한 규칙. tests/binggeul-core.test.js가 이 블록만 꺼내 돌려 봄. 단위는 미터와 초
+const CFG = {startSpeed:9, maxSpeed:26, speedPer100m:0.8, gravity:60, jumpV:19, holdBoost:0.35, rotateSec:0.45, safeAfterWallSec:1, hazardFrom:500, starPts:20};
+const speedAt = dist => Math.min(CFG.maxSpeed, CFG.startSpeed + Math.floor(dist/100)*CFG.speedPer100m);
+// 길게 누르지 않은 점프로 넘을 수 있는 수평 거리
+const maxJumpLen = speed => speed * 2*CFG.jumpV/CFG.gravity;
+function makeRng(seed){
+  let a = seed>>>0;
+  return () => { a=(a+0x6D2B79F5)>>>0; let t=a; t=Math.imul(t^t>>>15, t|1); t^=t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296; };
+}
+// 한 면(벽까지)을 만듦. segs의 x는 이 면 안에서의 시작 위치, 마지막은 늘 len 0인 wall
+function genFace(rng, distAtStart){
+  const r = (a,b) => a + rng()*(b-a);
+  const len = Math.round(r(60, 140));
+  const v0 = speedAt(distAtStart), late = distAtStart >= CFG.hazardFrom;
+  const segs=[], stars=[];
+  let x = Math.ceil(v0*CFG.safeAfterWallSec), flatFrom = 0;
+  while(true){
+    const v = speedAt(distAtStart + x);
+    const gap = late ? Math.max(2, r(v*.35, v*.8)) : Math.max(4, r(v*.7, v*1.4));
+    const roll = rng();
+    let type = late && roll < .2 ? 'ceil' : roll < .6 ? 'hole' : 'spike';
+    const cap = .7*maxJumpLen(v);
+    const L = type==='ceil' ? r(4, 10) : type==='hole' ? r(2, cap) : r(1, Math.min(2.5, cap));
+    if(x + L + 2 > len) break;
+    if(x > flatFrom) segs.push({type:'flat', x:flatFrom, len:x-flatFrom});
+    segs.push({type, x, len:L});
+    if(type!=='ceil'){ const n = 1 + Math.floor(rng()*3); for(let i=0;i<n;i++) stars.push({x:x + L*(i+1)/(n+1), h:2.5, got:false}); }
+    flatFrom = x + L;
+    // 다음 장애물 앞 평지에 가끔 낮은 별
+    if(rng() < .3) stars.push({x:flatFrom + gap/2, h:.8, got:false});
+    x = flatFrom + gap;
+  }
+  if(len > flatFrom) segs.push({type:'flat', x:flatFrom, len:len-flatFrom});
+  segs.push({type:'wall', x:len, len:0});
+  return {segs, stars: stars.filter(s => s.x < len - 1), len};
+}
+// y는 바닥에서의 발 높이. 구멍은 땅에 닿을 때만, 가시는 낮을 때, 낮은 천장은 머리가 닿을 만큼 높을 때
+function hazardAt(face, x, y){
+  for(const s of face.segs){
+    if(x < s.x || x >= s.x + s.len) continue;
+    if(s.type==='hole' && y <= 0) return 'hole';
+    if(s.type==='spike' && y < .6) return 'spike';
+    if(s.type==='ceil' && y > 1.4) return 'ceil';
+  }
+  return null;
+}
+const scoreOf = (dist, stars) => Math.floor(dist) + stars*CFG.starPts;
+// 서버에는 거리를 100m 단위(km10)로 보냄
+const stageOf = dist => Math.max(1, Math.min(999, Math.floor(dist/100)));
+const CORE = {CFG, speedAt, maxJumpLen, makeRng, genFace, hazardAt, scoreOf, stageOf};
+// ==/CORE==
+</script>
+</body>
+</html>
