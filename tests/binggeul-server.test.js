@@ -8,7 +8,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const PORT = 4031;
+// 미리보기 서버(4031)와 겹치지 않게 빈 포트를 고름
+const PORT = 40000 + Math.floor(Math.random() * 20000);
 const API = `http://127.0.0.1:${PORT}/api/games/binggeul/scores`;
 
 let srv, dir;
@@ -17,7 +18,10 @@ test.before(async () => {
   const banned = path.join(ROOT, 'data/bannedWords.json');
   if (fs.existsSync(banned)) fs.copyFileSync(banned, path.join(dir, 'bannedWords.json'));
   srv = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), DATA_DIR_OVERRIDE: dir }, stdio: 'ignore' });
+  let exited = false;
+  srv.on('exit', () => { exited = true; });
   for (let i = 0; i < 50; i++) {
+    if (exited) throw new Error('server exited (port in use?)');
     try { await fetch(API); return; } catch (e) { await new Promise(r => setTimeout(r, 100)); }
   }
   throw new Error('server did not start');

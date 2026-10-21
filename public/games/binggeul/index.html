@@ -709,6 +709,105 @@ function openChars(){ showOnly('charOv'); $('charInfo').textContent=''; renderCh
 $('charBtn').addEventListener('click', openChars);
 $('charOk').addEventListener('click', backToMenu);
 
+/* ---------------- 기록판 ---------------- */
+const SCORE_API='/api/games/binggeul/scores';
+let myScoreIds=store.get('myscores', []);
+let rankTab='best';
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const charName = id => { const c=CHARS.find(x=>x.id===id); return c ? c.name : ''; };
+// period: '' 전체 순위, 'week' 이번 주 순위(한국 시간 월요일 0시에 새로 시작)
+async function fetchGlobal(period=''){ const r=await fetch(SCORE_API+(period?'?period='+period:''),{cache:'no-cache'}); const d=await r.json(); if(!d.ok) throw new Error(d.message); return d.scores; }
+function renderRank(){
+  ['best','recent','week','global'].forEach(t=>$('tab'+t[0].toUpperCase()+t.slice(1)).setAttribute('aria-selected', String(rankTab===t)));
+  const box=$('rankList'), msg=t=>{ box.innerHTML=`<small style="color:var(--soft);text-align:center">${t}</small>`; };
+  const online = rankTab==='global' || rankTab==='week';
+  if(!online){
+    const list=runs[rankTab];
+    if(!list.length) return msg('아직 기록이 없어요. 한 판 달려 보세요!');
+    box.innerHTML='';
+    list.forEach((r,i)=>{
+      const md = rankTab==='best' ? (['🥇','🥈','🥉'][i]||(i+1)) : '·';
+      box.insertAdjacentHTML('beforeend', `<div class="rk"><span class="md">${md}</span><b>${r.score.toLocaleString('ko-KR')}점</b><small>${r.date}</small><small>${r.dist.toLocaleString('ko-KR')}m · ${esc(charName(r.char))} · ★${r.stars}</small></div>`);
+    });
+    return;
+  }
+  if(!ONLINE) return msg('전체 순위는 쉼표 사이트(swimpyonote.com)에서만 볼 수 있어요.');
+  msg('불러오는 중…');
+  const tab=rankTab;
+  fetchGlobal(tab==='week'?'week':'').then(list=>{
+    if(rankTab!==tab) return;
+    if(!list.length) return msg(tab==='week' ? '이번 주에는 아직 기록이 없어요. 이번 주 1위가 되어 보세요!' : '아직 아무도 기록을 올리지 않았어요. 첫 번째가 되어 보세요!');
+    box.innerHTML='';
+    list.forEach((r,i)=>{
+      const d=new Date(r.date), cn=charName(r.char);
+      box.insertAdjacentHTML('beforeend', `<div class="rk${myScoreIds.includes(r.id)?' me':''}"><span class="md">${['🥇','🥈','🥉'][i]||(i+1)}</span><b>${esc(r.name)}</b><small>${r.score.toLocaleString('ko-KR')}점</small><small>${(r.stage/10).toFixed(1)}km${cn?' · '+esc(cn):''}</small><small>${d.getMonth()+1}/${d.getDate()}</small></div>`);
+    });
+  }).catch(()=>{ if(rankTab===tab) msg('순위를 불러오지 못했어요.'); });
+}
+function openRank(){ showOnly('rankOv'); rankTab='best'; renderRank(); $('rankOk').focus(); }
+$('rankBtn').addEventListener('click', openRank);
+$('rankOk').addEventListener('click', backToMenu);
+$('tabBest').addEventListener('click', ()=>{ rankTab='best'; renderRank(); });
+$('tabRecent').addEventListener('click', ()=>{ rankTab='recent'; renderRank(); });
+$('tabWeek').addEventListener('click', ()=>{ rankTab='week'; renderRank(); });
+$('tabGlobal').addEventListener('click', ()=>{ rankTab='global'; renderRank(); });
+
+/* ---------------- 전체 순위 올리기 ---------------- */
+// 서버에는 거리를 100m 단위 정수(stage)로 보냄: 340m → 3
+let gsubRun=null, lastGlobalRank=0, lastWeekRank=0;
+async function offerGlobal(){
+  const box=$('gsub'); box.hidden=true; lastGlobalRank=0; lastWeekRank=0;
+  if(!ONLINE || !lastRun || lastRun.score<=0) return;
+  const run={score:lastRun.score, from:1, to:stageOf(lastRun.dist), time:Math.ceil(lastRun.time), char:lastRun.char};
+  gsubRun=run;
+  let all, week; try{ [all, week]=await Promise.all([fetchGlobal(), fetchGlobal('week')]); }catch(e){ return; }
+  if(gsubRun!==run || state!=='over') return;
+  const pos=all.filter(r=>r.score>=run.score).length+1, wpos=week.filter(r=>r.score>=run.score).length+1;
+  if(pos>20 && wpos>20) return;   // 전체나 이번 주 둘 중 하나라도 20위 안이면 올릴 수 있게
+  $('gsubTitle').textContent = pos<=20 ? '🏆 전체 순위 '+pos+'위! 닉네임을 남겨 보세요' : '🏆 이번 주 '+wpos+'위! 닉네임을 남겨 보세요';
+  try{ $('gsubName').value=localStorage.getItem(KEY+'nick')||localStorage.getItem('swimpyo-nick')||''; }catch(e){}
+  $('gsubMsg').textContent=''; $('gsubBtn').disabled=false; $('gsubName').disabled=false;
+  box.hidden=false;
+}
+afterRunEnd = offerGlobal;
+$('gsubBtn').addEventListener('click', async ()=>{
+  const name=$('gsubName').value.trim(), run=gsubRun;
+  if(!run) return;
+  if(name.length<2){ $('gsubMsg').textContent='닉네임은 2~10자로 적어주세요.'; return; }
+  $('gsubBtn').disabled=true; $('gsubMsg').textContent='올리는 중…';
+  try{
+    const r=await fetch(SCORE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,...run})});
+    const d=await r.json();
+    if(!d.ok){ $('gsubMsg').textContent=d.message||'올리지 못했어요.'; $('gsubBtn').disabled=false; return; }
+    try{ localStorage.setItem(KEY+'nick', name); }catch(e){}   // 공용 댓글창이 이 키(<slug>-side-nick)를 읽음
+    myScoreIds.unshift(d.id); myScoreIds=myScoreIds.slice(0,50); store.set('myscores', myScoreIds);
+    if(d.rank && d.rank<=d.show) lastGlobalRank=d.rank;
+    if(d.weekRank && d.weekRank<=d.show) lastWeekRank=d.weekRank;
+    track('leaderboard_submit', {rank:d.rank||0, week_rank:d.weekRank||0, score:run.score});
+    $('gsubMsg').textContent = lastGlobalRank ? '전체 '+lastGlobalRank+'위'+(lastWeekRank?' · 이번 주 '+lastWeekRank+'위':'')+'에 올랐어요! 기록판에서 볼 수 있어요.'
+      : lastWeekRank ? '이번 주 '+lastWeekRank+'위에 올랐어요! 기록판에서 볼 수 있어요.' : '올렸어요!';
+    $('gsubName').disabled=true; gsubRun=null; play('win');
+  }catch(e){ $('gsubMsg').textContent='연결이 안 돼요. 잠시 후 다시 시도해 주세요.'; $('gsubBtn').disabled=false; }
+});
+$('gsubName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gsubBtn').click(); });
+
+/* ---------------- 공유 ---------------- */
+const SHARE_URL='https://swimpyonote.com/games/binggeul/';
+function shareMsg(m){ const el=$('shareMsg'); el.textContent=m; el.hidden=!m; }
+$('shareBtn').addEventListener('click', async ()=>{
+  if(!lastRun) return;
+  let text='🌀 빙글빙글 달리기에서 '+lastRun.dist.toLocaleString('ko-KR')+'m 달렸어요! (★'+lastRun.stars+')';
+  if(lastGlobalRank) text+='\n🏆 전체 순위 '+lastGlobalRank+'위!'; else if(lastWeekRank) text+='\n🏆 이번 주 '+lastWeekRank+'위!';
+  text+='\n나보다 멀리 갈 수 있어?';
+  if(navigator.share){
+    try{ await navigator.share({title:'빙글빙글 달리기', text, url:SHARE_URL}); track('share', {method:'web_share'}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  const full=text+'\n'+SHARE_URL;
+  try{ await navigator.clipboard.writeText(full); track('share', {method:'clipboard'}); shareMsg('복사했어요! 붙여넣어 보내 보세요.'); }
+  catch(e){ window.prompt('아래 문구를 복사해서 보내 주세요.', full); }
+});
+
 /* ---------------- 루프 ---------------- */
 let last=0;
 function frame(t){
